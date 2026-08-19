@@ -14,8 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ResolvedCredential } from '@deepseek-ai/dsh-credentials'
 import { SaxesParser } from 'saxes'
 import { describeArtifact, type ArtifactDescriptor } from './artifacts.ts'
-import { isBuiltInFreeVisionProvider, type ResolvedVisionToolkitConfig } from './config.ts'
-import { BUILT_IN_FREE_VISION_KEY } from './defaults.ts'
+import { resolveSeedreamModel, type ResolvedVisionToolkitConfig } from './config.ts'
 import { VisionToolkitError } from './errors.ts'
 import {
   assertDistinctOutput,
@@ -438,6 +437,34 @@ export interface HtmlScreenshotResult {
   artifact: ArtifactDescriptor
 }
 
+/** Structured input for the ByteDance Seedream text-to-image tool. */
+export interface GenerateImageRequest {
+  /** Text prompt (Chinese/English both work with Seedream). */
+  prompt: string
+  /** Model alias (seedream-5.0-pro/lite, seedream-4.5, seedream-4.0) or a full Ark model id. */
+  model?: string
+  /** Resolution label: 1K/2K/3K/4K. */
+  size?: string
+  /** Aspect ratio such as 16:9, 9:16, 4:3, 3:4, 21:9, or 1:1. */
+  aspectRatio?: string
+  /** Negative prompt appended to the prompt. */
+  negativePrompt?: string
+  /** Output artifact filename; .png/.jpg/.jpeg. */
+  output?: string
+}
+
+/** One generated Seedream image and its delivered artifact. */
+export interface GenerateImageResult {
+  prompt: string
+  model: string
+  images: Array<{
+    artifact: ArtifactDescriptor
+    width: number
+    height: number
+    format: string
+  }>
+}
+
 /** Optional preview controls shared by ground and detect. */
 export interface LocatePreviewRequest extends LocateRequest {
   preview?: boolean
@@ -827,9 +854,7 @@ export class VisionToolkitRuntime {
 
   /** Resolve the configured credential at the remote-operation boundary. */
   async resolveVisionEnv(): Promise<UpstreamEnvironment> {
-    const resolved: ResolvedCredential | undefined = isBuiltInFreeVisionProvider(this.config.provider)
-      ? { value: BUILT_IN_FREE_VISION_KEY, source: 'built-in' }
-      : await this.ctx.credentials.resolve(this.config.provider.credential)
+    const resolved = await this.ctx.credentials.resolve(this.config.provider.credential)
     if (resolved === undefined) {
       throw new VisionToolkitError(
         'config',
@@ -2008,6 +2033,114 @@ export class VisionToolkitRuntime {
     }
   }
 
+  /** generateImage: ByteDance Seedream text-to-image through Volcengine Ark. */
+  async generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult> {
+    return this.runOperation('vision_generate_image', options, async (operation) => {
+      const prompt = request.prompt.trim()
+      if (prompt.length === 0) throw new VisionToolkitError('input', 'generate_image: prompt must not be empty')
+      const model = resolveSeedreamModel(request.model ?? '')
+      const size = request.size?.trim() || '2K'
+      if (!/^(1K|2K|3K|4K)$/.test(size)) {
+        throw new VisionToolkitError('input', 'generate_image: size must be 1K, 2K, 3K, or 4K')
+      }
+      let aspectRatio = request.aspectRatio?.trim()
+      if (aspectRatio !== undefined && aspectRatio.length === 0) aspectRatio = undefined
+      const resolved = await this.ctx.credentials.resolve(this.config.provider.credential)
+      if (resolved === undefined) {
+        throw new VisionToolkitError(
+          'config',
+          `credential ${this.config.provider.credential} is not configured; set it through DSH credentials`,
+        )
+      }
+      operation.metrics.usedVisionService = true
+      const endpoint = `${this.config.provider.baseUrl}/images/generations`
+      const body: Record<string, unknown> = {
+        model,
+        prompt: request.negativePrompt !== undefined && request.negativePrompt.trim().length > 0
+          ? `${prompt}\n\n反向提示词: ${request.negativePrompt.trim()}`
+          : prompt,
+        size,
+        n: 1,
+        watermark: false,
+      }
+      if (aspectRatio !== undefined) {
+        body.extra_parameters = { aspect_ratio: aspectRatio }
+      }
+      const started = Date.now()
+      let response: Response
+      try {
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${resolved.value}`,
+            'User-Agent': this.config.provider.userAgent,
+          },
+          body: JSON.stringify(body),
+          signal: operation.signal,
+        })
+      } catch (error) {
+        if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_generate_image: cancelled')
+        throw new VisionToolkitError('runtime', `generate_image: Ark request failed: ${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        operation.metrics.upstreamMs += Date.now() - started
+      }
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`
+        try {
+          const payload = await response.json() as { error?: { message?: string; code?: string } }
+          if (payload.error?.message !== undefined) detail += `: ${payload.error.message}`
+          else if (payload.error?.code !== undefined) detail += `: ${payload.error.code}`
+        } catch {
+          // Keep the status-only detail when the error body is not JSON.
+        }
+        throw new VisionToolkitError('runtime', `generate_image: Ark ${detail}`)
+      }
+      const payload = await response.json() as { data?: Array<{ url?: string; b64_json?: string }> }
+      const entries = (payload.data ?? []).filter(entry => typeof entry.url === 'string' || typeof entry.b64_json === 'string')
+      if (entries.length === 0) {
+        throw new VisionToolkitError('output', 'generate_image: Ark returned no images')
+      }
+      const policy = await this.pathPolicy(options.workspace)
+      const results: GenerateImageResult['images'] = []
+      for (let index = 0; index < entries.length; index += 1) {
+        const entry = entries[index]!
+        const staged = createStagedOutput(policy, '.png')
+        try {
+          if (entry.b64_json !== undefined) {
+            await writeFile(staged, Buffer.from(entry.b64_json, 'base64'))
+          } else {
+            const imageResponse = await fetch(entry.url as string, { signal: operation.signal })
+            if (!imageResponse.ok || imageResponse.body === null) {
+              throw new VisionToolkitError('runtime', `generate_image: failed to download generated image (HTTP ${imageResponse.status})`)
+            }
+            await writeFile(staged, Buffer.from(await imageResponse.arrayBuffer()))
+          }
+          const probed = await this.probeGeneratedImage(staged, operation, 'generate_image')
+          const extension = `.${probed.format === 'jpeg' ? 'jpg' : probed.format}`
+          const finalPath = resolveOutputFile(
+            index === 0 ? request.output : undefined,
+            policy,
+            `seedream-${index + 1}${extension}`,
+            ['.png', '.jpg', '.jpeg'],
+          )
+          await commitStagedOutput(staged, finalPath, policy)
+          const artifact = await describeArtifact(finalPath, policy, {
+            mimeType: probed.format === 'jpeg' ? 'image/jpeg' : 'image/png',
+            kind: 'image',
+            description: index === 0 ? 'Seedream generated image' : `Seedream generated image ${index + 1}`,
+            sourceTool: 'vision_generate_image',
+            previewIntent: 'image',
+          })
+          results.push({ artifact, width: probed.width, height: probed.height, format: probed.format })
+        } finally {
+          await rm(staged, { force: true }).catch(() => {})
+        }
+      }
+      return { prompt, model, images: results }
+    })
+  }
+
   /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
   async health(testConnection: boolean, options: ToolCallOptions, testModel = false): Promise<VisionToolkitHealthResult> {
     return this.runOperation('vision_toolkit_health', options, async (operation) => {
@@ -2032,9 +2165,7 @@ export class VisionToolkitRuntime {
       let resolvedCredential: ResolvedCredential | undefined
       let credential: HealthCheck
       try {
-        resolvedCredential = isBuiltInFreeVisionProvider(this.config.provider)
-          ? { value: BUILT_IN_FREE_VISION_KEY, source: 'built-in' }
-          : await this.ctx.credentials.resolve(this.config.provider.credential)
+        resolvedCredential = await this.ctx.credentials.resolve(this.config.provider.credential)
         credential = resolvedCredential === undefined
           ? { status: 'error', detail: `credential ${this.config.provider.credential} is not configured` }
           : { status: 'ok', detail: `credential ${this.config.provider.credential} is resolvable` }

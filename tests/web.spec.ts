@@ -160,7 +160,7 @@ async function setup() {
 }
 
 describe('VisionToolkitWebBackend', () => {
-  it('describes Settings and credential status without resolving or exposing the secret', async () => {
+  it('describes Settings and the Ark credential status without resolving or exposing the secret', async () => {
     const { ctx, base, credentialService } = await setup()
     const response = await fetch(base)
     const body = await response.json() as {
@@ -173,13 +173,13 @@ describe('VisionToolkitWebBackend', () => {
 
     expect(response.status).toBe(200)
     expect(body.value.credential.configured).toBe(true)
-    expect(body.value.credential.ref).toBe('ANIONEX_FREE_VISION')
-    expect(body.value.credential.source).toBe('built-in-free')
-    expect(body.value.credential.writable).toBe(false)
+    expect(body.value.credential.ref).toBe('ARK_API_KEY')
+    expect(body.value.credential.source).toBe('file')
+    expect(body.value.credential.writable).toBe(true)
     expect(body.value.settings.revision).toBe(0)
     expect(JSON.stringify(body)).not.toContain('never-exposed-secret')
     expect(ctx.credentials.resolve).not.toHaveBeenCalled()
-    expect(credentialService.describe).not.toHaveBeenCalled()
+    expect(credentialService.describe).toHaveBeenCalled()
   })
 
   it('preflights, persists, activates, and rejects a stale revision', async () => {
@@ -246,17 +246,17 @@ describe('VisionToolkitWebBackend', () => {
     expect(credentialService.set).not.toHaveBeenCalled()
   })
 
-  it('rejects credential writes for the read-only built-in free provider', async () => {
+  it('stores the user-provided Volcengine Ark API key through DSH credentials', async () => {
     const { credentialService, post } = await setup()
     const response = await post({
-      action: 'credential', expectedRevision: 0, ref: 'ANIONEX_FREE_VISION', value: 'sk-must-not-persist',
+      action: 'credential', expectedRevision: 0, ref: 'ARK_API_KEY', value: 'sk-ark-key',
     })
-    const body = await response.json() as { ok: false; error: { code: string; message: string } }
+    const body = await response.json() as { ok: true }
 
-    expect(response.status).toBe(400)
-    expect(body.error.code).toBe('credential-rejected')
-    expect(body.error.message).toContain('built-in free vision provider')
-    expect(credentialService.set).not.toHaveBeenCalled()
+    expect(response.status).toBe(200)
+    expect(body.ok).toBe(true)
+    expect(credentialService.set).toHaveBeenCalledWith('ARK_API_KEY', 'sk-ark-key')
+    expect(JSON.stringify(body)).not.toContain('sk-ark-key')
   })
 
   it('rejects wrapped or environment-assignment key pastes at the HTTP boundary', async () => {

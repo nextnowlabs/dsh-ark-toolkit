@@ -34,6 +34,7 @@ async function tempWorkspace(): Promise<string> {
 
 afterEach(async () => {
   vi.unstubAllEnvs()
+  vi.unstubAllGlobals()
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
   await Promise.all(tempDirs.splice(0).map(dir => rm(dir, { recursive: true, force: true })))
 })
@@ -100,10 +101,10 @@ function mockTraceDocument(
 const signal = new AbortController().signal
 
 describe('VisionToolkitRuntime', () => {
-  it('uses the bundled free proxy without resolving a user credential', async () => {
+  it('resolves the configured Volcengine Ark credential through DSH credentials', async () => {
     const ctx = new Context()
     contexts.push(ctx)
-    const resolve = vi.fn(async () => undefined)
+    const resolve = vi.fn(async () => ({ value: 'ark-secret', source: 'env' }))
     ctx.provide('credentials', { resolve } as unknown as Credentials)
     const config = resolveConfig({
       runtime: { mode: 'external', agentVisionToolkitPath: FIXTURE_UPSTREAM, python: 'python3' },
@@ -112,38 +113,28 @@ describe('VisionToolkitRuntime', () => {
     const runtime = new VisionToolkitRuntime(ctx, config, adapter)
 
     await expect(runtime.resolveVisionEnv()).resolves.toMatchObject({
-      VISION_API_KEY: 'https://agent-vision.anionex.me',
-      VISION_BASE_URL: 'https://vision.anionex.me/v1',
-      VISION_MODEL: 'gemini-3.7-flash',
+      VISION_API_KEY: 'ark-secret',
+      VISION_BASE_URL: 'https://ark.cn-beijing.volces.com/api/v3',
+      VISION_MODEL: 'doubao-seed-2-0-lite-260215',
       VISION_API_PROTOCOL: 'chat_completions',
     })
-    expect(resolve).not.toHaveBeenCalled()
+    expect(resolve).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps the v0.1.10 Moondream default on the bundled free credential path', async () => {
+  it('fails loud when the Ark credential is not configured', async () => {
     const ctx = new Context()
     contexts.push(ctx)
-    const resolve = vi.fn(async () => undefined)
-    ctx.provide('credentials', { resolve } as unknown as Credentials)
+    ctx.provide('credentials', { resolve: vi.fn(async () => undefined) } as unknown as Credentials)
     const config = resolveConfig({
-      provider: {
-        baseUrl: 'https://vision.anionex.me/v1',
-        credential: 'ANIONEX_FREE_VISION',
-        model: 'moondream-3.1',
-        protocol: 'openai',
-      },
       runtime: { mode: 'external', agentVisionToolkitPath: FIXTURE_UPSTREAM, python: 'python3' },
     })
     const adapter = new UpstreamAdapter(ctx, config, preparedFixture())
     const runtime = new VisionToolkitRuntime(ctx, config, adapter)
 
-    await expect(runtime.resolveVisionEnv()).resolves.toMatchObject({
-      VISION_API_KEY: 'https://agent-vision.anionex.me',
-      VISION_BASE_URL: 'https://vision.anionex.me/v1',
-      VISION_MODEL: 'moondream-3.1',
-      VISION_API_PROTOCOL: 'chat_completions',
+    await expect(runtime.resolveVisionEnv()).rejects.toMatchObject({
+      code: 'config',
+      message: /ARK_API_KEY is not configured/,
     })
-    expect(resolve).not.toHaveBeenCalled()
   })
 
   it('glance describes an image', async () => {
@@ -300,6 +291,55 @@ describe('VisionToolkitRuntime', () => {
       geometry: { status: 'generated', pathCount: 1, tracedScale: 2 },
     })
     expect(result.geometry.bytes).toBeGreaterThan(0)
+  })
+
+  it('generates a Seedream image through Volcengine Ark and delivers an artifact', async () => {
+    const png = await readFile(SAMPLE_IMAGE)
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: [{ url: 'https://tos.example/seedream-1.png' }],
+      }), { status: 200, headers: { 'content-type': 'application/json' } }))
+      .mockResolvedValueOnce(new Response(png, { status: 200, headers: { 'content-type': 'image/png' } })))
+    const { runtime } = await setup({
+      provider: {
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+        credential: 'ARK_API_KEY',
+        model: 'doubao-seed-2-0-lite-260215',
+      },
+    })
+    const workspace = await tempWorkspace()
+    const result = await runtime.generateImage({ prompt: '一只小猫', output: 'cat.png' }, { signal, workspace })
+
+    expect(result).toMatchObject({ prompt: '一只小猫', model: 'doubao-seedream-5-0-260128' })
+    expect(result.images).toHaveLength(1)
+    expect(result.images[0]).toMatchObject({
+      width: 256,
+      height: 256,
+      format: 'png',
+      artifact: { filename: 'cat.png', kind: 'image', sourceTool: 'vision_generate_image' },
+    })
+    const written = await readFile(result.images[0]?.artifact.path as string)
+    expect(written.equals(png)).toBe(true)
+  })
+
+  it('resolves Seedream aliases and rejects invalid sizes for image generation', async () => {
+    const { runtime } = await setup()
+    const workspace = await tempWorkspace()
+    await expect(runtime.generateImage({ prompt: 'x', model: 'seedream-4.5', size: '8K' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /size must be 1K, 2K, 3K, or 4K/ })
+    await expect(runtime.generateImage({ prompt: '   ' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /prompt must not be empty/ })
+  })
+
+  it('reports an Ark failure when image generation returns a non-2xx response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(
+      JSON.stringify({ error: { message: 'model not found', code: 'NotFound' } }),
+      { status: 400, headers: { 'content-type': 'application/json' } },
+    )))
+    const { runtime } = await setup()
+    const workspace = await tempWorkspace()
+    await expect(runtime.generateImage({ prompt: 'a tree' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'runtime', message: /model not found/ })
   })
 
   it('accepts declarations, comments, and namespace-prefixed SVG elements', async () => {

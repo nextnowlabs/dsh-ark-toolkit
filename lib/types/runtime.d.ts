@@ -295,6 +295,32 @@ export interface HtmlScreenshotResult {
     pageHeight?: number;
     artifact: ArtifactDescriptor;
 }
+/** Structured input for the ByteDance Seedream text-to-image tool. */
+export interface GenerateImageRequest {
+    /** Text prompt (Chinese/English both work with Seedream). */
+    prompt: string;
+    /** Model alias (seedream-5.0-pro/lite, seedream-4.5, seedream-4.0) or a full Ark model id. */
+    model?: string;
+    /** Resolution label: 1K/2K/3K/4K. */
+    size?: string;
+    /** Aspect ratio such as 16:9, 9:16, 4:3, 3:4, 21:9, or 1:1. */
+    aspectRatio?: string;
+    /** Negative prompt appended to the prompt. */
+    negativePrompt?: string;
+    /** Output artifact filename; .png/.jpg/.jpeg. */
+    output?: string;
+}
+/** One generated Seedream image and its delivered artifact. */
+export interface GenerateImageResult {
+    prompt: string;
+    model: string;
+    images: Array<{
+        artifact: ArtifactDescriptor;
+        width: number;
+        height: number;
+        format: string;
+    }>;
+}
 /** Optional preview controls shared by ground and detect. */
 export interface LocatePreviewRequest extends LocateRequest {
     preview?: boolean;
@@ -392,6 +418,8 @@ export declare class VisionToolkitRuntime {
     /** html_screenshot: render only a path-fenced local HTML file in the pinned Chrome adapter. */
     htmlScreenshot(request: HtmlScreenshotRequest, options: ToolCallOptions): Promise<HtmlScreenshotResult>;
     private writableDirectoryCheck;
+    /** generateImage: ByteDance Seedream text-to-image through Volcengine Ark. */
+    generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult>;
     /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
     health(testConnection: boolean, options: ToolCallOptions, testModel?: boolean): Promise<VisionToolkitHealthResult>;
     /** Report the packaged upstream snapshot version. */

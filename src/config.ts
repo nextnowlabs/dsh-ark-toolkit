@@ -12,16 +12,19 @@ import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { VisionToolkitError } from './errors.ts'
 import {
-  BUILT_IN_FREE_VISION_BASE_URL,
-  BUILT_IN_FREE_VISION_CREDENTIAL,
-  BUILT_IN_FREE_VISION_MODEL,
+  ARK_BASE_URL,
+  ARK_CREDENTIAL,
+  ARK_SEEDREAM_MODEL,
+  ARK_VISION_MODEL,
+  SEEDREAM_MODEL_ALIASES,
 } from './defaults.ts'
 
 export {
-  BUILT_IN_FREE_VISION_BASE_URL,
-  BUILT_IN_FREE_VISION_CREDENTIAL,
-  BUILT_IN_FREE_VISION_KEY,
-  BUILT_IN_FREE_VISION_MODEL,
+  ARK_BASE_URL,
+  ARK_CREDENTIAL,
+  ARK_SEEDREAM_MODEL,
+  ARK_VISION_MODEL,
+  SEEDREAM_MODEL_ALIASES,
 } from './defaults.ts'
 
 /** Settings document namespace owned by this plugin. */
@@ -30,19 +33,14 @@ export const VISION_TOOLKIT_SETTINGS_NAMESPACE = settingsNamespace('vision-toolk
 /** Browser-compatible default shared with the vendored Python client. */
 export const DEFAULT_VISION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 
-const BUILT_IN_FREE_VISION_MODEL_ALIASES = new Set([
-  BUILT_IN_FREE_VISION_MODEL,
-  'gemini-3.7-flash',
-  'qwen/qwen3.6-27b',
-  'qwen3.6-27b',
-  'gemma-4-26b-a4b-it',
-  'gemma-4-26b',
-  '@cf/google/gemma-4-26b-a4b-it',
-  '@cf/moondream/moondream3.1-9B-A2B',
-  'moondream',
-  'moondream-3.1',
-  'moondream3.1-9B-A2B',
-])
+/**
+ * Resolve a Seedream model alias to its full Volcengine Ark model id, falling
+ * back to the raw input so advanced users may pass any Ark model id directly.
+ */
+export function resolveSeedreamModel(model: string): string {
+  const trimmed = model.trim()
+  return trimmed.length === 0 ? ARK_SEEDREAM_MODEL : (SEEDREAM_MODEL_ALIASES[trimmed] ?? trimmed)
+}
 
 /** Full user-facing configuration; every field defaults at the schema boundary. */
 export interface VisionToolkitConfig {
@@ -115,9 +113,9 @@ export interface VisionToolkitConfig {
 /** Configuration schema with the documented P0 defaults. */
 export const Config: Schema<VisionToolkitConfig> = z.object({
   provider: z.object({
-    baseUrl: z.string().default(BUILT_IN_FREE_VISION_BASE_URL),
-    credential: z.string().default(BUILT_IN_FREE_VISION_CREDENTIAL),
-    model: z.string().default(BUILT_IN_FREE_VISION_MODEL),
+    baseUrl: z.string().default(ARK_BASE_URL),
+    credential: z.string().default(ARK_CREDENTIAL),
+    model: z.string().default(ARK_VISION_MODEL),
     protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
     anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
     userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
@@ -186,21 +184,21 @@ const MAX_CONCURRENCY = 16
 export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionToolkitConfig {
   const provider = config.provider ?? {}
   const runtime = config.runtime ?? {}
-  const baseUrl = (provider.baseUrl ?? BUILT_IN_FREE_VISION_BASE_URL).trim().replace(/\/+$/, '')
+  const baseUrl = (provider.baseUrl ?? ARK_BASE_URL).trim().replace(/\/+$/, '')
   if (!/^https?:\/\//i.test(baseUrl) || baseUrl.length <= 'https://'.length) {
     throw new VisionToolkitError('config', 'provider.baseUrl must be an http(s) URL')
   }
   let credential: CredentialRef
   try {
-    credential = credentialRef((provider.credential ?? BUILT_IN_FREE_VISION_CREDENTIAL).trim())
+    credential = credentialRef((provider.credential ?? ARK_CREDENTIAL).trim())
   } catch (error) {
     throw new VisionToolkitError(
       'config',
-      `provider.credential "${provider.credential ?? BUILT_IN_FREE_VISION_CREDENTIAL}" is not a valid credential reference`,
+      `provider.credential "${provider.credential ?? ARK_CREDENTIAL}" is not a valid credential reference`,
       { cause: error },
     )
   }
-  const model = (provider.model ?? BUILT_IN_FREE_VISION_MODEL).trim()
+  const model = (provider.model ?? ARK_VISION_MODEL).trim()
   if (model.length === 0) {
     throw new VisionToolkitError('config', 'provider.model must not be empty')
   }
@@ -279,12 +277,4 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
       hidden: imageInputVariants.hidden ?? true,
     },
   }
-}
-
-/** Whether a resolved provider should use the bundled public key instead of DSH credentials. */
-export function isBuiltInFreeVisionProvider(provider: ResolvedVisionToolkitConfig['provider']): boolean {
-  return String(provider.credential) === BUILT_IN_FREE_VISION_CREDENTIAL
-    && provider.baseUrl === BUILT_IN_FREE_VISION_BASE_URL
-    && BUILT_IN_FREE_VISION_MODEL_ALIASES.has(provider.model)
-    && provider.protocol === 'openai'
 }

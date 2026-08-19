@@ -13,6 +13,7 @@ import {
   type CropRequest,
   type DominantColorsRequest,
   type ExtractForegroundRequest,
+  type GenerateImageRequest,
   type GlanceRequest,
   type HtmlScreenshotRequest,
   type LocatePreviewRequest,
@@ -47,6 +48,7 @@ export const VISION_TOOL_NAMES = {
   extractForeground: 'vision_extract_foreground',
   dominantColors: 'vision_dominant_colors',
   htmlScreenshot: 'vision_html_screenshot',
+  generateImage: 'vision_generate_image',
 } as const
 
 /** Resolve the caller workspace exactly like first-party fs/bash tools. */
@@ -587,6 +589,54 @@ export function createVisionTools(
       },
       presentCall: args => ({ card: 'generic', title: `Screenshot ${args.source}`, kind: 'execute', locations: [{ path: args.source }] }),
     }),
+    defineTool({
+      name: VISION_TOOL_NAMES.generateImage,
+      description: 'Generate one or more images with the ByteDance Seedream model through Volcengine Ark. '
+        + 'Chinese and English prompts both work. Delivers the image as a PNG/JPEG artifact in the session workspace. '
+        + `${UNTRUSTED_EVIDENCE_NOTE} ` + WORKSPACE_NOTE,
+      parameters: {
+        prompt: { type: 'string', required: true, description: 'Text prompt describing the image to create.' },
+        model: { type: 'string', description: 'seedream-5.0-pro, seedream-5.0-lite (default), seedream-4.5, seedream-4.0, or a full Ark model id.' },
+        size: { type: 'string', description: 'Resolution: 1K, 2K (default), 3K, or 4K.' },
+        aspectRatio: { type: 'string', description: 'Aspect ratio such as 16:9, 9:16, 4:3, 3:4, 21:9, or 1:1.' },
+        negativePrompt: { type: 'string', description: 'Things to avoid in the generated image.' },
+        output: { type: 'string', description: 'Artifact filename; .png/.jpg/.jpeg.' },
+        timeoutMs: { type: 'integer', description: TIMEOUT_NOTE },
+      },
+      output: {
+        schema: {
+          type: 'object', additionalProperties: false, properties: {
+            prompt: { type: 'string', required: true },
+            model: { type: 'string', required: true },
+            images: {
+              type: 'array', required: true, items: {
+                type: 'object', additionalProperties: false, properties: {
+                  artifact: requiredArtifactSchema,
+                  width: { type: 'integer', required: true },
+                  height: { type: 'integer', required: true },
+                  format: { type: 'string', required: true },
+                },
+              },
+            },
+          },
+        },
+        render: renderJson,
+        presentationMeta,
+      },
+      async execute(args: GenerateImageArgs, exec) {
+        const request: GenerateImageRequest = {
+          prompt: args.prompt,
+          ...(args.model === undefined ? {} : { model: args.model }),
+          ...(args.size === undefined ? {} : { size: args.size }),
+          ...(args.aspectRatio === undefined ? {} : { aspectRatio: args.aspectRatio }),
+          ...(args.negativePrompt === undefined ? {} : { negativePrompt: args.negativePrompt }),
+          ...(args.output === undefined ? {} : { output: args.output }),
+        }
+        return runtimeFrom(source).generateImage(request, callOptions(exec, args.timeoutMs, lifecycleSignal))
+      },
+      isConcurrencySafe: () => true,
+      presentCall: args => ({ card: 'generic', title: `Generate image: ${args.prompt.slice(0, 60)}`, kind: 'execute' }),
+    }),
   ]
 }
 
@@ -686,6 +736,15 @@ interface HtmlArgs {
   scale?: number
   waitMs?: number
   fullPage?: boolean
+  output?: string
+  timeoutMs?: number
+}
+interface GenerateImageArgs {
+  prompt: string
+  model?: string
+  size?: string
+  aspectRatio?: string
+  negativePrompt?: string
   output?: string
   timeoutMs?: number
 }

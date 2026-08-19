@@ -393,7 +393,7 @@ describe('Vision Toolkit client plugin', () => {
     })
   })
 
-  it('links the Groq tutorial and exposes a copyable manual update command', async () => {
+  it('links the Volcengine Ark tutorial and exposes a copyable manual update command', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
@@ -407,8 +407,8 @@ describe('Vision Toolkit client plugin', () => {
       t: (key: string) => key,
     }))
 
-    const tutorial = await screen.findByRole('link', { name: 'groqTutorial' })
-    expect(tutorial.getAttribute('href')).toBe('https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/groq-qwen3.6-vision.zh.md')
+    const tutorial = await screen.findByRole('link', { name: 'arkTutorial' })
+    expect(tutorial.getAttribute('href')).toBe('https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.zh.md')
 
     const command = 'dsh plugin --profile web add @anionex/dsh-vision-toolkit@latest --registry=https://registry.npmjs.org/'
     const code = screen.getByText(command)
@@ -546,18 +546,18 @@ describe('Vision Toolkit client plugin', () => {
     expect(displayRequests).toBe(2)
   })
 
-  it('unlocks API key input when the built-in provider changes to a custom endpoint', async () => {
+  it('locks the API key input for a read-only credential and unlocks it for a writable one', async () => {
     const initial = settingsSnapshot()
     initial.settings.value.provider = {
-      baseUrl: 'https://vision.anionex.me/v1',
-      credential: 'ANIONEX_FREE_VISION',
-      model: 'gemini-3.7-flash',
+      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      credential: 'ARK_API_KEY',
+      model: 'doubao-seed-2-0-lite-260215',
       protocol: 'openai',
       anthropicThinking: 'omit',
       userAgent: 'fixture-agent/1.0',
     }
     initial.credential = {
-      ref: 'ANIONEX_FREE_VISION', configured: true, source: 'built-in-free', writable: false,
+      ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false,
     }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({ ok: true, value: initial })))
 
@@ -572,7 +572,7 @@ describe('Vision Toolkit client plugin', () => {
 
     const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
     expect(keyInput.disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('baseUrl'), { target: { value: 'https://custom.example/v1' } })
+    fireEvent.change(screen.getByLabelText('credential'), { target: { value: 'MY_OWN_ARK_KEY' } })
     expect(keyInput.disabled).toBe(false)
   })
 

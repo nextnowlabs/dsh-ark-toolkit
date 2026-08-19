@@ -7,11 +7,16 @@
  */
 import type Schema from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
-export { BUILT_IN_FREE_VISION_BASE_URL, BUILT_IN_FREE_VISION_CREDENTIAL, BUILT_IN_FREE_VISION_KEY, BUILT_IN_FREE_VISION_MODEL, } from './defaults.ts';
+export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, ARK_VISION_MODEL, SEEDREAM_MODEL_ALIASES, } from './defaults.ts';
 /** Settings document namespace owned by this plugin. */
 export declare const VISION_TOOLKIT_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
 /** Browser-compatible default shared with the vendored Python client. */
 export declare const DEFAULT_VISION_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+/**
+ * Resolve a Seedream model alias to its full Volcengine Ark model id, falling
+ * back to the raw input so advanced users may pass any Ark model id directly.
+ */
+export declare function resolveSeedreamModel(model: string): string;
 /** Full user-facing configuration; every field defaults at the schema boundary. */
 export interface VisionToolkitConfig {
     provider?: {
@@ -118,6 +123,4 @@ export interface ResolvedVisionToolkitConfig {
  * @returns the fully defaulted, validated configuration.
  */
 export declare function resolveConfig(config?: VisionToolkitConfig): ResolvedVisionToolkitConfig;
-/** Whether a resolved provider should use the bundled public key instead of DSH credentials. */
-export declare function isBuiltInFreeVisionProvider(provider: ResolvedVisionToolkitConfig['provider']): boolean;
 //# sourceMappingURL=config.d.ts.map

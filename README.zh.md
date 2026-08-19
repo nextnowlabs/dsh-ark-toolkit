@@ -17,7 +17,7 @@
 
 **更强大的视觉工具箱——给 DeepSeek Harness 里的纯文本模型装上眼睛：图片问答、长图 OCR、前端 UI 还原、GUI 视觉任务，一套视觉工具箱和一个 Skill。**
 
-🚀 粘贴图片，直接提问 ｜ 一行命令安装即用 ｜ 内置免费视觉 ｜ 场景丰富
+🚀 粘贴图片，直接提问 ｜ 一行命令安装即用 ｜ 字节火山方舟 ｜ 场景丰富
 
 [亮点](#亮点) ｜ [快速开始](#快速开始三步完成) ｜ [工具一览](#工具一览) ｜ [配置与限制](#配置与限制) ｜ [常见问题](#常见问题) ｜ [交流群](#开发与社区)
 
@@ -32,8 +32,8 @@
 ## 亮点
 
 - **粘贴图片，直接提问。** 在 DSH Web 里粘贴图片，文本模型会自动切换到看图模式变体，不需要手动复制路径或更换模型。图片保留原生缩略图、会话记录和工作区路径；Web 可以预览产物。
-- **一行命令安装即用。** 安装插件后默认使用内置免费 Gemini 3.7 Flash 视觉服务，不需要申请 API Key。
-- **内置免费视觉模型额度。** 安装后即可直接使用共享服务，每台机器每天有**100 张图**的免费额度。
+- **一行命令安装即用。** 安装插件后默认接入字节火山方舟（Volcengine Ark），图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 视觉工具** 填入你自己的 Ark API Key 即可使用。
+- **字节 Seedream 文生图。** 除看图/OCR/UI 还原外，还内置 `vision_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
 - **不只是看图描述，是获取图中真正需要关注的内容。** 模型不只是生成通用描述，而是围绕“报错在哪里”“按钮在哪”等当前任务提取证据。
 - **一套经过实战验证的视觉任务方法论**：项目提供的skill，会告诉 agent 面对不同视觉任务时应该看什么、选择哪个工具、按什么步骤推进，以及最后如何验证结果。
 
@@ -44,7 +44,7 @@
 1. **视觉工具和 Skill**：让 Agent 知道什么时候该看图、定位、OCR、裁剪、描摹或做像素对比。
 2. **DSH 原生接入**：把这些能力放进 Profile、会话、Settings、Artifacts 和 Web 界面。
 
-> **安装即可使用。** 默认接入内置免费 Gemini 3.7 Flash 视觉服务，不需要申请 API Key。
+> **安装即可使用。** 默认接入字节火山方舟（Volcengine Ark）豆包 Seed Vision 视觉模型，把火山方舟 API Key 保存为 `ARK_API_KEY` 这个 DSH Credential 即可。
 
 ```sh
 dsh plugin --profile web add @anionex/dsh-vision-toolkit
@@ -66,6 +66,7 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit
 
 ## 最近更新
 
+- **仅保留字节一家：** 后端切换为字节火山方舟（Volcengine Ark），删除内置免费 Gemini/Qwen 等模型；默认用豆包 Seed Vision 做图片理解，并新增 `vision_generate_image` 用字节 Seedream 生成图片。API Key 由用户在 DSH Credential（`ARK_API_KEY`）中配置。
 - **2026-08-19 · 透明变体路由默认开启：** 模型选择器默认只显示每个模型一项并保留原模型名，粘贴图片、历史图片和内置 `read_image` 工具都能直接使用，不再需要手动切换到 `(Vision Toolkit)` 变体；如需恢复显式条目，可在 设置 → 高级设置 → 图片输入 关闭“透明变体路由”。
 - **2026-08-16 · Windows Python：** 支持 Microsoft Store Python，解决 Windows 用户首次创建隔离环境失败的问题。
 - **2026-08-17 · 免费视觉升级：** 默认模型切换到 Gemini 3.7 Flash，并修复 Qwen/Gemini 检测框坐标顺序错位的问题。
@@ -149,7 +150,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 
 ### 2. 重启并确认
 
-重启正在运行的 Web Profile，打开 **设置 → 视觉工具**。默认免费服务已经配置好；你可以直接运行**测试视觉模型**确认连接。
+重启正在运行的 Web Profile，打开 **设置 → 视觉工具**。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行**测试视觉模型**确认连接。
 
 首次启动会自动准备隔离运行环境：插件优先使用系统已有的 Python 3.11+；如果系统没有，会自动从固定发布源下载一个带完整性校验的托管 Python（约 35MB，仅首次需要网络）。普通安装不需要下载 `agent-vision-toolkit` 源码，也不需要设置本地路径。
 
@@ -166,7 +167,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 
 ## 工具一览
 
-插件提供 10 个可以单独调用、也可以组合使用的视觉工具：
+插件提供 11 个可以单独调用、也可以组合使用的视觉工具：
 
 | 工具 | 最适合解决的问题 | 主要结果 |
 | --- | --- | --- |
@@ -180,6 +181,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 | `vision_extract_foreground` | “把主体抠出来” | 透明 PNG |
 | `vision_dominant_colors` | “这块区域用了哪些主要颜色？” | 主色板或候选色排序 |
 | `vision_html_screenshot` | “按精确视口渲染本地页面，或一次捕获整页” | PNG 和可选的 CSS `pageHeight` |
+| `vision_generate_image` | “用字节 Seedream 生成一张图” | PNG/JPEG Artifact、宽高与格式 |
 
 坐标始终使用原图像素格式 `x1,y1,x2,y2`，因此定位结果可以直接交给裁剪、描摹或后续自动化。
 
@@ -224,37 +226,24 @@ flowchart LR
 
 ## 配置与限制
 
-### 默认免费服务
+### 默认使用字节火山方舟
 
-默认配置使用：
+默认配置只使用字节一家的模型：
 
 ```text
-Base URL: https://vision.anionex.me/v1
-Model:    gemini-3.7-flash
-API Key:  https://agent-vision.anionex.me（自动填写）
+Base URL: https://ark.cn-beijing.volces.com/api/v3
+模型（看图理解）: doubao-seed-2-0-lite-260215（豆包 Seed Vision）
+模型（文生图）:   doubao-seedream-5-0-260128（Seedream）
+API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 ```
 
-仍然使用旧模型名 `qwen/qwen3.6-27b` 的请求保持兼容，会自动路由到 Qwen 后端。
+图片理解（看图问答、OCR、UI 还原、定位）走火山方舟的 OpenAI 兼容 `/chat/completions` 接口，使用豆包 Seed Vision 视觉模型；`vision_generate_image` 工具走 `/images/generations`，使用字节 Seedream 模型。Seedream 别名：`seedream-5.0-pro`、`seedream-5.0-lite`（默认）、`seedream-4.5`、`seedream-4.0`。
 
-这是共享的免费入口，不是无限量私有服务。请求保护规则包括：
+### 配置自己的火山方舟 API Key
 
-| 限制 | 当前值 |
-| --- | --- |
-| 每日额度 | 每台机器每天 100 张图 |
-| 单次请求图片数 | 最多 5 张 |
-| 单张图片大小 | 4 MiB |
-| 单张图片像素 | 20,000,000 |
-| 单次输出 | 最多 4,096 tokens |
+在 **设置 → 视觉工具** 中填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
 
-这些保护规则避免异常大的请求占满内存或请求时间。共享容量用尽时，服务会返回带 `Retry-After` 的明确 `429` 响应，不会只得到一个含糊的“模型失败”。
-
-仍然发送 `api_key="free"` 的旧客户端可以继续使用。
-
-### 使用自己的视觉模型
-
-如果你需要更高额度、私有端点或其他模型，可以在 **设置 → 视觉工具** 中修改提供方，并把 API Key 保存为 DSH Credential。Settings 只保存 Credential 引用，不会回显密钥。
-
-**Groq 图文教程：** [免费获取 Groq API Key，并调用 Qwen3.6-27B 识图](docs/groq-qwen3.6-vision.zh.md)。教程包含账号与 API Key 获取截图、Vision Toolkit 的准确配置，以及可直接使用的 cURL 和 Python 示例。
+**火山方舟图文教程：** [申请火山方舟 API Key，并用豆包 Seed Vision / Seedream 做图片理解与生成](docs/ark-doubao-vision.zh.md)。教程包含账号与 Key 获取截图、Vision Toolkit 的准确配置，以及可直接使用的 cURL 和 Python 示例。
 
 也可以在 Profile patch 中配置：
 
@@ -262,9 +251,9 @@ API Key:  https://agent-vision.anionex.me（自动填写）
 - id: vision-toolkit
   config:
     provider:
-      baseUrl: https://api.example.com/v1
-      credential: MY_VISION_KEY
-      model: your-vision-model
+      baseUrl: https://ark.cn-beijing.volces.com/api/v3
+      credential: ARK_API_KEY
+      model: doubao-seed-2-0-lite-260215
       protocol: openai
 ```
 
@@ -284,7 +273,7 @@ API Key:  https://agent-vision.anionex.me（自动填写）
 | --- | --- |
 | 视觉模型测试失败：`Vision API returned an incompatible response structure` | 通常是 API 地址少了路径前缀。LM Studio、Ollama 等本地 OpenAI 兼容服务需填写 `http://127.0.0.1:1234/v1`（带 `/v1`），插件会在其后拼接 `/chat/completions`；只填端口号会命中服务的未知端点并返回该错误 |
 | 粘贴图片后仍提示模型不支持图片 | 重启 Web Profile 并刷新页面，确认当前模型已切换到带 `(Vision Toolkit)` 的变体；也可以把图片先放进会话工作区，再调用 `/vision-skills` |
-| 免费服务提示 429 | 按错误中的 `Retry-After` 等待后重试；如果需要稳定高额度，切换到自己的视觉端点 |
+| 火山方舟返回 429/限流 | 按错误信息等待后重试；或在火山引擎控制台查看配额并升级额度 |
 | 图片过大或像素超限 | 先裁剪或缩放图片；错误会明确显示是字节还是像素限制 |
 | 自定义 Credential 缺失 | 在 **设置 → 视觉工具** 填写 API Key，并确认 Credential 名称与配置一致 |
 | 首次运行时准备失败 | 自动下载托管 Python 需要网络和磁盘权限；失败时检查网络或包缓存，也可以安装 Python 3.11+ 或在 Settings 中配置 `runtime.python`，然后重新测试 |
@@ -295,7 +284,7 @@ API Key:  https://agent-vision.anionex.me（自动填写）
 
 **接入视觉模型会显著增加成本吗？**
 
-不会。每次检查只把必要的意图和图片发给多模态模型，调用之间不会累积上下文，因此额外成本很小。想进一步降低成本，可以用本地部署的小型多模态侧模型（例如 Gemma 4 或 Qwen 3.5/3.6 系列）提供视觉能力。
+不会。每次检查只把必要的意图和图片发给多模态模型，调用之间不会累积上下文，因此额外成本很小。默认的豆包 Seed Vision / Seedream 走火山方舟按量计费；想进一步降低成本，可以在火山引擎控制台关注免费额度或选购更经济的模型版本。
 
 ## 开发与社区
 

@@ -10,7 +10,7 @@ declare const en: {
     readonly externalNotice: "Remote tools send the selected image bytes to the configured external vision API. Local crop, trace, pixel diff, palette, foreground extraction, and HTML rendering do not upload images.";
     readonly provider: "Vision service";
     readonly providerHint: "Choose the API protocol, then provide the service address, model, and API key used by online vision features.";
-    readonly groqTutorial: "Want a free Groq key for Qwen3.6-27B vision? Follow the step-by-step tutorial →";
+    readonly arkTutorial: "Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →";
     readonly baseUrl: "Base URL";
     readonly apiKey: "API key";
     readonly apiKeyPlaceholderMissing: "Paste the API key";
@@ -20,7 +20,7 @@ declare const en: {
     readonly apiKeyBlank: "The API key cannot contain only spaces.";
     readonly apiKeyInvalid: "Paste only the key, without a variable name, quotes, spaces, or line breaks.";
     readonly credential: "Credential name";
-    readonly credentialHint: "The built-in free provider needs no user key. For a custom provider, this is the DSH credential reference used to store its key.";
+    readonly credentialHint: "This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.";
     readonly model: "Model";
     readonly protocol: "API protocol";
     readonly anthropicThinking: "Anthropic thinking";

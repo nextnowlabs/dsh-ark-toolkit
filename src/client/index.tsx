@@ -28,11 +28,11 @@ const SETTINGS_ROUTE = '/_dsh/vision-toolkit/settings'
 const PRESENTATION_META_KEY = '$dshVisionToolkit'
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 // Keep these browser defaults aligned with src/defaults.ts without importing server-side config.
-const BUILT_IN_FREE_VISION_BASE_URL = 'https://vision.anionex.me/v1'
-const BUILT_IN_FREE_VISION_CREDENTIAL = 'ANIONEX_FREE_VISION'
-const BUILT_IN_FREE_VISION_MODEL = 'gemini-3.7-flash'
-const GROQ_TUTORIAL_URL_EN = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/groq-qwen3.6-vision.md'
-const GROQ_TUTORIAL_URL_ZH = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/groq-qwen3.6-vision.zh.md'
+const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+const ARK_CREDENTIAL = 'ARK_API_KEY'
+const ARK_VISION_MODEL = 'doubao-seed-2-0-lite-260215'
+const ARK_TUTORIAL_URL_EN = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.md'
+const ARK_TUTORIAL_URL_ZH = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.zh.md'
 
 const en = {
   nav: 'Vision',
@@ -41,7 +41,7 @@ const en = {
   externalNotice: 'Remote tools send the selected image bytes to the configured external vision API. Local crop, trace, pixel diff, palette, foreground extraction, and HTML rendering do not upload images.',
   provider: 'Vision service',
   providerHint: 'Choose the API protocol, then provide the service address, model, and API key used by online vision features.',
-  groqTutorial: 'Want a free Groq key for Qwen3.6-27B vision? Follow the step-by-step tutorial →',
+  arkTutorial: 'Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →',
   baseUrl: 'Base URL',
   apiKey: 'API key',
   apiKeyPlaceholderMissing: 'Paste the API key',
@@ -51,7 +51,7 @@ const en = {
   apiKeyBlank: 'The API key cannot contain only spaces.',
   apiKeyInvalid: 'Paste only the key, without a variable name, quotes, spaces, or line breaks.',
   credential: 'Credential name',
-  credentialHint: 'The built-in free provider needs no user key. For a custom provider, this is the DSH credential reference used to store its key.',
+  credentialHint: 'This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.',
   model: 'Model',
   protocol: 'API protocol',
   anthropicThinking: 'Anthropic thinking',
@@ -229,7 +229,7 @@ const zh: Record<LocaleKey, string> = {
   externalNotice: '使用图像理解、目标定位、界面检测或文字识别等在线功能时，所选图片会发送到下方配置的视觉服务。图片裁剪、轮廓描摹、像素对比、主色提取、前景提取和网页截图均在本机完成，不会上传图片。',
   provider: '在线视觉服务',
   providerHint: '选择接口协议后，填写在线视觉功能使用的 API 地址、模型名称和 API 密钥。',
-  groqTutorial: '想免费申请 Groq Key 并用 Qwen3.6-27B 识图？看这篇图文教程 →',
+  arkTutorial: '用字节火山方舟做图片理解？看这篇图文教程 →',
   baseUrl: 'API 地址',
   apiKey: 'API 密钥',
   apiKeyPlaceholderMissing: '粘贴 API 密钥',
@@ -239,7 +239,7 @@ const zh: Record<LocaleKey, string> = {
   apiKeyBlank: 'API 密钥不能只包含空格。',
   apiKeyInvalid: '请只粘贴密钥本身，不要包含变量名、引号、空格或换行。',
   credential: '凭据名称',
-  credentialHint: '内置免费视觉服务无需用户密钥；切换到自定义服务时，此处是保存其密钥的 DSH 凭据名称。',
+  credentialHint: '这是保存火山方舟 API 密钥的 DSH 凭据名称。',
   model: '模型名称',
   protocol: 'API 协议',
   anthropicThinking: 'Anthropic thinking',
@@ -1094,9 +1094,9 @@ interface Draft {
 
 function draftOf(value: SettingsValue): Draft {
   return {
-    baseUrl: value.provider?.baseUrl ?? BUILT_IN_FREE_VISION_BASE_URL,
-    credential: value.provider?.credential ?? BUILT_IN_FREE_VISION_CREDENTIAL,
-    model: value.provider?.model ?? BUILT_IN_FREE_VISION_MODEL,
+    baseUrl: value.provider?.baseUrl ?? ARK_BASE_URL,
+    credential: value.provider?.credential ?? ARK_CREDENTIAL,
+    model: value.provider?.model ?? ARK_VISION_MODEL,
     protocol: value.provider?.protocol ?? 'openai',
     anthropicThinking: value.provider?.anthropicThinking ?? 'omit',
     userAgent: value.provider?.userAgent ?? DEFAULT_USER_AGENT,
@@ -1170,13 +1170,6 @@ function settingsDraftChanged(draft: Draft, saved: SettingsValue, t: Translate):
   } catch {
     return true
   }
-}
-
-function isBuiltInFreeVisionDraft(draft: Draft): boolean {
-  return draft.baseUrl.trim().replace(/\/+$/, '') === BUILT_IN_FREE_VISION_BASE_URL
-    && draft.credential.trim() === BUILT_IN_FREE_VISION_CREDENTIAL
-    && draft.model.trim() === BUILT_IN_FREE_VISION_MODEL
-    && draft.protocol === 'openai'
 }
 
 interface SettingsInjected {
@@ -1359,11 +1352,8 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
   }
   const busy = state.action !== undefined
   const credentialMatchesSnapshot = draft.credential.trim() === snapshot.credential.ref
-  const builtInCredentialChangedProvider = snapshot.credential.source === 'built-in-free'
-    && !isBuiltInFreeVisionDraft(draft)
   const keyLocked = credentialMatchesSnapshot
     && !snapshot.credential.writable
-    && !builtInCredentialChangedProvider
   const canSave = snapshot.writable || (apiKey.length > 0 && !keyLocked)
   const runtimeErrorTitle = snapshot.runtime.ready ? t('runtimeCandidateRejected') : t('runtimeUnavailable')
   const pluginUpdate = state.update
@@ -1374,7 +1364,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
   const updateHasUnsavedChanges = apiKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
   const manualUpdateProfile = updateCapability.profile ?? 'web'
   const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @anionex/dsh-vision-toolkit@latest --registry=https://registry.npmjs.org/`
-  const tutorialUrl = draft?.language === 'en' ? GROQ_TUTORIAL_URL_EN : GROQ_TUTORIAL_URL_ZH
+  const tutorialUrl = draft?.language === 'en' ? ARK_TUTORIAL_URL_EN : ARK_TUTORIAL_URL_ZH
   const copyManualUpdate = (): void => {
     void navigator.clipboard?.writeText(manualUpdateCommand)
       .then(() => {
@@ -1401,7 +1391,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
       {snapshot.runtime.lastError === undefined ? null : <div className="dvt-alert error"><strong>{runtimeErrorTitle}</strong><span>{snapshot.runtime.lastError}</span></div>}
 
       <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('provider')}</h3><p>{t('providerHint')}</p></div><span className={`dvt-badge ${snapshot.credential.configured ? 'ok' : 'error'}`}>{snapshot.credential.configured ? t('configured') : t('missing')}</span></div>
-        <p className="dvt-tutorial-link"><a href={tutorialUrl} target="_blank" rel="noreferrer">{t('groqTutorial')}</a></p>
+        <p className="dvt-tutorial-link"><a href={tutorialUrl} target="_blank" rel="noreferrer">{t('arkTutorial')}</a></p>
         <div className="dvt-form-grid">
           <Field label={t('protocol')}><select disabled={!snapshot.writable || busy} value={draft.protocol} onChange={(event) => { update('protocol', event.target.value as 'openai' | 'anthropic') }}><option value="openai">OpenAI Chat Completions</option><option value="anthropic">Anthropic Messages</option></select></Field>
           <Field label={t('baseUrl')}><Input disabled={!snapshot.writable || busy} value={draft.baseUrl} onChange={(event) => { update('baseUrl', event.target.value) }} /></Field>

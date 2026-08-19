@@ -18,7 +18,7 @@
 
 **A more powerful vision toolkit—give text-only models in DeepSeek Harness eyes: image Q&A, long-screenshot OCR, UI restoration, and GUI visual tasks in one toolkit and Skill.**
 
-🚀 Paste an image and ask directly | Install with one command | Built-in free vision | Broad use cases
+🚀 Paste an image and ask directly | Install with one command | ByteDance Volcengine Ark | Broad use cases
 
 [Highlights](#highlights) | [Quick start](#quick-start-three-steps) | [Toolbox](#toolbox) | [Configuration and limits](#configuration-and-limits) | [Troubleshooting](#troubleshooting) | [Community](#development-and-community)
 
@@ -33,8 +33,8 @@
 ## Highlights
 
 - **Paste an image and ask directly.** In DSH Web, pasting an image switches the text-only model to its `(Vision Toolkit)` variant automatically — no manual path copying or model changes. Native thumbnails, session history, and workspace paths stay intact; Web can preview artifacts.
-- **One command to install.** The built-in free Gemini 3.7 Flash vision service is ready after installation, with no API key required.
-- **Built-in free vision quota.** The shared service works immediately after installation with a quota of **100 images per machine per day**.
+- **One command to install.** After installation the default backend is ByteDance Volcengine Ark with the Doubao Seed Vision model; add your own Ark API key in **Settings → Vision Toolkit**.
+- **ByteDance Seedream generation.** Besides image Q&A, OCR, and UI restoration, the bundled `vision_generate_image` tool generates images with the ByteDance Seedream model and delivers them as Artifacts.
 - **Not just a caption — the content that matters.** The model does not produce a generic description; it extracts evidence around the current task, such as “Where is the error?” or “Where is the button?”.
 - **A battle-tested visual-task methodology.** The bundled Skill tells the agent what to look at for different visual tasks, which tool to choose, how to proceed, and how to verify the result.
 
@@ -43,9 +43,9 @@
 This project has two layers:
 
 1. **Visual tools and a Skill:** the agent learns when to inspect, ground, OCR, crop, trace, or compare pixels.
-2. **Native DSH integration:** those capabilities live inside Profiles, sessions, Settings, Artifacts, and the Web UI, with a free Gemini 3.7 Flash vision service ready after installation.
+2. **Native DSH integration:** those capabilities live inside Profiles, sessions, Settings, Artifacts, and the Web UI, with a ByteDance Volcengine Ark backend (Doubao Seed Vision + Seedream) ready after installation.
 
-> **Install and use it immediately.** The default setup includes a free Gemini 3.7 Flash vision service and requires no API key.
+> **Install and use it immediately.** The default backend is ByteDance Volcengine Ark; save your Ark API key as the `ARK_API_KEY` DSH Credential to enable vision.
 
 ```sh
 dsh plugin --profile web add @anionex/dsh-vision-toolkit
@@ -67,6 +67,7 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit
 
 ## Recent updates
 
+- **ByteDance only:** The backend switched to ByteDance Volcengine Ark and the built-in free Gemini/Qwen models were removed. Default understanding uses Doubao Seed Vision, and the new `vision_generate_image` tool generates images with ByteDance Seedream. The API key is supplied by the user through the `ARK_API_KEY` DSH Credential.
 - **2026-08-19 · Transparent routing by default:** The model selector keeps one entry per model with the original name, and image input (paste, history, `read_image`) works without manually switching to a `(Vision Toolkit)` variant. Disable “Transparent variant routing” in advanced settings → image input to restore the explicit entries.
 - **2026-08-16 · Windows Python:** Added Microsoft Store Python support, fixing first-time isolated-runtime setup failures for affected Windows users.
 - **2026-08-17 · Free vision upgrade:** Switched the built-in no-key service to Gemini 3.7 Flash and fixed Qwen/Gemini bounding-box coordinate order.
@@ -149,7 +150,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 
 ### 2. Restart and check it
 
-Restart a running Web Profile, then open **Settings → Vision Toolkit**. The free provider is already configured; run **Test vision model** to confirm it is reachable.
+Restart a running Web Profile, then open **Settings → Vision Toolkit**. The ByteDance Volcengine Ark endpoint is already configured; paste your own Ark API key (saved as the `ARK_API_KEY` credential) and run **Test vision model** to confirm it is reachable.
 
 The first start prepares an isolated runtime: the plugin prefers a system Python 3.11+; when none is found, it downloads a hash-verified standalone Python (about 35 MB) from a pinned release source on first use. A normal installation does not require an `agent-vision-toolkit` source checkout or a local path setting.
 
@@ -166,7 +167,7 @@ Rebuild the page from reference.png. After each pass, render it and run a pixel 
 
 ## Toolbox
 
-The plugin provides 10 tools that can be called independently or composed into a workflow:
+The plugin provides 11 tools that can be called independently or composed into a workflow:
 
 | Tool | Best question to ask | Main result |
 | --- | --- | --- |
@@ -180,6 +181,7 @@ The plugin provides 10 tools that can be called independently or composed into a
 | `vision_extract_foreground` | “Remove the background from this subject” | Transparent PNG |
 | `vision_dominant_colors` | “Which colors dominate this area?” | Palette or ranked candidate colors |
 | `vision_html_screenshot` | “Render this local page at an exact viewport or capture the full page” | PNG and optional CSS `pageHeight` |
+| `vision_generate_image` | “Generate an image with ByteDance Seedream” | PNG/JPEG artifact, width, height, and format |
 
 Coordinates always use original-image pixels in `x1,y1,x2,y2` form, so grounding output can feed directly into cropping, tracing, or later automation.
 
@@ -226,37 +228,24 @@ For routes that DSH positively identifies as text-only, the plugin registers a s
 
 ## Configuration and limits
 
-### Built-in free service
+### ByteDance Volcengine Ark by default
 
-The default setup uses:
+The default configuration uses ByteDance only:
 
 ```text
-Base URL: https://vision.anionex.me/v1
-Model:    gemini-3.7-flash
-API Key:  https://agent-vision.anionex.me (filled automatically)
+Base URL: https://ark.cn-beijing.volces.com/api/v3
+Vision model (understanding): doubao-seed-2-0-lite-260215 (Doubao Seed Vision)
+Generation model:              doubao-seedream-5-0-260128 (Seedream)
+API key: your own Volcengine Ark key, stored as the DSH Credential `ARK_API_KEY`
 ```
 
-Requests that still use the previous `qwen/qwen3.6-27b` model name remain compatible and are routed to the Qwen backend.
+Image understanding (Q&A, OCR, UI restoration, grounding) goes through Ark's OpenAI-compatible `/chat/completions` with the Doubao Seed Vision model; the `vision_generate_image` tool uses `/images/generations` with the ByteDance Seedream model. Seedream aliases: `seedream-5.0-pro`, `seedream-5.0-lite` (default), `seedream-4.5`, `seedream-4.0`.
 
-This is a shared zero-configuration entry point, not an unlimited private endpoint. Request safeguards include:
+### Bring your own Volcengine Ark API key
 
-| Limit | Current value |
-| --- | --- |
-| Daily quota | 100 images per machine per day |
-| Images per request | Up to 5 |
-| Image size | 4 MiB per image |
-| Decoded pixels | 20,000,000 per image |
-| Output | Up to 4,096 tokens per request |
+In **Settings → Vision Toolkit**, paste your Volcengine Ark API key; the plugin stores it as a DSH Credential (default name `ARK_API_KEY`). Settings stores the Credential reference and never reads the saved secret back into the browser.
 
-These safeguards prevent unusually large requests from monopolizing memory or request time. When shared capacity is reached, the service returns a readable `429` response with `Retry-After` instead of collapsing into an unexplained model failure.
-
-Existing clients that still send `api_key="free"` remain compatible.
-
-### Bring your own vision model
-
-For higher quotas, private endpoints, or another model, change the provider in **Settings → Vision Toolkit** and store the API key as a DSH Credential. Settings stores the Credential reference and never reads the saved secret back into the browser.
-
-**Step-by-step Groq tutorial:** [Get a free Groq API key and use Qwen3.6-27B for image understanding](docs/groq-qwen3.6-vision.md). It includes screenshots for account/API-key setup, the exact Vision Toolkit settings, and working cURL and Python examples.
+**Step-by-step Volcengine Ark tutorial:** [Get a Volcengine Ark API key and use Doubao Seed Vision / Seedream for image understanding and generation](docs/ark-doubao-vision.md). It includes screenshots for account/API-key setup, the exact Vision Toolkit settings, and working cURL and Python examples.
 
 You can also configure a Profile patch:
 
@@ -264,9 +253,9 @@ You can also configure a Profile patch:
 - id: vision-toolkit
   config:
     provider:
-      baseUrl: https://api.example.com/v1
-      credential: MY_VISION_KEY
-      model: your-vision-model
+      baseUrl: https://ark.cn-beijing.volces.com/api/v3
+      credential: ARK_API_KEY
+      model: doubao-seed-2-0-lite-260215
       protocol: openai
 ```
 
@@ -297,7 +286,7 @@ For advanced setups — overriding `runtime.python`, using `runtime.mode: extern
 
 **Will adding a vision model significantly increase costs?**
 
-No. Each inspection sends only the necessary intent and the image to the multimodal model, and context does not accumulate across calls, so the added cost stays small. To reduce it further, a locally deployed small multimodal side model (for example the Gemma 4 or Qwen 3.5/3.6 series) can provide the vision capability.
+No. Each inspection sends only the necessary intent and the image to the multimodal model, and context does not accumulate across calls, so the added cost stays small. The default Doubao Seed Vision / Seedream models are billed per-use on Volcengine Ark; to reduce cost further, watch for free-tier quotas or pick a more economical model version in the Volcengine console.
 
 ## Development and community
 

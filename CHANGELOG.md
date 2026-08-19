@@ -4,6 +4,15 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ## [Unreleased]
 
+### Changed
+
+- **ByteDance-only backend.** The backend switched from the built-in free Gemini/Qwen service to ByteDance Volcengine Ark (`https://ark.cn-beijing.volces.com/api/v3`). Image understanding now uses the Doubao Seed Vision model (`doubao-seed-2-0-lite-260215`) over OpenAI-compatible `/chat/completions`; the Gemini/Qwen/Gemma/Moondream model aliases and the `ANIONEX_FREE_VISION` built-in credential were removed, and the obsolete `workers/moondream-openai-proxy` was deleted. The Ark API key is supplied by the user and stored as the `ARK_API_KEY` DSH Credential.
+
+### Added
+
+- **`vision_generate_image` tool.** Generates images with the ByteDance Seedream model through Ark `/images/generations` (aliases `seedream-5.0-pro`/`seedream-5.0-lite`/`seedream-4.5`/`seedream-4.0`), and delivers each result as a PNG/JPEG workspace Artifact.
+- Step-by-step Volcengine Ark tutorial (`docs/ark-doubao-vision.md` / `.zh.md`) replaces the Groq/Qwen tutorial.
+
 ## [0.1.34] - 2026-08-19
 
 ### Changed
