@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
-import { resolveConfig, type VisionToolkitConfig } from '../src/config.ts'
-import { createDeadline, Semaphore, VisionToolkitRuntime } from '../src/runtime.ts'
+import { resolveConfig, type ArkToolkitConfig } from '../src/config.ts'
+import { createDeadline, Semaphore, ArkToolkitRuntime } from '../src/runtime.ts'
 
 const SAMPLE_IMAGE = fileURLToPath(new URL('./fixtures/sample.png', import.meta.url))
 
@@ -15,7 +15,7 @@ const tempDirs: string[] = []
 const contexts: Context[] = []
 
 async function tempWorkspace(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'dsh-vision-toolkit-runtime-'))
+  const dir = await mkdtemp(join(tmpdir(), 'dsh-ark-toolkit-runtime-'))
   tempDirs.push(dir)
   await copyFile(SAMPLE_IMAGE, join(dir, 'sample.png'))
   return dir
@@ -29,7 +29,7 @@ afterEach(async () => {
 })
 
 async function setup(
-  overrides: VisionToolkitConfig = {},
+  overrides: ArkToolkitConfig = {},
   credential: string | null = 'test-vision-key',
 ) {
   const ctx = new Context()
@@ -47,7 +47,7 @@ async function setup(
     },
     ...overrides,
   })
-  const runtime = new VisionToolkitRuntime(ctx, config)
+  const runtime = new ArkToolkitRuntime(ctx, config)
   return { ctx, config, runtime }
 }
 
@@ -65,7 +65,7 @@ function stubVisionFetch(answer: string, calls: ReturnType<typeof vi.fn> = vi.fn
 
 const signal = new AbortController().signal
 
-describe('VisionToolkitRuntime', () => {
+describe('ArkToolkitRuntime', () => {
   it('fails loud when the Ark credential is not configured', async () => {
     const { runtime } = await setup({}, null)
     const workspace = await tempWorkspace()
@@ -298,7 +298,7 @@ describe('VisionToolkitRuntime', () => {
     const first = await runtime.glance({ images: ['sample.png'] }, options)
     const second = await runtime.glance({ images: ['sample.png'] }, options)
     expect(second).toEqual(first)
-    const entries = await readdir(join(workspace, '.dsh-vision-toolkit', 'tmp', 'compressed-images'))
+    const entries = await readdir(join(workspace, '.dsh-ark-toolkit', 'tmp', 'compressed-images'))
     const cacheEntries = entries.filter(entry => !entry.startsWith('.'))
     expect(cacheEntries).toHaveLength(1)
     expect(cacheEntries[0]).toMatch(/^v2-[0-9a-f]{16}-b\d+-p\d+-[0-9a-f]{16}-\d+x\d+\.(?:jpg|png|webp)$/u)
@@ -310,7 +310,7 @@ describe('VisionToolkitRuntime', () => {
     const workspace = await tempWorkspace()
     const options = { signal, workspace }
     await runtime.glance({ images: ['sample.png'] }, options)
-    const cacheDir = join(workspace, '.dsh-vision-toolkit', 'tmp', 'compressed-images')
+    const cacheDir = join(workspace, '.dsh-ark-toolkit', 'tmp', 'compressed-images')
     const entries = (await readdir(cacheDir)).filter(name => !name.startsWith('.'))
     expect(entries).toHaveLength(1)
     const first = entries[0]!

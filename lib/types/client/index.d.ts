@@ -1,15 +1,15 @@
 /**
- * DSH Vision Toolkit browser plugin: dedicated Tool cards plus the Settings,
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the Settings,
  * health, connection-test, and safe Artifact preview experience.
  */
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
 declare const en: {
-    readonly nav: "Vision";
-    readonly settingsTitle: "Vision Toolkit";
-    readonly settingsIntro: "Configure the vision service endpoint, model, credential, and local safety limits.";
+    readonly nav: "Volcengine Vision";
+    readonly settingsTitle: "Volcengine Ark Toolkit";
+    readonly settingsIntro: "Configure the model and API key used by online vision features.";
     readonly externalNotice: "Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
     readonly provider: "Vision service";
-    readonly providerHint: "Choose the API protocol, then provide the service address, model, and API key used by online vision features.";
+    readonly providerHint: "Provide the model and API key used by online vision features.";
     readonly arkTutorial: "Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →";
     readonly baseUrl: "Base URL";
     readonly apiKey: "API key";
@@ -22,10 +22,15 @@ declare const en: {
     readonly credential: "Credential name";
     readonly credentialHint: "This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.";
     readonly model: "Model";
-    readonly protocol: "API protocol";
-    readonly anthropicThinking: "Anthropic thinking";
-    readonly anthropicThinkingHint: "omit has the broadest compatibility. Use disabled or adaptive only when the selected model documents that mode; restore omit first after HTTP 400.";
     readonly userAgent: "User-Agent";
+    readonly tts: "Speech (TTS)";
+    readonly ttsHint: "Separate ByteDance Volcengine Speech service used by the vision_speak tool, with its own app token independent of the Ark vision key.";
+    readonly ttsBaseUrl: "TTS base URL";
+    readonly ttsCredential: "TTS credential name";
+    readonly ttsResource: "TTS resource / App ID";
+    readonly ttsVoice: "Default voice";
+    readonly ttsKey: "TTS app token";
+    readonly ttsKeyHint: "The token is stored in DSH Credentials and is never shown again after saving.";
     readonly language: "Output language";
     readonly limits: "Limits";
     readonly timeout: "Request timeout (ms)";
@@ -62,7 +67,7 @@ declare const en: {
     readonly imageInput: "Image input";
     readonly hiddenVariants: "Transparent variant routing";
     readonly hiddenVariantsLabel: "Keep the original model names and enable images automatically";
-    readonly hiddenVariantsHint: "Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Vision Toolkit) entries.";
+    readonly hiddenVariantsHint: "Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Ark Toolkit) entries.";
     readonly pluginVersion: "Plugin";
     readonly upstreamVersion: "Upstream";
     readonly activeGeneration: "Runtime generation";
@@ -81,7 +86,7 @@ declare const en: {
     readonly upToDateDetail: "Version {version} is the latest release.";
     readonly updateNow: "Install update";
     readonly updatingPlugin: "Installing update…";
-    readonly updateConfirm: "Install Vision Toolkit {version} now? DSH Web will restart automatically when supported; otherwise a manual restart will be required.";
+    readonly updateConfirm: "Install Ark Toolkit {version} now? DSH Web will restart automatically when supported; otherwise a manual restart will be required.";
     readonly restarting: "Version {version} was installed. Waiting for DSH Web to restart…";
     readonly manualRestartRequired: "Version {version} was installed. Restart DSH Web through your usual command or process manager to activate it.";
     readonly updateProfile: "Profile";
@@ -94,7 +99,7 @@ declare const en: {
     readonly updateReasonReadOnly: "The profile package manifest is read-only.";
     readonly updateReasonPnpm: "pnpm is unavailable in the DSH execution environment.";
     readonly updateReasonPlatform: "Automatic restart is unavailable on this operating system.";
-    readonly updateReasonRestartUnmanaged: "Detached self-restart is disabled. Use a supported process manager, or explicitly opt in with DSH_VISION_TOOLKIT_ALLOW_DETACHED_RESTART=1 for an unsupervised Web process.";
+    readonly updateReasonRestartUnmanaged: "Detached self-restart is disabled. Use a supported process manager, or explicitly opt in with DSH_ARK_TOOLKIT_ALLOW_DETACHED_RESTART=1 for an unsupervised Web process.";
     readonly updateReasonRestartAddress: "Automatic restart is unavailable when DSH Web uses an unknown or dynamically allocated port. Start it with a fixed --port value.";
     readonly updateSaveFirst: "Save or discard the current Settings and API key changes before updating the plugin.";
     readonly restartTimedOut: "DSH Web did not return with the target plugin version. Check the restart log and restart the Web profile through its original process manager.";
@@ -212,8 +217,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
         };
     }
     interface LocaleNamespaceMap {
-        /** DSH Vision Toolkit Tool cards and Settings copy. */
-        'vision-toolkit': LocaleKey;
+        /** DSH Ark Toolkit Tool cards and Settings copy. */
+        'ark-toolkit': LocaleKey;
     }
 }
 interface HealthCheck {
@@ -232,9 +237,13 @@ interface SettingsValue {
         baseUrl?: string;
         credential?: string;
         model?: string;
-        protocol?: 'openai' | 'anthropic';
-        anthropicThinking?: 'omit' | 'disabled' | 'adaptive';
         userAgent?: string;
+        tts?: {
+            baseUrl?: string;
+            credential?: string;
+            resource?: string;
+            voice?: string;
+        };
     };
     language?: 'zh' | 'en';
     timeoutMs?: number;
@@ -243,7 +252,7 @@ interface SettingsValue {
     concurrency?: number;
     runtime?: {
         mode?: 'managed' | 'external';
-        agentVisionToolkitPath?: string;
+        agentArkToolkitPath?: string;
         python?: string;
     };
     allowedDirs?: string[];
@@ -297,6 +306,12 @@ interface SettingsSnapshot {
         source?: string;
         writable: boolean;
     };
+    credentialTts: {
+        ref: string;
+        configured: boolean;
+        source?: string;
+        writable: boolean;
+    };
     runtime: {
         ready: boolean;
         generation: number;
@@ -341,7 +356,7 @@ export declare class VisionSettingsController {
     private set;
     load(): Promise<void>;
     refreshIfLoaded(): void;
-    save(value: SettingsValue, expectedRevision: number, credentialValue: string | undefined, writeSettings: boolean): Promise<boolean>;
+    save(value: SettingsValue, expectedRevision: number, credentialValue: string | undefined, credentialTtsValue: string | undefined, writeSettings: boolean): Promise<boolean>;
     runHealth(mode: 'health' | 'connection' | 'model'): Promise<void>;
     checkUpdate(): Promise<void>;
     applyUpdate(expectedVersion: string): Promise<void>;

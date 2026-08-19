@@ -3,21 +3,21 @@
  * host positively declares text-only. A variant declares image input, so
  * pasted images keep the native attachment flow — composer thumbnail and the
  * durable session image — while the variant's stream rewrites every image
- * block into a workspace path plus a Vision Toolkit description before
+ * block into a workspace path plus a Ark Toolkit description before
  * delegating to the original route. The durable log is untouched; only the
  * wire carries the evidence text.
- * @module dsh-vision-toolkit/image-input-variants
+ * @module dsh-ark-toolkit/image-input-variants
  */
 import type { Context } from '@deepseek-ai/cordis';
 import LlmService, { LlmAdapter } from '@deepseek-ai/dsh-llm';
 import type { ContentBlock, GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, Message, StreamChunk } from '@deepseek-ai/dsh-llm';
-import type { ResolvedVisionToolkitConfig } from './config.ts';
+import type { ResolvedArkToolkitConfig } from './config.ts';
 import { type PasteSelectionQuery, type PasteVerdict } from './paste-images.ts';
-import type { VisionToolkitRuntime } from './runtime.ts';
+import type { ArkToolkitRuntime } from './runtime.ts';
 /** Provider-id prefix for the variant routes this plugin registers. */
-export declare const VARIANT_PROVIDER_PREFIX = "vision-toolkit-";
+export declare const VARIANT_PROVIDER_PREFIX = "ark-toolkit-";
 /** Display suffix shared by variant provider names and variant model names. */
-export declare const VARIANT_SUFFIX = " (Vision Toolkit)";
+export declare const VARIANT_SUFFIX = " (Ark Toolkit)";
 /** The variant provider route minted for one upstream route. */
 export declare function variantProviderId(upstream: string): string;
 /**
@@ -71,7 +71,7 @@ export declare function abortableWait<T>(promise: Promise<T>, signal: AbortSigna
  * @param sessionId - the live Session identity, when available.
  * @returns the rewritten message list.
  */
-export declare function convertImagesToEvidence(ctx: Context, runtime: () => VisionToolkitRuntime | undefined, cache: EvidenceCache, messages: readonly Message[], signal?: AbortSignal, sessionId?: string): Promise<Message[]>;
+export declare function convertImagesToEvidence(ctx: Context, runtime: () => ArkToolkitRuntime | undefined, cache: EvidenceCache, messages: readonly Message[], signal?: AbortSignal, sessionId?: string): Promise<Message[]>;
 /**
  * The adapter behind one variant route: model metadata declares image input,
  * and every stream rewrites image blocks before delegating to the upstream
@@ -87,7 +87,7 @@ export declare class ImageInputVariantAdapter extends LlmAdapter {
     private readonly cache;
     private readonly hidden;
     private lastRuntime;
-    constructor(ctx: Context, llm: LlmService, upstream: string, upstreamName: string, runtime: () => VisionToolkitRuntime | undefined, cache: EvidenceCache, hidden?: () => boolean);
+    constructor(ctx: Context, llm: LlmService, upstream: string, upstreamName: string, runtime: () => ArkToolkitRuntime | undefined, cache: EvidenceCache, hidden?: () => boolean);
     providerInfo(provider: string): LlmProviderInfo;
     listModels(provider: string): Promise<readonly LlmModelInfo[]>;
     resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;
@@ -139,17 +139,17 @@ export declare function labelTakeoverVerdict(ctx: Context, label: string): Promi
  * @param getConfig - resolves the current plugin configuration per verdict.
  * @returns the cached verdict resolver for the Web paste-policy route.
  */
-export declare function createPasteTakeoverResolver(ctx: Context, getConfig: () => ResolvedVisionToolkitConfig): (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>;
+export declare function createPasteTakeoverResolver(ctx: Context, getConfig: () => ResolvedArkToolkitConfig): (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>;
 /**
  * Register and maintain one variant route per eligible upstream route. Routes
  * that later vanish are released; routes that gain eligible models later are
  * picked up by the next sweep (host topology notifications included).
  * @param ctx - plugin context with the `llm` service.
  * @param getConfig - resolves the current plugin configuration per sweep.
- * @param getRuntime - the currently serving Vision Toolkit runtime, if ready.
+ * @param getRuntime - the currently serving Ark Toolkit runtime, if ready.
  * @returns the disposer and a manual re-sweep trigger (settings changes).
  */
-export declare function installImageInputVariants(ctx: Context, getConfig: () => ResolvedVisionToolkitConfig, getRuntime: () => VisionToolkitRuntime | undefined): {
+export declare function installImageInputVariants(ctx: Context, getConfig: () => ResolvedArkToolkitConfig, getRuntime: () => ArkToolkitRuntime | undefined): {
     dispose: () => void;
     reconcile: () => void;
 };

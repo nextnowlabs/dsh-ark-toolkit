@@ -1,10 +1,10 @@
 /**
- * Vision Toolkit runtime: structured requests in, structured results out.
+ * Ark Toolkit runtime: structured requests in, structured results out.
  * Pure-TypeScript image understanding through the configured vision service;
  * ByteDance Seedream generation and Volcengine TTS stay direct HTTP. There is
  * no Python runtime and no vendored pixel toolkit: image probing, cropping,
  * and compression run on sharp inside Node.
- * @module dsh-vision-toolkit/runtime
+ * @module dsh-ark-toolkit/runtime
  */
 
 import { createHash, randomUUID } from 'node:crypto'
@@ -14,8 +14,8 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ResolvedCredential } from '@deepseek-ai/dsh-credentials'
 import { describeArtifact, type ArtifactDescriptor } from './artifacts.ts'
-import { resolveSeedreamModel, VOLCENGINE_TTS_VOICE, type ResolvedVisionToolkitConfig } from './config.ts'
-import { VisionToolkitError } from './errors.ts'
+import { resolveSeedreamModel, VOLCENGINE_TTS_VOICE, type ResolvedArkToolkitConfig } from './config.ts'
+import { ArkToolkitError } from './errors.ts'
 import { compressImage, cropRegionToDataUrl, imageToDataUrl, probeImage } from './image-codec.ts'
 import {
   commitStagedOutput,
@@ -102,9 +102,9 @@ export class Semaphore {
 
   /** Acquire one slot, aborting while queued when `signal` fires. */
   async acquire(signal: AbortSignal, permits = 1): Promise<void> {
-    if (signal.aborted) throw new VisionToolkitError('cancelled', 'vision-toolkit: cancelled before execution')
+    if (signal.aborted) throw new ArkToolkitError('cancelled', 'ark-toolkit: cancelled before execution')
     if (!Number.isInteger(permits) || permits < 1 || permits > this.limit) {
-      throw new VisionToolkitError('input', `concurrency permits must be between 1 and ${this.limit}`)
+      throw new ArkToolkitError('input', `concurrency permits must be between 1 and ${this.limit}`)
     }
     if (this.waiters.length === 0 && this.active + permits <= this.limit) {
       this.active += permits
@@ -121,7 +121,7 @@ export class Semaphore {
       entry.onAbort = (): void => {
         const index = this.waiters.indexOf(entry)
         if (index >= 0) this.waiters.splice(index, 1)
-        reject(new VisionToolkitError('cancelled', 'vision-toolkit: cancelled while waiting for a concurrency slot'))
+        reject(new ArkToolkitError('cancelled', 'ark-toolkit: cancelled while waiting for a concurrency slot'))
       }
       this.waiters.push(entry)
       signal.addEventListener('abort', entry.onAbort, { once: true })
@@ -250,7 +250,7 @@ export interface HealthCheck {
 }
 
 /** Runtime, credential, storage, and optional service health. */
-export interface VisionToolkitHealthResult {
+export interface ArkToolkitHealthResult {
   pluginVersion: string
   checks: {
     credential: HealthCheck
@@ -309,7 +309,7 @@ const FORMAT_BY_EXTENSION = new Map([
 export function parseRegion(region: string): { x1: number; y1: number; x2: number; y2: number } {
   const match = REGION_PATTERN.exec(region)
   if (match === null) {
-    throw new VisionToolkitError('input', 'region must be four integers: X1,Y1,X2,Y2 (pixels)')
+    throw new ArkToolkitError('input', 'region must be four integers: X1,Y1,X2,Y2 (pixels)')
   }
   const box = {
     x1: Number(match[1]),
@@ -318,19 +318,19 @@ export function parseRegion(region: string): { x1: number; y1: number; x2: numbe
     y2: Number(match[4]),
   }
   if (box.x2 <= box.x1 || box.y2 <= box.y1) {
-    throw new VisionToolkitError('input', 'region must have x2 > x1 and y2 > y1')
+    throw new ArkToolkitError('input', 'region must have x2 > x1 and y2 > y1')
   }
   return box
 }
 
 /** Runtime facade used by every native tool. */
-export class VisionToolkitRuntime {
+export class ArkToolkitRuntime {
   private readonly semaphores = new Map<string, Semaphore>()
   private readonly glanceCache = new WeakMap<object, GlanceCacheEntry>()
 
   constructor(
     private readonly ctx: Context,
-    private readonly config: ResolvedVisionToolkitConfig,
+    private readonly config: ResolvedArkToolkitConfig,
   ) {}
 
   /** Stable runtime identity reported to tools and logs. */
@@ -341,7 +341,7 @@ export class VisionToolkitRuntime {
   private timeout(options: ToolCallOptions): number {
     const value = options.timeoutMs ?? this.config.timeoutMs
     if (!Number.isInteger(value) || value < 1000 || value > MAX_TIMEOUT_MS) {
-      throw new VisionToolkitError('input', `timeoutMs must be an integer between 1000 and ${MAX_TIMEOUT_MS}`)
+      throw new ArkToolkitError('input', `timeoutMs must be an integer between 1000 and ${MAX_TIMEOUT_MS}`)
     }
     return value
   }
@@ -351,21 +351,21 @@ export class VisionToolkitRuntime {
     error: unknown,
     deadline: Deadline,
     phase: 'queue' | 'execution' = 'execution',
-  ): VisionToolkitError {
+  ): ArkToolkitError {
     if (deadline.cancelled) {
-      return new VisionToolkitError(
+      return new ArkToolkitError(
         'cancelled',
         phase === 'queue' ? `${tool}: cancelled while waiting for a concurrency slot` : `${tool}: cancelled`,
       )
     }
     if (deadline.timedOut) {
-      return new VisionToolkitError(
+      return new ArkToolkitError(
         'timeout',
         phase === 'queue' ? `${tool}: timed out while waiting for a concurrency slot` : `${tool}: timed out`,
       )
     }
-    if (error instanceof VisionToolkitError) return error
-    return new VisionToolkitError('runtime', `${tool}: execution failed`, { cause: error })
+    if (error instanceof ArkToolkitError) return error
+    return new ArkToolkitError('runtime', `${tool}: execution failed`, { cause: error })
   }
 
   private semaphore(options: ToolCallOptions): { key: string; value: Semaphore } {
@@ -408,7 +408,7 @@ export class VisionToolkitRuntime {
         acquired = false
       }
       this.ctx.logger.warn(
-        'dsh-vision-toolkit tool=%s outcome=error category=%s totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d',
+        'dsh-ark-toolkit tool=%s outcome=error category=%s totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d',
         tool,
         classified.code,
         Date.now() - metrics.startedAt,
@@ -431,7 +431,7 @@ export class VisionToolkitRuntime {
       const value = await action({ signal: executionDeadline.signal, metrics })
       if (executionDeadline.signal.aborted) throw this.operationError(tool, undefined, executionDeadline)
       this.ctx.logger.info(
-        'dsh-vision-toolkit tool=%s outcome=ok totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d model=%s',
+        'dsh-ark-toolkit tool=%s outcome=ok totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d model=%s',
         tool,
         Date.now() - metrics.startedAt,
         metrics.queueMs,
@@ -446,7 +446,7 @@ export class VisionToolkitRuntime {
     } catch (error) {
       const classified = this.operationError(tool, error, executionDeadline)
       this.ctx.logger.warn(
-        'dsh-vision-toolkit tool=%s outcome=error category=%s totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d',
+        'dsh-ark-toolkit tool=%s outcome=error category=%s totalMs=%d queueMs=%d upstreamMs=%d images=%d imageBytes=%d imagePixels=%d cacheHits=%d',
         tool,
         classified.code,
         Date.now() - metrics.startedAt,
@@ -469,7 +469,7 @@ export class VisionToolkitRuntime {
   private async serviceOptions(signal: AbortSignal): Promise<VisionServiceOptions> {
     const resolved = await this.ctx.credentials.resolve(this.config.provider.credential)
     if (resolved === undefined) {
-      throw new VisionToolkitError(
+      throw new ArkToolkitError(
         'config',
         `credential ${this.config.provider.credential} is not configured; set it through DSH credentials`,
       )
@@ -479,7 +479,6 @@ export class VisionToolkitRuntime {
       apiKey: resolved.value,
       model: this.config.provider.model,
       protocol: this.config.provider.protocol,
-      anthropicThinking: this.config.provider.anthropicThinking,
       userAgent: this.config.provider.userAgent,
       language: this.config.language,
       signal,
@@ -491,9 +490,9 @@ export class VisionToolkitRuntime {
   }
 
   private async compressedImageRoot(policy: PathPolicy): Promise<string> {
-    const root = join(policy.workspace, '.dsh-vision-toolkit', 'tmp', 'compressed-images')
+    const root = join(policy.workspace, '.dsh-ark-toolkit', 'tmp', 'compressed-images')
     let current = policy.workspace
-    for (const segment of ['.dsh-vision-toolkit', 'tmp', 'compressed-images']) {
+    for (const segment of ['.dsh-ark-toolkit', 'tmp', 'compressed-images']) {
       current = join(current, segment)
       try {
         await mkdir(current, { mode: 0o700 })
@@ -502,15 +501,15 @@ export class VisionToolkitRuntime {
       }
       const info = await lstat(current)
       if (info.isSymbolicLink() || !info.isDirectory()) {
-        throw new VisionToolkitError('path', `compressed-image cache path is not a real directory: ${current}`)
+        throw new ArkToolkitError('path', `compressed-image cache path is not a real directory: ${current}`)
       }
       if (!isWithin(policy.workspace, current)) {
-        throw new VisionToolkitError('path', `compressed-image cache path escaped the workspace: ${current}`)
+        throw new ArkToolkitError('path', `compressed-image cache path escaped the workspace: ${current}`)
       }
     }
     const canonical = await realpath(root)
     if (!isWithin(policy.workspace, canonical)) {
-      throw new VisionToolkitError('path', 'compressed-image cache resolved outside the workspace')
+      throw new ArkToolkitError('path', 'compressed-image cache resolved outside the workspace')
     }
     return canonical
   }
@@ -628,10 +627,10 @@ export class VisionToolkitRuntime {
     try {
       bytes = await readFile(image.path, { signal: operation.signal })
     } catch (error) {
-      throw new VisionToolkitError('input', `image changed while preparing the vision request: ${image.path}`, { cause: error })
+      throw new ArkToolkitError('input', `image changed while preparing the vision request: ${image.path}`, { cause: error })
     }
     if (bytes.length !== image.bytes) {
-      throw new VisionToolkitError('input', `image changed while preparing the vision request: ${image.path}`)
+      throw new ArkToolkitError('input', `image changed while preparing the vision request: ${image.path}`)
     }
     const digest = createHash('sha256').update(bytes).digest('hex').slice(0, COMPRESSED_IMAGE_CACHE_KEY_DIGEST_LENGTH)
     const root = await this.compressedImageRoot(policy)
@@ -687,7 +686,7 @@ export class VisionToolkitRuntime {
       await rename(staged, finalPath)
     } catch (error) {
       await rm(staged, { force: true }).catch(() => {})
-      throw new VisionToolkitError('path', `cannot commit compressed image cache entry: ${finalPath}`, { cause: error })
+      throw new ArkToolkitError('path', `cannot commit compressed image cache entry: ${finalPath}`, { cause: error })
     }
     await this.pruneCompressedCache(root)
     return {
@@ -705,12 +704,12 @@ export class VisionToolkitRuntime {
     const decoded = await probeImage(image.path)
     const pixels = decoded.width * decoded.height
     if (!Number.isSafeInteger(pixels) || pixels < 1) {
-      throw new VisionToolkitError('input', `image dimensions are invalid: ${decoded.width}x${decoded.height}`)
+      throw new ArkToolkitError('input', `image dimensions are invalid: ${decoded.width}x${decoded.height}`)
     }
     const extension = extname(image.path).toLowerCase()
     const expected = FORMAT_BY_EXTENSION.get(extension)
     if (expected !== decoded.format) {
-      throw new VisionToolkitError('input', `image content is ${decoded.format}, but the filename uses ${extension}`)
+      throw new ArkToolkitError('input', `image content is ${decoded.format}, but the filename uses ${extension}`)
     }
     if (image.bytes <= this.config.maxImageBytes && pixels <= this.config.maxImagePixels) {
       return { ...image, width: decoded.width, height: decoded.height, format: decoded.format, originalPath: image.path }
@@ -735,10 +734,10 @@ export class VisionToolkitRuntime {
       try {
         bytes = await readFile(image.path, { signal })
       } catch (error) {
-        throw new VisionToolkitError('input', `image changed while preparing the vision request: ${image.path}`, { cause: error })
+        throw new ArkToolkitError('input', `image changed while preparing the vision request: ${image.path}`, { cause: error })
       }
       if (bytes.length !== image.bytes) {
-        throw new VisionToolkitError('input', `image changed while preparing the vision request: ${image.path}`)
+        throw new ArkToolkitError('input', `image changed while preparing the vision request: ${image.path}`)
       }
       return {
         path: image.path,
@@ -754,7 +753,6 @@ export class VisionToolkitRuntime {
         baseUrl: options.baseUrl,
         model: options.model,
         protocol: options.protocol,
-        anthropicThinking: options.anthropicThinking,
         userAgent: options.userAgent,
         language: options.language,
         credentialSha256: createHash('sha256').update(options.apiKey).digest('hex'),
@@ -765,12 +763,12 @@ export class VisionToolkitRuntime {
   /** glance: describe, targeted QA, OCR, or multi-image comparison through the vision model. */
   async glance(request: GlanceRequest, options: ToolCallOptions): Promise<GlanceResult> {
     return this.runOperation('vision_glance', options, async (operation) => {
-      if (request.images.length === 0) throw new VisionToolkitError('input', 'glance requires at least one image')
+      if (request.images.length === 0) throw new ArkToolkitError('input', 'glance requires at least one image')
       if (request.query !== undefined && request.ocr === true) {
-        throw new VisionToolkitError('input', 'glance: query and ocr are mutually exclusive')
+        throw new ArkToolkitError('input', 'glance: query and ocr are mutually exclusive')
       }
       if (request.region !== undefined && request.images.length > 1) {
-        throw new VisionToolkitError('input', 'glance: region works with exactly one image')
+        throw new ArkToolkitError('input', 'glance: region works with exactly one image')
       }
       let region: { x1: number; y1: number; x2: number; y2: number } | undefined
       if (request.region !== undefined) region = parseRegion(request.region)
@@ -820,7 +818,7 @@ export class VisionToolkitRuntime {
   }
 
   private async writableDirectoryCheck(path: string, label: string): Promise<HealthCheck> {
-    const probe = join(path, `.vision-toolkit-health-${randomUUID()}`)
+    const probe = join(path, `.ark-toolkit-health-${randomUUID()}`)
     try {
       await writeFile(probe, 'ok\n', { encoding: 'utf8', flag: 'wx' })
       await rm(probe, { force: true })
@@ -835,17 +833,17 @@ export class VisionToolkitRuntime {
   async generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult> {
     return this.runOperation('vision_generate_image', options, async (operation) => {
       const prompt = request.prompt.trim()
-      if (prompt.length === 0) throw new VisionToolkitError('input', 'generate_image: prompt must not be empty')
+      if (prompt.length === 0) throw new ArkToolkitError('input', 'generate_image: prompt must not be empty')
       const model = resolveSeedreamModel(request.model ?? '')
       const size = request.size?.trim() || '2K'
       if (!/^(1K|2K|3K|4K)$/.test(size)) {
-        throw new VisionToolkitError('input', 'generate_image: size must be 1K, 2K, 3K, or 4K')
+        throw new ArkToolkitError('input', 'generate_image: size must be 1K, 2K, 3K, or 4K')
       }
       let aspectRatio = request.aspectRatio?.trim()
       if (aspectRatio !== undefined && aspectRatio.length === 0) aspectRatio = undefined
       const resolved = await this.ctx.credentials.resolve(this.config.provider.credential)
       if (resolved === undefined) {
-        throw new VisionToolkitError(
+        throw new ArkToolkitError(
           'config',
           `credential ${this.config.provider.credential} is not configured; set it through DSH credentials`,
         )
@@ -878,8 +876,8 @@ export class VisionToolkitRuntime {
           signal: operation.signal,
         })
       } catch (error) {
-        if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_generate_image: cancelled')
-        throw new VisionToolkitError('runtime', `generate_image: Ark request failed: ${error instanceof Error ? error.message : String(error)}`)
+        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_generate_image: cancelled')
+        throw new ArkToolkitError('runtime', `generate_image: Ark request failed: ${error instanceof Error ? error.message : String(error)}`)
       } finally {
         operation.metrics.upstreamMs += Date.now() - started
       }
@@ -892,12 +890,12 @@ export class VisionToolkitRuntime {
         } catch {
           // Keep the status-only detail when the error body is not JSON.
         }
-        throw new VisionToolkitError('runtime', `generate_image: Ark ${detail}`)
+        throw new ArkToolkitError('runtime', `generate_image: Ark ${detail}`)
       }
       const payload = await response.json() as { data?: Array<{ url?: string; b64_json?: string }> }
       const entries = (payload.data ?? []).filter(entry => typeof entry.url === 'string' || typeof entry.b64_json === 'string')
       if (entries.length === 0) {
-        throw new VisionToolkitError('output', 'generate_image: Ark returned no images')
+        throw new ArkToolkitError('output', 'generate_image: Ark returned no images')
       }
       const policy = await this.pathPolicy(options.workspace)
       const results: GenerateImageResult['images'] = []
@@ -910,7 +908,7 @@ export class VisionToolkitRuntime {
           } else {
             const imageResponse = await fetch(entry.url as string, { signal: operation.signal })
             if (!imageResponse.ok || imageResponse.body === null) {
-              throw new VisionToolkitError('runtime', `generate_image: failed to download generated image (HTTP ${imageResponse.status})`)
+              throw new ArkToolkitError('runtime', `generate_image: failed to download generated image (HTTP ${imageResponse.status})`)
             }
             await writeFile(staged, Buffer.from(await imageResponse.arrayBuffer()))
           }
@@ -943,12 +941,12 @@ export class VisionToolkitRuntime {
   async speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult> {
     return this.runOperation('vision_speak', options, async (operation) => {
       const text = request.text.trim()
-      if (text.length === 0) throw new VisionToolkitError('input', 'speak: text must not be empty')
-      if (text.length > 2000) throw new VisionToolkitError('input', 'speak: text must not exceed 2000 characters')
+      if (text.length === 0) throw new ArkToolkitError('input', 'speak: text must not be empty')
+      if (text.length > 2000) throw new ArkToolkitError('input', 'speak: text must not exceed 2000 characters')
       const voiceType = request.voiceType?.trim() || VOLCENGINE_TTS_VOICE
       const encoding = request.encoding?.trim() || 'mp3'
       if (!/^(mp3|ogg_opus|pcm|wav)$/.test(encoding)) {
-        throw new VisionToolkitError('input', 'speak: encoding must be mp3, ogg_opus, pcm, or wav')
+        throw new ArkToolkitError('input', 'speak: encoding must be mp3, ogg_opus, pcm, or wav')
       }
       const rate = request.rate ?? 24000
       const speed = request.speed ?? 1.0
@@ -961,22 +959,22 @@ export class VisionToolkitRuntime {
         ['pitch', pitch, -12, 12],
       ] as const) {
         if (typeof value !== 'number' || Number.isNaN(value) || value < min || value > max) {
-          throw new VisionToolkitError('input', `speak: ${name} must be a number between ${min} and ${max}`)
+          throw new ArkToolkitError('input', `speak: ${name} must be a number between ${min} and ${max}`)
         }
       }
       const emotion = request.emotion?.trim()
       if (emotion !== undefined && emotion.length > 0 && !/^(happy|sad|neutral)$/.test(emotion)) {
-        throw new VisionToolkitError('input', 'speak: emotion must be happy, sad, or neutral')
+        throw new ArkToolkitError('input', 'speak: emotion must be happy, sad, or neutral')
       }
       const emotionScale = request.emotionScale ?? 4
       if (!Number.isInteger(emotionScale) || emotionScale < 1 || emotionScale > 5) {
-        throw new VisionToolkitError('input', 'speak: emotionScale must be an integer between 1 and 5')
+        throw new ArkToolkitError('input', 'speak: emotionScale must be an integer between 1 and 5')
       }
       const language = request.language?.trim()
       const tts = this.config.provider.tts
       const resolved = await this.ctx.credentials.resolve(tts.credential)
       if (resolved === undefined) {
-        throw new VisionToolkitError(
+        throw new ArkToolkitError(
           'config',
           `credential ${tts.credential} is not configured; set the Volcengine TTS key through DSH credentials`,
         )
@@ -997,7 +995,7 @@ export class VisionToolkitRuntime {
       if (language !== undefined && language.length > 0) audio.language = language
       const body: Record<string, unknown> = {
         app: { appid: tts.resource, token: 'placeholder', cluster: 'volcano_tts' },
-        user: { uid: 'dsh-vision-toolkit-tts' },
+        user: { uid: 'dsh-ark-toolkit-tts' },
         audio,
         request: {
           reqid: randomUUID(),
@@ -1020,15 +1018,15 @@ export class VisionToolkitRuntime {
           signal: operation.signal,
         })
       } catch (error) {
-        if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_speak: cancelled')
-        throw new VisionToolkitError('runtime', `speak: Volcengine TTS request failed: ${error instanceof Error ? error.message : String(error)}`)
+        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_speak: cancelled')
+        throw new ArkToolkitError('runtime', `speak: Volcengine TTS request failed: ${error instanceof Error ? error.message : String(error)}`)
       } finally {
         operation.metrics.upstreamMs += Date.now() - started
       }
       if (!response.ok) {
-        throw new VisionToolkitError('runtime', `speak: Volcengine TTS HTTP ${response.status}`)
+        throw new ArkToolkitError('runtime', `speak: Volcengine TTS HTTP ${response.status}`)
       }
-      if (response.body === null) throw new VisionToolkitError('runtime', 'speak: Volcengine TTS returned no body')
+      if (response.body === null) throw new ArkToolkitError('runtime', 'speak: Volcengine TTS returned no body')
       const chunks: Buffer[] = []
       let format = encoding
       let sawAudio = false
@@ -1037,7 +1035,7 @@ export class VisionToolkitRuntime {
       let buffer = ''
       try {
         for (;;) {
-          if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_speak: cancelled')
+          if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_speak: cancelled')
           const { done, value } = await reader.read()
           if (done) break
           buffer += decoder.decode(value, { stream: true })
@@ -1058,14 +1056,14 @@ export class VisionToolkitRuntime {
             }
             const code = typeof event.code === 'number' ? event.code : 0
             if (code !== 0 && code !== 20000000) {
-              throw new VisionToolkitError('runtime', `speak: Volcengine TTS ${typeof event.message === 'string' ? event.message : `code ${code}`}`)
+              throw new ArkToolkitError('runtime', `speak: Volcengine TTS ${typeof event.message === 'string' ? event.message : `code ${code}`}`)
             }
             if (typeof event.audio === 'string') {
               sawAudio = true
               chunks.push(Buffer.from(event.audio, 'base64'))
               let total = 0
               for (const chunk of chunks) total += chunk.length
-              if (total > MAX_SPEECH_BYTES) throw new VisionToolkitError('capacity', 'speak: synthesized audio exceeds the 64 MiB limit')
+              if (total > MAX_SPEECH_BYTES) throw new ArkToolkitError('capacity', 'speak: synthesized audio exceeds the 64 MiB limit')
             }
             if (typeof event.format === 'string') format = event.format
           }
@@ -1073,7 +1071,7 @@ export class VisionToolkitRuntime {
       } finally {
         reader.releaseLock()
       }
-      if (!sawAudio) throw new VisionToolkitError('output', 'speak: Volcengine TTS returned no audio')
+      if (!sawAudio) throw new ArkToolkitError('output', 'speak: Volcengine TTS returned no audio')
       const extension = format === 'ogg_opus' ? 'ogg' : format
       const policy = await this.pathPolicy(options.workspace)
       const staged = createStagedOutput(policy, `.${extension}`)
@@ -1101,8 +1099,8 @@ export class VisionToolkitRuntime {
   }
 
   /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
-  async health(testConnection: boolean, options: ToolCallOptions, testModel = false): Promise<VisionToolkitHealthResult> {
-    return this.runOperation('vision_toolkit_health', options, async (operation) => {
+  async health(testConnection: boolean, options: ToolCallOptions, testModel = false): Promise<ArkToolkitHealthResult> {
+    return this.runOperation('ark_toolkit_health', options, async (operation) => {
       let resolvedCredential: ResolvedCredential | undefined
       let credential: HealthCheck
       try {
@@ -1168,7 +1166,7 @@ export class VisionToolkitRuntime {
               service = { status: 'error', detail: `Service connection test failed with HTTP ${response.status}` }
             }
           } catch {
-            if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_toolkit_health: cancelled')
+            if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'ark_toolkit_health: cancelled')
             service = { status: 'error', detail: `Service could not be reached at ${endpoint}` }
           }
         }
@@ -1182,7 +1180,7 @@ export class VisionToolkitRuntime {
             const dataUrl = await imageToDataUrl(VISION_MODEL_TEST_IMAGE)
             const answer = await describeImages([dataUrl], VISION_MODEL_TEST_PROMPT, service)
             if (answer.text.trim().length === 0) {
-              throw new VisionToolkitError('output', 'glance: vision API returned an empty description')
+              throw new ArkToolkitError('output', 'glance: vision API returned an empty description')
             }
             model = {
               status: 'ok',

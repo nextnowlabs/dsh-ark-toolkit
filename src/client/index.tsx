@@ -1,5 +1,5 @@
 /**
- * DSH Vision Toolkit browser plugin: dedicated Tool cards plus the Settings,
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the Settings,
  * health, connection-test, and safe Artifact preview experience.
  */
 
@@ -23,24 +23,28 @@ import { installPasteImages } from './paste-images.tsx'
 import { installModelVariantsHider } from './model-variants-hider.ts'
 import { resetDisplayConfigCache } from './display-config.ts'
 
-const NS = 'vision-toolkit'
-const SETTINGS_ROUTE = '/_dsh/vision-toolkit/settings'
-const PRESENTATION_META_KEY = '$dshVisionToolkit'
+const NS = 'ark-toolkit'
+const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
+const PRESENTATION_META_KEY = '$dshArkToolkit'
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
 // Keep these browser defaults aligned with src/defaults.ts without importing server-side config.
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const ARK_CREDENTIAL = 'ARK_API_KEY'
 const ARK_VISION_MODEL = 'doubao-seed-2-0-lite-260215'
+const TTS_BASE_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse'
+const TTS_CREDENTIAL = 'VOLCENGINE_TTS_KEY'
+const TTS_RESOURCE = 'seed-tts-2.0'
+const TTS_VOICE = 'zh_female_shuangkuaisisi_uranus_bigtts'
 const ARK_TUTORIAL_URL_EN = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
 const ARK_TUTORIAL_URL_ZH = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
 
 const en = {
-  nav: 'Vision',
-  settingsTitle: 'Vision Toolkit',
-  settingsIntro: 'Configure the vision service endpoint, model, credential, and local safety limits.',
+  nav: 'Volcengine Vision',
+  settingsTitle: 'Volcengine Ark Toolkit',
+  settingsIntro: 'Configure the model and API key used by online vision features.',
   externalNotice: 'Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.',
   provider: 'Vision service',
-  providerHint: 'Choose the API protocol, then provide the service address, model, and API key used by online vision features.',
+  providerHint: 'Provide the model and API key used by online vision features.',
   arkTutorial: 'Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →',
   baseUrl: 'Base URL',
   apiKey: 'API key',
@@ -53,10 +57,15 @@ const en = {
   credential: 'Credential name',
   credentialHint: 'This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.',
   model: 'Model',
-  protocol: 'API protocol',
-  anthropicThinking: 'Anthropic thinking',
-  anthropicThinkingHint: 'omit has the broadest compatibility. Use disabled or adaptive only when the selected model documents that mode; restore omit first after HTTP 400.',
   userAgent: 'User-Agent',
+  tts: 'Speech (TTS)',
+  ttsHint: 'Separate ByteDance Volcengine Speech service used by the vision_speak tool, with its own app token independent of the Ark vision key.',
+  ttsBaseUrl: 'TTS base URL',
+  ttsCredential: 'TTS credential name',
+  ttsResource: 'TTS resource / App ID',
+  ttsVoice: 'Default voice',
+  ttsKey: 'TTS app token',
+  ttsKeyHint: 'The token is stored in DSH Credentials and is never shown again after saving.',
   language: 'Output language',
   limits: 'Limits',
   timeout: 'Request timeout (ms)',
@@ -93,7 +102,7 @@ const en = {
   imageInput: 'Image input',
   hiddenVariants: 'Transparent variant routing',
   hiddenVariantsLabel: 'Keep the original model names and enable images automatically',
-  hiddenVariantsHint: 'Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Vision Toolkit) entries.',
+  hiddenVariantsHint: 'Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Ark Toolkit) entries.',
   pluginVersion: 'Plugin',
   upstreamVersion: 'Upstream',
   activeGeneration: 'Runtime generation',
@@ -112,7 +121,7 @@ const en = {
   upToDateDetail: 'Version {version} is the latest release.',
   updateNow: 'Install update',
   updatingPlugin: 'Installing update…',
-  updateConfirm: 'Install Vision Toolkit {version} now? DSH Web will restart automatically when supported; otherwise a manual restart will be required.',
+  updateConfirm: 'Install Ark Toolkit {version} now? DSH Web will restart automatically when supported; otherwise a manual restart will be required.',
   restarting: 'Version {version} was installed. Waiting for DSH Web to restart…',
   manualRestartRequired: 'Version {version} was installed. Restart DSH Web through your usual command or process manager to activate it.',
   updateProfile: 'Profile',
@@ -125,7 +134,7 @@ const en = {
   updateReasonReadOnly: 'The profile package manifest is read-only.',
   updateReasonPnpm: 'pnpm is unavailable in the DSH execution environment.',
   updateReasonPlatform: 'Automatic restart is unavailable on this operating system.',
-  updateReasonRestartUnmanaged: 'Detached self-restart is disabled. Use a supported process manager, or explicitly opt in with DSH_VISION_TOOLKIT_ALLOW_DETACHED_RESTART=1 for an unsupervised Web process.',
+  updateReasonRestartUnmanaged: 'Detached self-restart is disabled. Use a supported process manager, or explicitly opt in with DSH_ARK_TOOLKIT_ALLOW_DETACHED_RESTART=1 for an unsupervised Web process.',
   updateReasonRestartAddress: 'Automatic restart is unavailable when DSH Web uses an unknown or dynamically allocated port. Start it with a fixed --port value.',
   updateSaveFirst: 'Save or discard the current Settings and API key changes before updating the plugin.',
   restartTimedOut: 'DSH Web did not return with the target plugin version. Check the restart log and restart the Web profile through its original process manager.',
@@ -228,12 +237,12 @@ const en = {
 type LocaleKey = keyof typeof en
 
 const zh: Record<LocaleKey, string> = {
-  nav: '视觉工具',
-  settingsTitle: '视觉工具箱',
-  settingsIntro: '在这里设置视觉模型服务、API 密钥，以及图片和文件的本地访问范围。',
+  nav: '火山引擎',
+  settingsTitle: '火山引擎',
+  settingsIntro: '配置在线视觉功能使用的模型与 API 密钥。',
   externalNotice: '图片理解（vision_glance）、文生图和语音合成会把数据发送到下方配置的远程服务；发送前如需压缩，会在本机完成。',
   provider: '在线视觉服务',
-  providerHint: '选择接口协议后，填写在线视觉功能使用的 API 地址、模型名称和 API 密钥。',
+  providerHint: '填写在线视觉功能使用的模型名称和 API 密钥。',
   arkTutorial: '用字节火山方舟做图片理解？看这篇图文教程 →',
   baseUrl: 'API 地址',
   apiKey: 'API 密钥',
@@ -246,10 +255,15 @@ const zh: Record<LocaleKey, string> = {
   credential: '凭据名称',
   credentialHint: '这是保存火山方舟 API 密钥的 DSH 凭据名称。',
   model: '模型名称',
-  protocol: 'API 协议',
-  anthropicThinking: 'Anthropic thinking',
-  anthropicThinkingHint: 'omit 兼容性最好。仅当所选模型明确支持时使用 disabled 或 adaptive；遇到 HTTP 400 时先恢复 omit。',
   userAgent: 'User-Agent',
+  tts: '语音合成（TTS）',
+  ttsHint: 'vision_speak 工具使用独立的字节火山语音服务，App Token 与火山方舟视觉密钥相互独立。',
+  ttsBaseUrl: 'TTS 接口地址',
+  ttsCredential: 'TTS 凭据名称',
+  ttsResource: 'TTS 资源 ID（App ID）',
+  ttsVoice: '默认音色',
+  ttsKey: 'TTS App Token',
+  ttsKeyHint: 'Token 会保存到 DSH 凭据存储，保存后不会在页面中回显。',
   language: '结果语言',
   limits: '资源与并发限制',
   timeout: '单次请求超时（毫秒）',
@@ -258,7 +272,7 @@ const zh: Record<LocaleKey, string> = {
   concurrency: '单个会话最多并发任务数',
   runtime: '工具运行环境',
   runtimeMode: '环境来源',
-  toolkitPath: 'agent-vision-toolkit 目录',
+  toolkitPath: 'agent-ark-toolkit 目录',
   python: 'Python 解释器（可选）',
   allowedDirs: '允许读取的其他目录',
   allowedDirsHint: '每行填写一个目录。当前会话的工作目录始终可以读取，无需重复填写。',
@@ -286,7 +300,7 @@ const zh: Record<LocaleKey, string> = {
   imageInput: '图片输入',
   hiddenVariants: '透明变体路由',
   hiddenVariantsLabel: '保留原模型名并自动启用图片能力',
-  hiddenVariantsHint: '文本模型在模型列表中只显示原名称，会话实际运行在支持图片的变体路由上：粘贴图片、历史图片和内置 read_image 工具均可正常使用。关闭后恢复显示显式的（Vision Toolkit）条目。',
+  hiddenVariantsHint: '文本模型在模型列表中只显示原名称，会话实际运行在支持图片的变体路由上：粘贴图片、历史图片和内置 read_image 工具均可正常使用。关闭后恢复显示显式的（Ark Toolkit）条目。',
   pluginVersion: '插件版本',
   upstreamVersion: '工具包版本',
   activeGeneration: '本次运行已应用',
@@ -305,7 +319,7 @@ const zh: Record<LocaleKey, string> = {
   upToDateDetail: '当前 {version} 已是最新正式版本。',
   updateNow: '安装更新',
   updatingPlugin: '正在安装更新…',
-  updateConfirm: '现在安装 Vision Toolkit {version} 吗？支持安全自重启时会自动重启，否则需要你手动重启 DSH Web。',
+  updateConfirm: '现在安装 Ark Toolkit {version} 吗？支持安全自重启时会自动重启，否则需要你手动重启 DSH Web。',
   restarting: '已安装 {version}，正在等待 DSH Web 重启…',
   manualRestartRequired: '已安装 {version}。请按你平时的方式手动重启 DSH Web，重启后新版本生效。',
   updateProfile: 'Profile',
@@ -318,7 +332,7 @@ const zh: Record<LocaleKey, string> = {
   updateReasonReadOnly: '当前 Profile 的 package.json 不可写。',
   updateReasonPnpm: 'DSH 运行环境中找不到 pnpm。',
   updateReasonPlatform: '当前操作系统不支持安全的自动重启。',
-  updateReasonRestartUnmanaged: '默认禁用脱离原进程管理器的自重启。仅对无人监管的 Web 进程明确设置 DSH_VISION_TOOLKIT_ALLOW_DETACHED_RESTART=1 后开放。',
+  updateReasonRestartUnmanaged: '默认禁用脱离原进程管理器的自重启。仅对无人监管的 Web 进程明确设置 DSH_ARK_TOOLKIT_ALLOW_DETACHED_RESTART=1 后开放。',
   updateReasonRestartAddress: 'DSH Web 使用未知端口或动态端口时无法安全自动重启。请用固定的 --port 值启动。',
   updateSaveFirst: '更新插件前，请先保存或放弃当前 Settings 和 API 密钥修改。',
   restartTimedOut: 'DSH Web 未能以目标插件版本恢复。请检查重启日志，并通过原进程管理器重启 Web Profile。',
@@ -436,8 +450,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 
   interface LocaleNamespaceMap {
-    /** DSH Vision Toolkit Tool cards and Settings copy. */
-    'vision-toolkit': LocaleKey
+    /** DSH Ark Toolkit Tool cards and Settings copy. */
+    'ark-toolkit': LocaleKey
   }
 }
 
@@ -478,16 +492,20 @@ interface SettingsValue {
     baseUrl?: string
     credential?: string
     model?: string
-    protocol?: 'openai' | 'anthropic'
-    anthropicThinking?: 'omit' | 'disabled' | 'adaptive'
     userAgent?: string
+    tts?: {
+      baseUrl?: string
+      credential?: string
+      resource?: string
+      voice?: string
+    }
   }
   language?: 'zh' | 'en'
   timeoutMs?: number
   maxImageBytes?: number
   maxImagePixels?: number
   concurrency?: number
-  runtime?: { mode?: 'managed' | 'external'; agentVisionToolkitPath?: string; python?: string }
+  runtime?: { mode?: 'managed' | 'external'; agentArkToolkitPath?: string; python?: string }
   allowedDirs?: string[]
   imageInputVariants?: {
     enabled?: boolean
@@ -543,6 +561,7 @@ interface SettingsSnapshot {
   writable: boolean
   settings: { value: SettingsValue; revision: number; applies: 'live' }
   credential: { ref: string; configured: boolean; source?: string; writable: boolean }
+  credentialTts: { ref: string; configured: boolean; source?: string; writable: boolean }
   runtime: {
     ready: boolean
     generation: number
@@ -773,7 +792,7 @@ async function apiRequest<T>(init?: RequestInit): Promise<T> {
   const body = await response.json() as ApiSuccess<T> | ApiFailure
   if (!response.ok || !body.ok) {
     const failure = body as ApiFailure
-    throw new Error(failure.error?.message ?? `Vision Toolkit request failed with HTTP ${response.status}`)
+    throw new Error(failure.error?.message ?? `Ark Toolkit request failed with HTTP ${response.status}`)
   }
   return body.value
 }
@@ -835,6 +854,7 @@ export class VisionSettingsController {
     value: SettingsValue,
     expectedRevision: number,
     credentialValue: string | undefined,
+    credentialTtsValue: string | undefined,
     writeSettings: boolean,
   ): Promise<boolean> {
     this.set({ ...this.state, action: 'save', error: undefined, message: undefined })
@@ -847,7 +867,7 @@ export class VisionSettingsController {
           body: JSON.stringify({ action: 'save', expectedRevision, value }),
         })
       }
-      if (snapshot === undefined) throw new Error('Vision Toolkit Settings are unavailable')
+      if (snapshot === undefined) throw new Error('Ark Toolkit Settings are unavailable')
       if (credentialValue !== undefined) {
         try {
           snapshot = await apiRequest<SettingsSnapshot>({
@@ -858,6 +878,30 @@ export class VisionSettingsController {
               expectedRevision: snapshot.settings.revision,
               ref: snapshot.credential.ref,
               value: credentialValue,
+            }),
+          })
+        } catch (error) {
+          this.set({
+            status: 'ready',
+            snapshot,
+            health: this.state.health,
+            update: this.state.update,
+            restart: this.state.restart,
+            error: error instanceof Error ? error.message : String(error),
+          })
+          return false
+        }
+      }
+      if (credentialTtsValue !== undefined) {
+        try {
+          snapshot = await apiRequest<SettingsSnapshot>({
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'credential',
+              expectedRevision: snapshot.settings.revision,
+              ref: snapshot.credentialTts.ref,
+              value: credentialTtsValue,
             }),
           })
         } catch (error) {
@@ -949,9 +993,11 @@ interface Draft {
   baseUrl: string
   credential: string
   model: string
-  protocol: 'openai' | 'anthropic'
-  anthropicThinking: 'omit' | 'disabled' | 'adaptive'
   userAgent: string
+  ttsBaseUrl: string
+  ttsCredential: string
+  ttsResource: string
+  ttsVoice: string
   language: 'zh' | 'en'
   timeoutMs: string
   maxImageBytes: string
@@ -969,11 +1015,13 @@ function draftOf(value: SettingsValue): Draft {
     baseUrl: value.provider?.baseUrl ?? ARK_BASE_URL,
     credential: value.provider?.credential ?? ARK_CREDENTIAL,
     model: value.provider?.model ?? ARK_VISION_MODEL,
-    protocol: value.provider?.protocol ?? 'openai',
-    anthropicThinking: value.provider?.anthropicThinking ?? 'omit',
     userAgent: value.provider?.userAgent ?? DEFAULT_USER_AGENT,
+    ttsBaseUrl: value.provider?.tts?.baseUrl ?? TTS_BASE_URL,
+    ttsCredential: value.provider?.tts?.credential ?? TTS_CREDENTIAL,
+    ttsResource: value.provider?.tts?.resource ?? TTS_RESOURCE,
+    ttsVoice: value.provider?.tts?.voice ?? TTS_VOICE,
     language: value.language ?? 'zh',
-    timeoutMs: String(value.timeoutMs ?? 30000),
+    timeoutMs: String(value.timeoutMs ?? 600000),
     maxImageBytes: String(value.maxImageBytes ?? 4194304),
     maxImagePixels: String(value.maxImagePixels ?? 20000000),
     concurrency: String(value.concurrency ?? 4),
@@ -1007,9 +1055,13 @@ function valueOf(draft: Draft, t: Translate): SettingsValue {
       baseUrl: draft.baseUrl.trim(),
       credential: draft.credential.trim(),
       model: draft.model.trim(),
-      protocol: draft.protocol,
-      anthropicThinking: draft.anthropicThinking,
       userAgent: draft.userAgent.trim(),
+      tts: {
+        baseUrl: draft.ttsBaseUrl.trim(),
+        credential: draft.ttsCredential.trim(),
+        resource: draft.ttsResource.trim(),
+        voice: draft.ttsVoice.trim(),
+      },
     },
     language: draft.language,
     timeoutMs: positiveInteger(draft.timeoutMs, t('timeout'), t),
@@ -1140,6 +1192,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
   const snapshot = state.snapshot
   const [draft, setDraft] = useState<Draft | undefined>(undefined)
   const [apiKey, setApiKey] = useState('')
+  const [ttsKey, setTtsKey] = useState('')
   const [draftError, setDraftError] = useState<string | undefined>(undefined)
   const [copiedCommand, setCopiedCommand] = useState(false)
 
@@ -1193,29 +1246,34 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
         return
       }
       const credentialValue = apiKey.length === 0 ? undefined : apiKey.trim()
+      const credentialTtsValue = ttsKey.length === 0 ? undefined : ttsKey.trim()
       setDraftError(undefined)
       void controller.save(
         valueOf(draft, t),
         snapshot.settings.revision,
         credentialValue,
+        credentialTtsValue,
         snapshot.writable,
-      ).then(saved => { if (saved) setApiKey('') })
+      ).then(saved => { if (saved) { setApiKey(''); setTtsKey('') } })
     } catch (error) {
       setDraftError(error instanceof Error ? error.message : String(error))
     }
   }
   const busy = state.action !== undefined
   const credentialMatchesSnapshot = draft.credential.trim() === snapshot.credential.ref
+  const ttsCredentialMatchesSnapshot = draft.ttsCredential.trim() === snapshot.credentialTts.ref
   const keyLocked = credentialMatchesSnapshot
     && !snapshot.credential.writable
-  const canSave = snapshot.writable || (apiKey.length > 0 && !keyLocked)
+  const ttsKeyLocked = ttsCredentialMatchesSnapshot
+    && !snapshot.credentialTts.writable
+  const canSave = snapshot.writable || (apiKey.length > 0 && !keyLocked) || (ttsKey.length > 0 && !ttsKeyLocked)
   const runtimeErrorTitle = snapshot.runtime.ready ? t('runtimeCandidateRejected') : t('runtimeUnavailable')
   const pluginUpdate = state.update
   const updateCapability = pluginUpdate ?? snapshot.release.update
   const latestVersion = pluginUpdate?.latestVersion
   const updateReason = updateCapability.reason === undefined ? undefined : t(UPDATE_REASON_KEYS[updateCapability.reason])
   const updateCheckSupported = updateCapability.checkSupported ?? updateCapability.supported
-  const updateHasUnsavedChanges = apiKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
+  const updateHasUnsavedChanges = apiKey.length > 0 || ttsKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
   const manualUpdateProfile = updateCapability.profile ?? 'web'
   const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/`
   const tutorialUrl = draft?.language === 'en' ? ARK_TUTORIAL_URL_EN : ARK_TUTORIAL_URL_ZH
@@ -1247,10 +1305,15 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
       <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('provider')}</h3><p>{t('providerHint')}</p></div><span className={`dvt-badge ${snapshot.credential.configured ? 'ok' : 'error'}`}>{snapshot.credential.configured ? t('configured') : t('missing')}</span></div>
         <p className="dvt-tutorial-link"><a href={tutorialUrl} target="_blank" rel="noreferrer">{t('arkTutorial')}</a></p>
         <div className="dvt-form-grid">
-          <Field label={t('protocol')}><select disabled={!snapshot.writable || busy} value={draft.protocol} onChange={(event) => { update('protocol', event.target.value as 'openai' | 'anthropic') }}><option value="openai">OpenAI Chat Completions</option><option value="anthropic">Anthropic Messages</option></select></Field>
-          <Field label={t('baseUrl')}><Input disabled={!snapshot.writable || busy} value={draft.baseUrl} onChange={(event) => { update('baseUrl', event.target.value) }} /></Field>
           <Field label={t('model')}><Input disabled={!snapshot.writable || busy} value={draft.model} onChange={(event) => { update('model', event.target.value) }} /></Field>
           <Field label={t('apiKey')} hint={keyLocked ? t('apiKeyLocked') : snapshot.credential.source === undefined ? t('apiKeyHint') : `${t('apiKeyHint')} ${t('sourceHint', { source: t('source'), value: credentialSource(snapshot.credential.source, t) })}`}><Input aria-label={t('apiKey')} type="password" autoComplete="new-password" disabled={busy || keyLocked} placeholder={snapshot.credential.configured ? t('apiKeyPlaceholderConfigured') : t('apiKeyPlaceholderMissing')} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setDraftError(undefined) }} /></Field>
+        </div>
+      </section>
+
+      <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('tts')}</h3><p>{t('ttsHint')}</p></div><span className={`dvt-badge ${snapshot.credentialTts.configured ? 'ok' : 'error'}`}>{snapshot.credentialTts.configured ? t('configured') : t('missing')}</span></div>
+        <div className="dvt-form-grid">
+          <Field label={t('ttsVoice')}><Input value={draft.ttsVoice} onChange={(event) => { update('ttsVoice', event.target.value) }} /></Field>
+          <Field label={t('ttsKey')} hint={ttsKeyLocked ? t('apiKeyLocked') : snapshot.credentialTts.source === undefined ? t('ttsKeyHint') : `${t('ttsKeyHint')} ${t('sourceHint', { source: t('source'), value: credentialSource(snapshot.credentialTts.source, t) })}`}><Input aria-label={t('ttsKey')} type="password" autoComplete="new-password" disabled={busy || ttsKeyLocked} placeholder={snapshot.credentialTts.configured ? t('apiKeyPlaceholderConfigured') : t('apiKeyPlaceholderMissing')} value={ttsKey} onChange={(event) => { setTtsKey(event.target.value); setDraftError(undefined) }} /></Field>
         </div>
       </section>
 
@@ -1292,9 +1355,15 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
         <summary><span><strong>{t('advanced')}</strong><small>{t('advancedHint')}</small></span><span className="dvt-details-chevron" aria-hidden="true">⌄</span></summary>
         <div className="dvt-advanced-body">
           <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('provider')}</h3></div><div className="dvt-form-grid">
-            <Field label={t('credential')} hint={t('credentialHint')}><Input aria-label={t('credential')} disabled={!snapshot.writable || busy} value={draft.credential} onChange={(event) => { update('credential', event.target.value) }} /></Field>
-            {draft.protocol === 'anthropic' ? <Field label={t('anthropicThinking')} hint={t('anthropicThinkingHint')}><select aria-label={t('anthropicThinking')} value={draft.anthropicThinking} onChange={(event) => { update('anthropicThinking', event.target.value as 'omit' | 'disabled' | 'adaptive') }}><option value="omit">omit (widest compatibility)</option><option value="disabled">disabled (model support required)</option><option value="adaptive">adaptive (model support required)</option></select></Field> : null}
-            <Field label={t('userAgent')}><Input value={draft.userAgent} onChange={(event) => { update('userAgent', event.target.value) }} /></Field>
+            <Field label={t('credential')} hint={t('credentialHint')}><Input aria-label={t('credential')} readOnly value={draft.credential} /></Field>
+            <Field label={t('baseUrl')}><Input readOnly value={draft.baseUrl} /></Field>
+            <Field label={t('userAgent')}><Input readOnly value={draft.userAgent} /></Field>
+          </div></section>
+
+          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('tts')}</h3></div><div className="dvt-form-grid">
+            <Field label={t('ttsBaseUrl')}><Input readOnly value={draft.ttsBaseUrl} /></Field>
+            <Field label={t('ttsCredential')}><Input aria-label={t('ttsCredential')} readOnly value={draft.ttsCredential} /></Field>
+            <Field label={t('ttsResource')}><Input value={draft.ttsResource} onChange={(event) => { update('ttsResource', event.target.value) }} /></Field>
           </div></section>
 
           <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('limits')}</h3></div><div className="dvt-form-grid">
@@ -1352,10 +1421,10 @@ export const inject = ['slots', 'locale', 'remote', 'conversation', 'sessions']
 
 /** Register dedicated Tool views and the Vision Settings section. */
 export function apply(ctx: ClientContext): void {
-  ctx.effect(installStyles, 'dsh-vision-toolkit: styles')
-  ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-vision-toolkit: locale')
+  ctx.effect(installStyles, 'dsh-ark-toolkit: styles')
+  ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-ark-toolkit: locale')
   installPasteImages(ctx)
-  ctx.effect(installModelVariantsHider, 'dsh-vision-toolkit: model-selector transparent routing')
+  ctx.effect(installModelVariantsHider, 'dsh-ark-toolkit: model-selector transparent routing')
   const t = ctx.locale.bind(NS)
   const injected = () => ({ t })
   const entries: Array<[string, (props: ViewProps) => ReactNode]> = [
@@ -1371,7 +1440,7 @@ export function apply(ctx: ClientContext): void {
   const controller = new VisionSettingsController()
   ctx.effect(() => {
     const refreshSettings = (namespace: string): void => {
-      if (namespace === 'vision-toolkit') {
+      if (namespace === 'ark-toolkit') {
         resetDisplayConfigCache()
         controller.refreshIfLoaded()
       }
@@ -1402,10 +1471,10 @@ export function apply(ctx: ClientContext): void {
       ]
     disposers.push(ctx.on('connection/reset', () => { controller.refreshIfLoaded() }))
     return () => { for (const dispose of disposers) dispose() }
-  }, 'dsh-vision-toolkit: Settings invalidations')
+  }, 'dsh-ark-toolkit: Settings invalidations')
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
-    id: 'vision-toolkit',
+    id: 'ark-toolkit',
     order: 30,
     label: () => t('nav'),
     inject: () => ({ controller, t }),

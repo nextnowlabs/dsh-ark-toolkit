@@ -186,7 +186,7 @@ function policyResponse(takeOver: boolean, autoSwitch?: { provider: string; mode
  */
 function uploadMock(handle: (url: string, init: RequestInit) => Promise<Response>): ReturnType<typeof vi.fn> {
   return vi.fn(async (url: string, init?: RequestInit) => {
-    if (String(url).startsWith('/_dsh/vision-toolkit/paste-policy')) return policyResponse(true)
+    if (String(url).startsWith('/_dsh/ark-toolkit/paste-policy')) return policyResponse(true)
     return handle(url, init ?? ({} as RequestInit))
   })
 }
@@ -225,7 +225,7 @@ describe('clipboard image client', () => {
 
   it('registers the reference codec through the legacy inputTriggers service', () => {
     const bench = fakeClient('', ['inputTriggers'])
-    expect(bench.source()?.name).toBe('vision-toolkit-pasted-image')
+    expect(bench.source()?.name).toBe('ark-toolkit-pasted-image')
     expect(bench.ctx.inject).toHaveBeenCalledWith(['slash'], expect.any(Function))
     expect(bench.ctx.inject).toHaveBeenCalledWith(['inputTriggers'], expect.any(Function))
     bench.dispose()
@@ -243,7 +243,7 @@ describe('clipboard image client', () => {
     expect(bench.triggerRegistries.slash.registerSource).toHaveBeenCalledTimes(1)
     expect(bench.triggerRegistries.inputTriggers.registerSource).not.toHaveBeenCalled()
     bench.disposeEffect(0)
-    expect(bench.source()?.name).toBe('vision-toolkit-pasted-image')
+    expect(bench.source()?.name).toBe('ark-toolkit-pasted-image')
     expect(bench.triggerRegistries.slash.dispose).not.toHaveBeenCalled()
     bench.disposeEffect(1)
     expect(bench.source()).toBeUndefined()
@@ -324,8 +324,8 @@ describe('clipboard image client', () => {
       return new Response(JSON.stringify({
         ok: true,
         value: { absolutePath: index === 0
-          ? '/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/image-01.png'
-          : '/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/image-02.webp' },
+          ? '/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/image-01.png'
+          : '/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/image-02.webp' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     })
     vi.stubGlobal('fetch', request)
@@ -349,10 +349,10 @@ describe('clipboard image client', () => {
     const refs = bench.input.state.getSnapshot().occurrences.map(row => row.ref)
     const serialized = await Promise.all(refs.map(ref => codec.serialize(ref, new AbortController().signal)))
     expect(uploads).toBe(2)
-    expect(uploadsOf(request).every(([url]) => String(url).startsWith('/_dsh/vision-toolkit/paste-images?'))).toBe(true)
+    expect(uploadsOf(request).every(([url]) => String(url).startsWith('/_dsh/ark-toolkit/paste-images?'))).toBe(true)
     expect(serialized).toEqual([
-      '[Pasted image available at absolute path: "/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/image-01.png"]',
-      '[Pasted image available at absolute path: "/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/image-02.webp"]',
+      '[Pasted image available at absolute path: "/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/image-01.png"]',
+      '[Pasted image available at absolute path: "/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/image-02.webp"]',
     ])
     bench.dispose()
   })
@@ -400,7 +400,7 @@ describe('clipboard image client', () => {
       file('two.png', 'image/png', [2]),
       file('three.png', 'image/png', [3]),
     ]))
-    const dock = bench.registrations.find(row => row.options.id === 'vision-toolkit-pasted-images')
+    const dock = bench.registrations.find(row => row.options.id === 'ark-toolkit-pasted-images')
     if (dock === undefined) throw new Error('paste dock was not registered')
     const injected = (dock.options.inject as ((sessionId: string) => {
       controller: PasteImageController
@@ -443,7 +443,7 @@ describe('clipboard image client', () => {
     await confirmTakeover(bench)
     const textarea = composer()
     textarea.dispatchEvent(clipboardEvent('', [file('one.png', 'image/png', [1])]))
-    const dock = bench.registrations.find(row => row.options.id === 'vision-toolkit-pasted-images')
+    const dock = bench.registrations.find(row => row.options.id === 'ark-toolkit-pasted-images')
     if (dock === undefined) throw new Error('paste dock was not registered')
     const injected = (dock.options.inject as ((sessionId: string) => {
       controller: PasteImageController
@@ -470,7 +470,7 @@ describe('clipboard image client', () => {
       if (name === 'one.png') {
         return new Response(JSON.stringify({
           ok: true,
-          value: { absolutePath: '/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/stable-one.png' },
+          value: { absolutePath: '/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/stable-one.png' },
         }), { status: 200, headers: { 'Content-Type': 'application/json' } })
       }
       secondAttempts += 1
@@ -482,7 +482,7 @@ describe('clipboard image client', () => {
       }
       return new Response(JSON.stringify({
         ok: true,
-        value: { absolutePath: '/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/retried-two.png' },
+        value: { absolutePath: '/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/retried-two.png' },
       }), { status: 200, headers: { 'Content-Type': 'application/json' } })
     })
     vi.stubGlobal('fetch', request)
@@ -504,11 +504,11 @@ describe('clipboard image client', () => {
     expect(uploadsOf(request)).toHaveLength(3)
     const names = uploadsOf(request).map(([url]) => new URL(String(url), 'http://localhost').searchParams.get('name'))
     expect(names).toEqual(['one.png', 'two.png', 'two.png'])
-    expect(secondText).toBe('[Pasted image available at absolute path: "/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/retried-two.png"]')
+    expect(secondText).toBe('[Pasted image available at absolute path: "/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/retried-two.png"]')
 
     const firstText = await codec.serialize(first.ref, new AbortController().signal)
     expect(uploadsOf(request)).toHaveLength(3)
-    expect(firstText).toBe('[Pasted image available at absolute path: "/workspace/.dsh-vision-toolkit/tmp/pasted-images/a/stable-one.png"]')
+    expect(firstText).toBe('[Pasted image available at absolute path: "/workspace/.dsh-ark-toolkit/tmp/pasted-images/a/stable-one.png"]')
     bench.dispose()
   })
 
@@ -530,7 +530,7 @@ describe('clipboard image client', () => {
 
     await expect(send()).rejects.toThrow('workspace copy failed')
     expect(modelSink).not.toHaveBeenCalled()
-    const dock = bench.registrations.find(row => row.options.id === 'vision-toolkit-pasted-images')
+    const dock = bench.registrations.find(row => row.options.id === 'ark-toolkit-pasted-images')
     expect(dock).toBeDefined()
 
     const injected = (dock?.options.inject as ((sessionId: string) => { controller: PasteImageController; remove: (row: Occurrence) => void }))('session-1')
@@ -675,7 +675,7 @@ describe('clipboard image client', () => {
     }
     bench.ctx.modelDirectories = { directoryFor: vi.fn(() => ({ select })) }
     const policy = vi.fn(async () => policyResponse(false, {
-      provider: 'vision-toolkit-deepseek-official',
+      provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
       label: 'DeepSeek V4 Flash (Vision Toolkit)',
     }))
@@ -720,7 +720,7 @@ describe('clipboard image client', () => {
 
     await vi.waitFor(() => {
       expect(select).toHaveBeenCalledWith({
-        provider: 'vision-toolkit-deepseek-official',
+        provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
       })
     })
@@ -757,7 +757,7 @@ describe('clipboard image client', () => {
       expect(query.get('modelId')).toBe('deepseek-v4-flash')
       expect(query.get('reasoningEffort')).toBe('high')
       return policyResponse(false, {
-        provider: 'vision-toolkit-deepseek-official',
+        provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
         label: 'DeepSeek V4 Flash (Vision Toolkit)',
         reasoningEffort: 'high',
@@ -776,7 +776,7 @@ describe('clipboard image client', () => {
 
     await vi.waitFor(() => {
       expect(select).toHaveBeenCalledWith({
-        provider: 'vision-toolkit-deepseek-official',
+        provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
         reasoningEffort: 'high',
       })
@@ -789,7 +789,7 @@ describe('clipboard image client', () => {
     const select = vi.fn(async () => { throw new Error('switch rejected') })
     bench.ctx.modelDirectories = { directoryFor: vi.fn(() => ({ select })) }
     const policy = vi.fn(async () => policyResponse(false, {
-      provider: 'vision-toolkit-deepseek-official',
+      provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
       label: 'DeepSeek V4 Flash (Vision Toolkit)',
     }))
@@ -814,7 +814,7 @@ describe('clipboard image client', () => {
     const select = vi.fn(async () => {})
     bench.ctx.modelDirectories = { directoryFor: vi.fn(() => ({ select })) }
     const policy = vi.fn(async () => policyResponse(false, {
-      provider: 'vision-toolkit-deepseek-official',
+      provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
       label: 'DeepSeek V4 Flash (Vision Toolkit)',
     }))

@@ -3,14 +3,14 @@
  * language, and local safety limits. Secrets never live here —
  * `provider.credential` is a DSH Credential reference resolved per operation
  * through `ctx.credentials`. There is no Python or vendored runtime to locate.
- * @module dsh-vision-toolkit/config
+ * @module dsh-ark-toolkit/config
  */
 
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
-import { VisionToolkitError } from './errors.ts'
+import { ArkToolkitError } from './errors.ts'
 import {
   ARK_BASE_URL,
   ARK_CREDENTIAL,
@@ -36,7 +36,7 @@ export {
 } from './defaults.ts'
 
 /** Settings document namespace owned by this plugin. */
-export const VISION_TOOLKIT_SETTINGS_NAMESPACE = settingsNamespace('vision-toolkit')
+export const ARK_TOOLKIT_SETTINGS_NAMESPACE = settingsNamespace('ark-toolkit')
 
 /** Browser-compatible default shared with the vendored Python client. */
 export const DEFAULT_VISION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
@@ -51,7 +51,7 @@ export function resolveSeedreamModel(model: string): string {
 }
 
 /** Full user-facing configuration; every field defaults at the schema boundary. */
-export interface VisionToolkitConfig {
+export interface ArkToolkitConfig {
   provider?: {
     /** Provider API base URL. */
     baseUrl?: string
@@ -61,8 +61,6 @@ export interface VisionToolkitConfig {
     model?: string
     /** Vision request protocol: OpenAI Chat Completions or Anthropic Messages. */
     protocol?: 'openai' | 'anthropic'
-    /** Anthropic thinking field behavior; `omit` leaves model defaults untouched. */
-    anthropicThinking?: 'omit' | 'disabled' | 'adaptive'
     /** Outbound User-Agent for provider requests and connection tests. */
     userAgent?: string
     /**
@@ -118,7 +116,7 @@ export interface VisionToolkitConfig {
      * display names, and the browser integration hides the upstream text-only
      * entries that have a variant twin, so the model selector shows one entry
      * per model and sessions stay on the image-capable variant without users
-     * seeing or switching a `(Vision Toolkit)` route. On by default; disable
+     * seeing or switching a `(Ark Toolkit)` route. On by default; disable
      * to restore the explicit sibling entries.
      */
     hidden?: boolean
@@ -126,13 +124,12 @@ export interface VisionToolkitConfig {
 }
 
 /** Configuration schema with the documented P0 defaults. */
-export const Config: Schema<VisionToolkitConfig> = z.object({
+export const Config: Schema<ArkToolkitConfig> = z.object({
   provider: z.object({
     baseUrl: z.string().default(ARK_BASE_URL),
     credential: z.string().default(ARK_CREDENTIAL),
     model: z.string().default(ARK_VISION_MODEL),
     protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
-    anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
     userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
     tts: z.object({
       baseUrl: z.string().default(VOLCENGINE_TTS_URL),
@@ -142,7 +139,7 @@ export const Config: Schema<VisionToolkitConfig> = z.object({
     }),
   }),
   language: z.union(['zh', 'en'] as const).default('zh'),
-  timeoutMs: z.number().default(30000),
+  timeoutMs: z.number().default(600000),
   maxImageBytes: z.number().default(4194304),
   maxImagePixels: z.number().default(20000000),
   concurrency: z.number().default(4),
@@ -156,13 +153,12 @@ export const Config: Schema<VisionToolkitConfig> = z.object({
 })
 
 /** Configuration after static validation, with every default materialized. */
-export interface ResolvedVisionToolkitConfig {
+export interface ResolvedArkToolkitConfig {
   provider: {
     baseUrl: string
     credential: CredentialRef
     model: string
     protocol: 'openai' | 'anthropic'
-    anthropicThinking: 'omit' | 'disabled' | 'adaptive'
     userAgent: string
     tts: {
       baseUrl: string
@@ -198,17 +194,17 @@ const MAX_CONCURRENCY = 16
  * @param config - parsed config with defaults applied.
  * @returns the fully defaulted, validated configuration.
  */
-export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionToolkitConfig {
+export function resolveConfig(config: ArkToolkitConfig = {}): ResolvedArkToolkitConfig {
   const provider = config.provider ?? {}
   const baseUrl = (provider.baseUrl ?? ARK_BASE_URL).trim().replace(/\/+$/, '')
   if (!/^https?:\/\//i.test(baseUrl) || baseUrl.length <= 'https://'.length) {
-    throw new VisionToolkitError('config', 'provider.baseUrl must be an http(s) URL')
+    throw new ArkToolkitError('config', 'provider.baseUrl must be an http(s) URL')
   }
   let credential: CredentialRef
   try {
     credential = credentialRef((provider.credential ?? ARK_CREDENTIAL).trim())
   } catch (error) {
-    throw new VisionToolkitError(
+    throw new ArkToolkitError(
       'config',
       `provider.credential "${provider.credential ?? ARK_CREDENTIAL}" is not a valid credential reference`,
       { cause: error },
@@ -216,30 +212,26 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
   }
   const model = (provider.model ?? ARK_VISION_MODEL).trim()
   if (model.length === 0) {
-    throw new VisionToolkitError('config', 'provider.model must not be empty')
+    throw new ArkToolkitError('config', 'provider.model must not be empty')
   }
   const protocol = provider.protocol ?? 'openai'
   if (protocol !== 'openai' && protocol !== 'anthropic') {
-    throw new VisionToolkitError('config', 'provider.protocol must be "openai" or "anthropic"')
-  }
-  const anthropicThinking = provider.anthropicThinking ?? 'omit'
-  if (anthropicThinking !== 'omit' && anthropicThinking !== 'disabled' && anthropicThinking !== 'adaptive') {
-    throw new VisionToolkitError('config', 'provider.anthropicThinking must be "omit", "disabled", or "adaptive"')
+    throw new ArkToolkitError('config', 'provider.protocol must be "openai" or "anthropic"')
   }
   const userAgent = (provider.userAgent ?? DEFAULT_VISION_USER_AGENT).trim()
   if (userAgent.length === 0) {
-    throw new VisionToolkitError('config', 'provider.userAgent must not be empty')
+    throw new ArkToolkitError('config', 'provider.userAgent must not be empty')
   }
   const tts = provider.tts ?? {}
   const ttsBaseUrl = (tts.baseUrl ?? VOLCENGINE_TTS_URL).trim().replace(/\/+$/, '')
   if (!/^https?:\/\//i.test(ttsBaseUrl) || ttsBaseUrl.length <= 'https://'.length) {
-    throw new VisionToolkitError('config', 'provider.tts.baseUrl must be an http(s) URL')
+    throw new ArkToolkitError('config', 'provider.tts.baseUrl must be an http(s) URL')
   }
   let ttsCredential: CredentialRef
   try {
     ttsCredential = credentialRef((tts.credential ?? VOLCENGINE_TTS_CREDENTIAL).trim())
   } catch (error) {
-    throw new VisionToolkitError(
+    throw new ArkToolkitError(
       'config',
       `provider.tts.credential "${tts.credential ?? VOLCENGINE_TTS_CREDENTIAL}" is not a valid credential reference`,
       { cause: error },
@@ -247,31 +239,31 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
   }
   const ttsResource = (tts.resource ?? VOLCENGINE_TTS_RESOURCE).trim()
   if (ttsResource.length === 0) {
-    throw new VisionToolkitError('config', 'provider.tts.resource must not be empty')
+    throw new ArkToolkitError('config', 'provider.tts.resource must not be empty')
   }
   const ttsVoice = (tts.voice ?? VOLCENGINE_TTS_VOICE).trim()
   if (ttsVoice.length === 0) {
-    throw new VisionToolkitError('config', 'provider.tts.voice must not be empty')
+    throw new ArkToolkitError('config', 'provider.tts.voice must not be empty')
   }
   const language = config.language ?? 'zh'
   if (language !== 'zh' && language !== 'en') {
-    throw new VisionToolkitError('config', 'language must be "zh" or "en"')
+    throw new ArkToolkitError('config', 'language must be "zh" or "en"')
   }
-  const timeoutMs = config.timeoutMs ?? 30000
+  const timeoutMs = config.timeoutMs ?? 600000
   if (!Number.isInteger(timeoutMs) || timeoutMs < 1000 || timeoutMs > MAX_TIMEOUT_MS) {
-    throw new VisionToolkitError('config', `timeoutMs must be an integer between 1000 and ${MAX_TIMEOUT_MS}`)
+    throw new ArkToolkitError('config', `timeoutMs must be an integer between 1000 and ${MAX_TIMEOUT_MS}`)
   }
   const maxImageBytes = config.maxImageBytes ?? 4194304
   if (!Number.isInteger(maxImageBytes) || maxImageBytes < 1024 || maxImageBytes > MAX_IMAGE_BYTES) {
-    throw new VisionToolkitError('config', `maxImageBytes must be an integer between 1024 and ${MAX_IMAGE_BYTES}`)
+    throw new ArkToolkitError('config', `maxImageBytes must be an integer between 1024 and ${MAX_IMAGE_BYTES}`)
   }
   const maxImagePixels = config.maxImagePixels ?? 20000000
   if (!Number.isInteger(maxImagePixels) || maxImagePixels < 1 || maxImagePixels > MAX_IMAGE_PIXELS) {
-    throw new VisionToolkitError('config', `maxImagePixels must be an integer between 1 and ${MAX_IMAGE_PIXELS}`)
+    throw new ArkToolkitError('config', `maxImagePixels must be an integer between 1 and ${MAX_IMAGE_PIXELS}`)
   }
   const concurrency = config.concurrency ?? 4
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > MAX_CONCURRENCY) {
-    throw new VisionToolkitError('config', `concurrency must be an integer between 1 and ${MAX_CONCURRENCY}`)
+    throw new ArkToolkitError('config', `concurrency must be an integer between 1 and ${MAX_CONCURRENCY}`)
   }
   const allowedDirs = (config.allowedDirs ?? []).map(dir => dir.trim()).filter(dir => dir.length > 0)
   const imageInputVariants = config.imageInputVariants ?? {}
@@ -284,7 +276,6 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
       credential,
       model,
       protocol,
-      anthropicThinking,
       userAgent,
       tts: { baseUrl: ttsBaseUrl, credential: ttsCredential, resource: ttsResource, voice: ttsVoice },
     },

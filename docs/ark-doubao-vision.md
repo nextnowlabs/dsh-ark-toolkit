@@ -1,11 +1,11 @@
 # 火山方舟接入教程：用豆包 Seed Vision 识图、Seedream 生图
 
-DSH Vision Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
+DSH Ark Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
 
 - **图片理解**（看图问答、OCR、多图对比）：OpenAI 兼容 `/chat/completions`，模型 `doubao-seed-2-0-lite-260215`（豆包 Seed Vision）。
 - **文生图**（`vision_generate_image` 工具）：`/images/generations`，模型 `doubao-seedream-5-0-260128`（Seedream），也支持别名 `seedream-5.0-pro`、`seedream-4.5`、`seedream-4.0`。
 
-本教程说明如何申请火山方舟 API Key、在 Vision Toolkit 中配置，并给出可直接运行的 cURL 示例。
+本教程说明如何申请火山方舟 API Key、在 Ark Toolkit 中配置，并给出可直接运行的 cURL 示例。
 
 ## 1. 注册火山引擎并开通方舟
 
@@ -15,9 +15,9 @@ DSH Vision Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯�
 
 > 提示：火山方舟按量计费，部分新模型有免费试用额度；具体价格与免费额度以控制台为准。
 
-## 2. 在 Vision Toolkit 中配置
+## 2. 在 Ark Toolkit 中配置
 
-打开 **设置 → 视觉工具**，默认值已经指向火山方舟：
+打开 **设置 → 火山视觉工具**，默认值已经指向火山方舟：
 
 | 字段 | 值 |
 | --- | --- |
@@ -33,7 +33,7 @@ Seedream 文生图无需额外配置：`vision_generate_image` 工具会使用�
 也可以在 Profile patch 中配置：
 
 ```yaml
-- id: vision-toolkit
+- id: ark-toolkit
   config:
     provider:
       baseUrl: https://ark.cn-beijing.volces.com/api/v3
@@ -85,4 +85,4 @@ curl https://ark.cn-beijing.volces.com/api/v3/images/generations \
 | 模型不存在或未开通 | 到火山方舟 **模型广场** 开通对应模型（Doubao Seed Vision / Seedream）；不同模型 ID 见控制台 |
 | 提示余额不足 | 在火山引擎控制台充值或领取免费额度 |
 | `429` 限流 | 按错误信息等待后重试，或在控制台提升配额 |
-| 图片理解模型 ID 变化 | 火山方舟会推出新版本模型；Vision Toolkit 的 Model 字段可以随时改成最新的模型 ID |
+| 图片理解模型 ID 变化 | 火山方舟会推出新版本模型；Ark Toolkit 的 Model 字段可以随时改成最新的模型 ID |

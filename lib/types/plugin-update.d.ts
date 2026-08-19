@@ -4,10 +4,10 @@
  * Only registry-installed copies are mutable. Local `link:`, `file:`, git,
  * URL, and workspace installs stay developer-owned and are reported as
  * unsupported instead of being replaced behind the user's back.
- * @module dsh-vision-toolkit/plugin-update
+ * @module dsh-ark-toolkit/plugin-update
  */
 import type { Context } from '@deepseek-ai/cordis';
-export declare const VISION_TOOLKIT_PACKAGE = "@nextnowlabs/dsh-ark-toolkit";
+export declare const ARK_TOOLKIT_PACKAGE = "@nextnowlabs/dsh-ark-toolkit";
 export type PluginUpdateUnavailableReason = 'profile-not-found' | 'not-direct-dependency' | 'unsupported-install-source' | 'profile-read-only' | 'pnpm-unavailable' | 'unsupported-platform' | 'restart-unmanaged' | 'restart-address-unavailable';
 export interface PluginUpdateCapability {
     supported: boolean;
@@ -81,7 +81,7 @@ export declare const PLUGIN_RESTART_HELPER_SOURCE: string;
 /** Compare two strict SemVer versions. */
 export declare function compareVersions(left: string, right: string): number;
 /** Profile-aware updater used by the same-origin Settings backend. */
-export declare class VisionToolkitPluginUpdateService {
+export declare class ArkToolkitPluginUpdateService {
     private readonly ctx;
     private readonly currentVersion;
     private readonly packageRoot;

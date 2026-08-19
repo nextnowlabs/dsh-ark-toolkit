@@ -3,13 +3,13 @@
  * language, and local safety limits. Secrets never live here —
  * `provider.credential` is a DSH Credential reference resolved per operation
  * through `ctx.credentials`. There is no Python or vendored runtime to locate.
- * @module dsh-vision-toolkit/config
+ * @module dsh-ark-toolkit/config
  */
 import type Schema from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
 export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, ARK_VISION_MODEL, SEEDREAM_MODEL_ALIASES, VOLCENGINE_TTS_CREDENTIAL, VOLCENGINE_TTS_RESOURCE, VOLCENGINE_TTS_URL, VOLCENGINE_TTS_VOICE, } from './defaults.ts';
 /** Settings document namespace owned by this plugin. */
-export declare const VISION_TOOLKIT_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
+export declare const ARK_TOOLKIT_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
 /** Browser-compatible default shared with the vendored Python client. */
 export declare const DEFAULT_VISION_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 /**
@@ -18,7 +18,7 @@ export declare const DEFAULT_VISION_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; 
  */
 export declare function resolveSeedreamModel(model: string): string;
 /** Full user-facing configuration; every field defaults at the schema boundary. */
-export interface VisionToolkitConfig {
+export interface ArkToolkitConfig {
     provider?: {
         /** Provider API base URL. */
         baseUrl?: string;
@@ -28,8 +28,6 @@ export interface VisionToolkitConfig {
         model?: string;
         /** Vision request protocol: OpenAI Chat Completions or Anthropic Messages. */
         protocol?: 'openai' | 'anthropic';
-        /** Anthropic thinking field behavior; `omit` leaves model defaults untouched. */
-        anthropicThinking?: 'omit' | 'disabled' | 'adaptive';
         /** Outbound User-Agent for provider requests and connection tests. */
         userAgent?: string;
         /**
@@ -85,22 +83,21 @@ export interface VisionToolkitConfig {
          * display names, and the browser integration hides the upstream text-only
          * entries that have a variant twin, so the model selector shows one entry
          * per model and sessions stay on the image-capable variant without users
-         * seeing or switching a `(Vision Toolkit)` route. On by default; disable
+         * seeing or switching a `(Ark Toolkit)` route. On by default; disable
          * to restore the explicit sibling entries.
          */
         hidden?: boolean;
     };
 }
 /** Configuration schema with the documented P0 defaults. */
-export declare const Config: Schema<VisionToolkitConfig>;
+export declare const Config: Schema<ArkToolkitConfig>;
 /** Configuration after static validation, with every default materialized. */
-export interface ResolvedVisionToolkitConfig {
+export interface ResolvedArkToolkitConfig {
     provider: {
         baseUrl: string;
         credential: CredentialRef;
         model: string;
         protocol: 'openai' | 'anthropic';
-        anthropicThinking: 'omit' | 'disabled' | 'adaptive';
         userAgent: string;
         tts: {
             baseUrl: string;
@@ -130,5 +127,5 @@ export interface ResolvedVisionToolkitConfig {
  * @param config - parsed config with defaults applied.
  * @returns the fully defaulted, validated configuration.
  */
-export declare function resolveConfig(config?: VisionToolkitConfig): ResolvedVisionToolkitConfig;
+export declare function resolveConfig(config?: ArkToolkitConfig): ResolvedArkToolkitConfig;
 //# sourceMappingURL=config.d.ts.map

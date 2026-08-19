@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { redactText, upstreamFailureMessage, VisionToolkitError } from '../src/errors.ts'
+import { redactText, upstreamFailureMessage, ArkToolkitError } from '../src/errors.ts'
 
-describe('VisionToolkitError', () => {
+describe('ArkToolkitError', () => {
   it('carries a stable error code', () => {
-    const error = new VisionToolkitError('capacity', 'too big')
-    expect(error.name).toBe('VisionToolkitError')
+    const error = new ArkToolkitError('capacity', 'too big')
+    expect(error.name).toBe('ArkToolkitError')
     expect(error.code).toBe('capacity')
     expect(error.message).toBe('too big')
   })

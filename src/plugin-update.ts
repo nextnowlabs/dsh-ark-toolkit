@@ -4,7 +4,7 @@
  * Only registry-installed copies are mutable. Local `link:`, `file:`, git,
  * URL, and workspace installs stay developer-owned and are reported as
  * unsupported instead of being replaced behind the user's back.
- * @module dsh-vision-toolkit/plugin-update
+ * @module dsh-ark-toolkit/plugin-update
  */
 
 import { spawn } from 'node:child_process'
@@ -18,7 +18,7 @@ import type { Context } from '@deepseek-ai/cordis'
 // Activates the subprocess Context declaration used by the update runner.
 import type {} from '@deepseek-ai/dsh-subprocess'
 
-export const VISION_TOOLKIT_PACKAGE = '@nextnowlabs/dsh-ark-toolkit'
+export const ARK_TOOLKIT_PACKAGE = '@nextnowlabs/dsh-ark-toolkit'
 
 const CHECK_TIMEOUT_MS = 20_000
 const UPDATE_TIMEOUT_MS = 180_000
@@ -27,8 +27,8 @@ const OLD_PROCESS_EXIT_TIMEOUT_MS = 30_000
 const RESTART_DELAY_MS = 750
 const RESTART_RETRY_AFTER_MS = 1_200
 const COMMAND_OUTPUT_BYTES = 128 * 1024
-const SETTINGS_ROUTE = '/_dsh/vision-toolkit/settings'
-const UPDATE_LOCK_FILE = '.dsh-vision-toolkit-update.lock'
+const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
+const UPDATE_LOCK_FILE = '.dsh-ark-toolkit-update.lock'
 
 export type PluginUpdateUnavailableReason =
   | 'profile-not-found'
@@ -162,7 +162,7 @@ const { spawn } = require('node:child_process')
 const { chmodSync, existsSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } = require('node:fs')
 const payload = JSON.parse(Buffer.from(process.argv[1], 'base64url').toString('utf8'))
 const sleep = delay => new Promise(resolve => setTimeout(resolve, delay))
-const log = message => console.log('[dsh-vision-toolkit]', message)
+const log = message => console.log('[dsh-ark-toolkit]', message)
 let lockTransferred = false
 const alive = pid => {
   try { process.kill(pid, 0); return true }
@@ -187,14 +187,14 @@ const transferLock = () => {
 const removeLock = () => {
   if (!ownsLock()) return
   try { unlinkSync(payload.lockPath) }
-  catch (error) { if (!error || error.code !== 'ENOENT') console.error('[dsh-vision-toolkit] lock cleanup failed:', error) }
+  catch (error) { if (!error || error.code !== 'ENOENT') console.error('[dsh-ark-toolkit] lock cleanup failed:', error) }
 }
 const cleanupBackup = () => {
   try { rmSync(payload.backupDir, { recursive: true, force: true }) }
-  catch (error) { console.error('[dsh-vision-toolkit] backup cleanup failed:', error) }
+  catch (error) { console.error('[dsh-ark-toolkit] backup cleanup failed:', error) }
 }
 const preserveRecovery = message => {
-  console.error('[dsh-vision-toolkit]', message + '; recovery files preserved at ' + payload.backupDir
+  console.error('[dsh-ark-toolkit]', message + '; recovery files preserved at ' + payload.backupDir
     + ' and update lock preserved at ' + payload.lockPath)
 }
 const atomicWrite = (path, contents, mode) => {
@@ -248,12 +248,12 @@ const runPnpm = args => new Promise(resolve => {
     windowsHide: true,
   })
   child.once('error', error => {
-    console.error('[dsh-vision-toolkit] rollback pnpm failed:', error)
+    console.error('[dsh-ark-toolkit] rollback pnpm failed:', error)
     finish(false)
   })
   child.once('exit', code => { finish(code === 0) })
   const timeout = setTimeout(() => {
-    console.error('[dsh-vision-toolkit] rollback pnpm timed out')
+    console.error('[dsh-ark-toolkit] rollback pnpm timed out')
     killChild(child, 'SIGTERM')
     killTimer = setTimeout(() => {
       killChild(child, 'SIGKILL')
@@ -301,7 +301,7 @@ const installedVersion = () => {
 const rollbackInstall = async metadata => {
   try { restoreProfileFiles() }
   catch (error) {
-    console.error('[dsh-vision-toolkit] profile file restore before rollback failed:', error)
+    console.error('[dsh-ark-toolkit] profile file restore before rollback failed:', error)
     return false
   }
   const args = metadata.hadLockfile
@@ -310,20 +310,20 @@ const rollbackInstall = async metadata => {
   const installed = await runPnpm(args)
   try { restoreProfileFiles() }
   catch (error) {
-    console.error('[dsh-vision-toolkit] profile file restore after rollback failed:', error)
+    console.error('[dsh-ark-toolkit] profile file restore after rollback failed:', error)
     return false
   }
   if (!installed) {
-    console.error('[dsh-vision-toolkit] rollback pnpm failed')
+    console.error('[dsh-ark-toolkit] rollback pnpm failed')
     return false
   }
   try {
     const version = installedVersion()
-    if (version !== payload.fromVersion) console.error('[dsh-vision-toolkit] rollback installed ' + version + ' instead of ' + payload.fromVersion)
+    if (version !== payload.fromVersion) console.error('[dsh-ark-toolkit] rollback installed ' + version + ' instead of ' + payload.fromVersion)
     return version === payload.fromVersion
   }
   catch (error) {
-    console.error('[dsh-vision-toolkit] rollback version verification failed:', error)
+    console.error('[dsh-ark-toolkit] rollback version verification failed:', error)
     return false
   }
 }
@@ -331,9 +331,9 @@ const restore = async metadata => {
   log('replacement did not become ready; restoring ' + payload.fromVersion)
   if (!await rollbackInstall(metadata)) return false
   const child = launch()
-  child.once('error', error => { console.error('[dsh-vision-toolkit] rollback launch failed:', error) })
+  child.once('error', error => { console.error('[dsh-ark-toolkit] rollback launch failed:', error) })
   if (!await ready(child, payload.fromVersion, payload.readinessTimeoutMs)) {
-    console.error('[dsh-vision-toolkit] rollback replacement did not become ready')
+    console.error('[dsh-ark-toolkit] rollback replacement did not become ready')
     await stop(child)
     return false
   }
@@ -344,7 +344,7 @@ const restore = async metadata => {
 const main = async () => {
   const metadata = validateBackup()
   if (!transferLock()) {
-    console.error('[dsh-vision-toolkit] restart helper could not take ownership of the update lock')
+    console.error('[dsh-ark-toolkit] restart helper could not take ownership of the update lock')
     process.exit(1)
   }
   acknowledgeHandoff()
@@ -360,7 +360,7 @@ const main = async () => {
     process.exit(1)
   }
   const child = launch()
-  child.once('error', error => { console.error('[dsh-vision-toolkit] replacement launch failed:', error) })
+  child.once('error', error => { console.error('[dsh-ark-toolkit] replacement launch failed:', error) })
   if (await ready(child, payload.toVersion, payload.readinessTimeoutMs)) {
     child.unref()
     removeLock()
@@ -377,7 +377,7 @@ const main = async () => {
   process.exit(restored ? 2 : 1)
 }
 main().catch(error => {
-  console.error('[dsh-vision-toolkit] restart helper failed:', error)
+  console.error('[dsh-ark-toolkit] restart helper failed:', error)
   if (lockTransferred) preserveRecovery('restart helper failed before recovery completed')
   process.exit(1)
 })
@@ -551,7 +551,7 @@ function defaultSchedule(callback: () => void, delayMs: number): void {
 }
 
 async function createUpdateBackup(profileDir: string, token: string): Promise<UpdateBackup> {
-  const dir = join(profileDir, `.dsh-vision-toolkit-update-backup-${token}`)
+  const dir = join(profileDir, `.dsh-ark-toolkit-update-backup-${token}`)
   try {
     await mkdir(dir, { mode: 0o700 })
     const manifestPath = join(profileDir, 'package.json')
@@ -628,7 +628,7 @@ function publicCommandFailure(result: CommandResult, fallback: string): string {
 }
 
 /** Profile-aware updater used by the same-origin Settings backend. */
-export class VisionToolkitPluginUpdateService {
+export class ArkToolkitPluginUpdateService {
   private readonly packageRoot: string
   private readonly profileDir: string | undefined
   private readonly dshHome: string
@@ -657,7 +657,7 @@ export class VisionToolkitPluginUpdateService {
     this.terminateCurrent = options.terminateCurrent ?? (() => { process.kill(process.pid, 'SIGTERM') })
     this.schedule = options.schedule ?? defaultSchedule
     this.allowDetachedRestart = options.allowDetachedRestart
-      ?? process.env.DSH_VISION_TOOLKIT_ALLOW_DETACHED_RESTART === '1'
+      ?? process.env.DSH_ARK_TOOLKIT_ALLOW_DETACHED_RESTART === '1'
     this.healthUrl = options.healthUrl ?? defaultHealthUrl(this.argv)
     this.runtimeReady = options.runtimeReady ?? (() => true)
     this.platform = options.platform ?? process.platform
@@ -681,7 +681,7 @@ export class VisionToolkitPluginUpdateService {
     profile: string,
   ): Promise<ProfileInstall | PluginUpdateCapability | undefined> {
     const manifestPath = join(profileDir, 'package.json')
-    const installedDir = join(profileDir, 'node_modules', ...VISION_TOOLKIT_PACKAGE.split('/'))
+    const installedDir = join(profileDir, 'node_modules', ...ARK_TOOLKIT_PACKAGE.split('/'))
     let manifest: PackageManifest
     try {
       manifest = await jsonFile(manifestPath)
@@ -689,7 +689,7 @@ export class VisionToolkitPluginUpdateService {
       return undefined
     }
     if (!(await sameRealPath(installedDir, this.packageRoot))) return undefined
-    const dependencySpec = manifest.dependencies?.[VISION_TOOLKIT_PACKAGE]
+    const dependencySpec = manifest.dependencies?.[ARK_TOOLKIT_PACKAGE]
     if (dependencySpec === undefined) {
       return { supported: false, profile, reason: 'not-direct-dependency' }
     }
@@ -872,7 +872,7 @@ export class VisionToolkitPluginUpdateService {
     await restoreUpdateBackup(profile.profileDir, backup)
     const args = backup.hadLockfile
       ? ['install', '--frozen-lockfile', '--reporter=append-only']
-      : ['add', `${VISION_TOOLKIT_PACKAGE}@${this.currentVersion}`, '--save-exact', '--yes', '--reporter=append-only']
+      : ['add', `${ARK_TOOLKIT_PACKAGE}@${this.currentVersion}`, '--save-exact', '--yes', '--reporter=append-only']
     const result = await this.runPnpm(args, UPDATE_TIMEOUT_MS, profile, pnpmPath)
     let restored = true
     try { await restoreUpdateBackup(profile.profileDir, backup) }
@@ -946,7 +946,7 @@ export class VisionToolkitPluginUpdateService {
     }
     const capability = (await this.evaluate()).capability
     const result = await this.runPnpm(
-      ['view', VISION_TOOLKIT_PACKAGE, 'version', '--json'],
+      ['view', ARK_TOOLKIT_PACKAGE, 'version', '--json'],
       CHECK_TIMEOUT_MS,
       context.profile,
       context.pnpmPath,
@@ -1007,7 +1007,7 @@ export class VisionToolkitPluginUpdateService {
       updateBackup = await createUpdateBackup(final.profile.profileDir, locked.token)
       updateAttempted = true
       const result = await this.runPnpm([
-        'add', `${VISION_TOOLKIT_PACKAGE}@${expectedVersion}`, '--save-exact', '--yes', '--reporter=append-only',
+        'add', `${ARK_TOOLKIT_PACKAGE}@${expectedVersion}`, '--save-exact', '--yes', '--reporter=append-only',
       ], UPDATE_TIMEOUT_MS, final.profile, final.pnpmPath)
       if (result.exitCode !== 0) {
         throw new PluginUpdateError('update-failed', publicCommandFailure(result, 'Plugin update failed'))
@@ -1049,14 +1049,14 @@ export class VisionToolkitPluginUpdateService {
           execPath: process.execPath,
           args: [...process.execArgv, ...process.argv.slice(1)],
           cwd: process.cwd(),
-          logPath: join(this.dshHome, 'logs', 'vision-toolkit-restart.log'),
+          logPath: join(this.dshHome, 'logs', 'ark-toolkit-restart.log'),
           lockPath: locked.path,
           lockToken: locked.token,
           backupDir: updateBackup.dir,
           handoffPath: join(updateBackup.dir, 'handoff.json'),
           profileDir: final.profile.profileDir,
           pnpmPath: final.pnpmPath,
-          packageName: VISION_TOOLKIT_PACKAGE,
+          packageName: ARK_TOOLKIT_PACKAGE,
           fromVersion: this.currentVersion,
           toVersion: installedVersion,
           healthUrl,

@@ -3,12 +3,12 @@
  * has no reusable Artifact service, so every file-producing tool returns this
  * lossless contract and keeps the file inside the plugin-managed artifact
  * directory for Web, Headless, and later tool calls alike.
- * @module dsh-vision-toolkit/artifacts
+ * @module dsh-ark-toolkit/artifacts
  */
 
 import { lstat, realpath, stat } from 'node:fs/promises'
 import { basename } from 'node:path'
-import { VisionToolkitError } from './errors.ts'
+import { ArkToolkitError } from './errors.ts'
 import { isWithin, type PathPolicy } from './paths.ts'
 
 /** Artifact payload family used by clients to select a safe renderer. */
@@ -17,7 +17,7 @@ export type ArtifactKind = 'image' | 'svg' | 'markdown' | 'json' | 'audio'
 /** Intended default client action for one artifact. */
 export type ArtifactPreviewIntent = 'image' | 'svg' | 'text' | 'download'
 
-/** Stable descriptor returned by every file-producing Vision Toolkit tool. */
+/** Stable descriptor returned by every file-producing Ark Toolkit tool. */
 export interface ArtifactDescriptor {
   path: string
   filename: string
@@ -56,22 +56,22 @@ export async function describeArtifact(
   try {
     linkInfo = await lstat(path)
   } catch (error) {
-    throw new VisionToolkitError('output', `artifact was not created: ${basename(path)}`, { cause: error })
+    throw new ArkToolkitError('output', `artifact was not created: ${basename(path)}`, { cause: error })
   }
   if (linkInfo.isSymbolicLink()) {
-    throw new VisionToolkitError('path', `artifact must not be a symbolic link: ${basename(path)}`)
+    throw new ArkToolkitError('path', `artifact must not be a symbolic link: ${basename(path)}`)
   }
   let real: string
   try {
     real = await realpath(path)
   } catch (error) {
-    throw new VisionToolkitError('output', `artifact is not accessible: ${basename(path)}`, { cause: error })
+    throw new ArkToolkitError('output', `artifact is not accessible: ${basename(path)}`, { cause: error })
   }
   if (!isWithin(policy.outputDir, real)) {
-    throw new VisionToolkitError('path', `artifact escaped the managed output directory: ${basename(path)}`)
+    throw new ArkToolkitError('path', `artifact escaped the managed output directory: ${basename(path)}`)
   }
   const info = await stat(real)
-  if (!info.isFile()) throw new VisionToolkitError('output', `artifact is not a regular file: ${basename(path)}`)
+  if (!info.isFile()) throw new ArkToolkitError('output', `artifact is not a regular file: ${basename(path)}`)
   return {
     path,
     filename: basename(path),

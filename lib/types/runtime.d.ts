@@ -1,14 +1,14 @@
 /**
- * Vision Toolkit runtime: structured requests in, structured results out.
+ * Ark Toolkit runtime: structured requests in, structured results out.
  * Pure-TypeScript image understanding through the configured vision service;
  * ByteDance Seedream generation and Volcengine TTS stay direct HTTP. There is
  * no Python runtime and no vendored pixel toolkit: image probing, cropping,
  * and compression run on sharp inside Node.
- * @module dsh-vision-toolkit/runtime
+ * @module dsh-ark-toolkit/runtime
  */
 import type { Context } from '@deepseek-ai/cordis';
 import { type ArtifactDescriptor } from './artifacts.ts';
-import { type ResolvedVisionToolkitConfig } from './config.ts';
+import { type ResolvedArkToolkitConfig } from './config.ts';
 /** Per-invocation cancellation and timeout facts. */
 export interface Deadline {
     signal: AbortSignal;
@@ -122,7 +122,7 @@ export interface HealthCheck {
     detail: string;
 }
 /** Runtime, credential, storage, and optional service health. */
-export interface VisionToolkitHealthResult {
+export interface ArkToolkitHealthResult {
     pluginVersion: string;
     checks: {
         credential: HealthCheck;
@@ -152,12 +152,12 @@ export declare function parseRegion(region: string): {
     y2: number;
 };
 /** Runtime facade used by every native tool. */
-export declare class VisionToolkitRuntime {
+export declare class ArkToolkitRuntime {
     private readonly ctx;
     private readonly config;
     private readonly semaphores;
     private readonly glanceCache;
-    constructor(ctx: Context, config: ResolvedVisionToolkitConfig);
+    constructor(ctx: Context, config: ResolvedArkToolkitConfig);
     /** Stable runtime identity reported to tools and logs. */
     get runtimeInfo(): {
         pluginVersion: string;
@@ -186,6 +186,6 @@ export declare class VisionToolkitRuntime {
     /** speak: ByteDance TTS V3 speech synthesis through Volcengine Speech. */
     speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult>;
     /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
-    health(testConnection: boolean, options: ToolCallOptions, testModel?: boolean): Promise<VisionToolkitHealthResult>;
+    health(testConnection: boolean, options: ToolCallOptions, testModel?: boolean): Promise<ArkToolkitHealthResult>;
 }
 //# sourceMappingURL=runtime.d.ts.map

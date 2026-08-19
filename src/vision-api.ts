@@ -3,10 +3,10 @@
  * sends prepared data-URL image parts to the configured OpenAI-compatible
  * `/chat/completions` (or Anthropic `/v1/messages`) endpoint directly from
  * Node — no Python runtime is involved. Credentials never leave the plugin.
- * @module dsh-vision-toolkit/vision-api
+ * @module dsh-ark-toolkit/vision-api
  */
 
-import { VisionToolkitError } from './errors.ts'
+import { ArkToolkitError } from './errors.ts'
 
 /** Language instruction prepended to describe/Q&A prompts (mirrors the upstream client). */
 const LANG_INSTRUCTIONS: Record<string, string> = {
@@ -20,7 +20,6 @@ export interface VisionServiceOptions {
   apiKey: string
   model: string
   protocol: 'openai' | 'anthropic'
-  anthropicThinking: 'omit' | 'disabled' | 'adaptive'
   userAgent: string
   language: 'zh' | 'en'
   signal: AbortSignal
@@ -33,7 +32,7 @@ function anthropicImageSource(url: string): { type: 'base64'; media_type: string
   }
   const match = /^data:([^;,]+);base64,(.+)$/u.exec(url)
   if (match === null) {
-    throw new VisionToolkitError('input', 'vision_api: image data URL is invalid')
+    throw new ArkToolkitError('input', 'vision_api: image data URL is invalid')
   }
   return { type: 'base64', media_type: match[1] ?? 'image/png', data: match[2] ?? '' }
 }
@@ -110,7 +109,7 @@ export async function describeImages(
   prompt: string,
   options: VisionServiceOptions,
 ): Promise<DescribeImagesResult> {
-  if (dataUrls.length === 0) throw new VisionToolkitError('input', 'vision_api: at least one image is required')
+  if (dataUrls.length === 0) throw new ArkToolkitError('input', 'vision_api: at least one image is required')
   const text = `${UNTRUSTED_IMAGE_POLICY}\n\n${prependLanguage(prompt, options.language)}`
   const endpoint = options.protocol === 'anthropic'
     ? `${options.baseUrl}/v1/messages`
@@ -128,9 +127,6 @@ export async function describeImages(
           { type: 'text', text },
         ],
       }],
-    }
-    if (options.anthropicThinking !== 'omit') {
-      payload.thinking = { type: options.anthropicThinking }
     }
     headers = {
       'Content-Type': 'application/json',
@@ -165,8 +161,8 @@ export async function describeImages(
       signal: options.signal,
     })
   } catch (error) {
-    if (options.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_glance: cancelled')
-    throw new VisionToolkitError('runtime', `vision_glance: request failed: ${error instanceof Error ? error.message : String(error)}`)
+    if (options.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_glance: cancelled')
+    throw new ArkToolkitError('runtime', `vision_glance: request failed: ${error instanceof Error ? error.message : String(error)}`)
   }
   const upstreamMs = Date.now() - started
   if (!response.ok) {
@@ -180,21 +176,21 @@ export async function describeImages(
       // Keep the status-only detail when the error body is not JSON.
     }
     if (response.status === 401 || response.status === 403) {
-      throw new VisionToolkitError('service', `vision_glance: ${detail}; verify the configured credential`)
+      throw new ArkToolkitError('service', `vision_glance: ${detail}; verify the configured credential`)
     }
     if (response.status === 429) {
-      throw new VisionToolkitError('service', `vision_glance: ${detail}; retry later or reduce concurrency`)
+      throw new ArkToolkitError('service', `vision_glance: ${detail}; retry later or reduce concurrency`)
     }
     if (response.status >= 500 || response.status === 408) {
-      throw new VisionToolkitError('service', `vision_glance: ${detail}`)
+      throw new ArkToolkitError('service', `vision_glance: ${detail}`)
     }
-    throw new VisionToolkitError('service', `vision_glance: ${detail}`)
+    throw new ArkToolkitError('service', `vision_glance: ${detail}`)
   }
   let body: unknown
   try {
     body = await response.json()
   } catch (error) {
-    throw new VisionToolkitError('output', 'vision_glance: vision API returned a non-JSON response', { cause: error })
+    throw new ArkToolkitError('output', 'vision_glance: vision API returned a non-JSON response', { cause: error })
   }
   const record = isRecord(body) ? body : {}
   const choices = Array.isArray(record.choices) ? record.choices[0] : undefined
@@ -202,7 +198,7 @@ export async function describeImages(
     ? anthropicMessageText(record)
     : openaiMessageText(isRecord(choices) ? choices.message : undefined)
   if (answer.trim().length === 0) {
-    throw new VisionToolkitError('output', 'vision_glance: vision API returned an empty description')
+    throw new ArkToolkitError('output', 'vision_glance: vision API returned an empty description')
   }
   return { text: answer.trim(), upstreamMs }
 }

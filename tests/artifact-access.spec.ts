@@ -21,7 +21,7 @@ afterEach(async () => {
 async function fixture(filename: string, bytes: Buffer | string, facts: Pick<ArtifactDescriptor, 'mimeType' | 'kind' | 'previewIntent'>) {
   const root = await mkdtemp(join(tmpdir(), 'dsh-vision-access-'))
   roots.push(root)
-  const artifacts = join(root, 'workspace', '.dsh-vision-toolkit', 'artifacts')
+  const artifacts = join(root, 'workspace', '.dsh-ark-toolkit', 'artifacts')
   await mkdir(artifacts, { recursive: true })
   const path = join(artifacts, filename)
   await writeFile(path, bytes)

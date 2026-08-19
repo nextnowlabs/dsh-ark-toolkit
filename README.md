@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="assets/hero-v2.png" alt="DSH Vision Toolkit：让纯文本 DeepSeek Harness Agent 看懂图片" />
+  <img src="assets/hero-v2.png" alt="DSH Ark Toolkit：让纯文本 DeepSeek Harness Agent 看懂图片" />
 </p>
 
 <div align="center">
 
-# DSH Vision Toolkit
+# DSH Ark Toolkit
 
 [![MIT](https://img.shields.io/badge/license-MIT-0B7285?style=flat-square)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-Web%20%2B%20Headless-5B4CF0?style=flat-square)](cordis.patch.yml)
@@ -21,19 +21,17 @@
 
 - **粘贴图片，直接提问。** 在 DSH Web 里粘贴图片，文本模型会自动切换到看图模式变体，不需要手动复制路径或更换模型。图片保留原生缩略图、会话记录和工作区路径；Web 可以预览产物。
 - **原生 TypeScript，开箱即用。** 图片理解由插件直接调用 OpenAI 兼容 `/chat/completions` 接口，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
-- **默认接入字节火山方舟。** 图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 视觉工具** 填入你自己的 Ark API Key 即可。
+- **默认接入字节火山方舟。** 图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 火山视觉工具** 填入你自己的 Ark API Key 即可。
 - **豆包 Seedream 文生图。** 内置 `vision_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
 - **字节 TTS 语音合成。** `vision_speak` 工具把文本变成语音（MP3/OGG/PCM/WAV），使用字节豆包语音合成模型 2.0，交付为可下载的音频 Artifact。
 - **围绕任务理解图片。** 模型不只是生成通用描述，而是围绕"报错在哪里""按钮在哪"等当前任务提取证据。
 
 > **安装即可使用。** 默认接入字节火山方舟（Volcengine Ark）豆包 Seed Vision 视觉模型，把火山方舟 API Key 保存为 `ARK_API_KEY` 这个 DSH Credential 即可。
 
-> **未发布到 npmjs，请从 GitHub 克隆后本地安装**（发布后可直接 `dsh plugin add @nextnowlabs/dsh-ark-toolkit`）：
+> **已发布到 npmjs，一行安装即可**（安装详情见 [安装与配置指南](docs/installation.md)）：
 
 ```sh
-git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
-cd dsh-ark-toolkit
-dsh plugin --profile web add "$PWD"
+dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit
 ```
 
 **目录**
@@ -61,25 +59,24 @@ dsh plugin --profile web add "$PWD"
 
 ### 1. 安装
 
-插件**尚未发布到 npmjs**，请从 GitHub 克隆到本地后，用本地路径安装（Web Profile）：
+插件已发布到 npmjs，通过 `dsh` CLI 一行安装到 Web Profile：
 
 ```sh
-git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
-cd dsh-ark-toolkit
-dsh plugin --profile web add "$PWD"
+dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit
 ```
 
-Headless Profile 同样从本地安装：
+Headless Profile 同样安装：
 
 ```sh
-dsh plugin --profile headless add "$PWD"
+dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 ```
 
-> 已发布到 npmjs 后，将可以直接一行安装：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit`。
+> 若默认 registry 为镜像源导致安装失败，可显式指定官方源：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit --registry=https://registry.npmjs.org/`。
+> 源码贡献者如需本地开发，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`。
 
 ### 2. 重启并确认
 
-重启正在运行的 Web Profile，打开 **设置 → 视觉工具**。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行**测试视觉模型**确认连接。
+重启正在运行的 Web Profile，打开 **设置 → 火山视觉工具**。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行**测试视觉模型**确认连接。
 
 ### 3. 粘贴图片，直接说你要做什么
 
@@ -126,7 +123,7 @@ flowchart LR
     Artifact --> Session
 ```
 
-对于明确标记为纯文本的模型，插件会注册 `<模型名> (Vision Toolkit)` 变体。在 DSH Web 粘贴图片时，会自动切换到该变体并把图片路径与带当前任务重点的视觉描述一起交给模型。
+对于明确标记为纯文本的模型，插件会注册 `<模型名> (Ark Toolkit)` 变体。在 DSH Web 粘贴图片时，会自动切换到该变体并把图片路径与带当前任务重点的视觉描述一起交给模型。
 
 ## 配置与限制
 
@@ -147,14 +144,14 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 配置自己的火山方舟 API Key
 
-在 **设置 → 视觉工具** 中填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 火山视觉工具** 中填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
 
-**火山方舟图文教程：** [申请火山方舟 API Key，并用豆包 Seed Vision / Seedream 做图片理解与生成](docs/ark-doubao-vision.md)。教程包含账号与 Key 获取截图、Vision Toolkit 的准确配置，以及可直接使用的 cURL 示例。
+**火山方舟图文教程：** [申请火山方舟 API Key，并用豆包 Seed Vision / Seedream 做图片理解与生成](docs/ark-doubao-vision.md)。教程包含账号与 Key 获取截图、Ark Toolkit 的准确配置，以及可直接使用的 cURL 示例。
 
 也可以在 Profile patch 中配置：
 
 ```yaml
-- id: vision-toolkit
+- id: ark-toolkit
   config:
     provider:
       baseUrl: https://ark.cn-beijing.volces.com/api/v3
@@ -177,7 +174,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 按上面的表把 TTS Token 保存为 `VOLCENGINE_TTS_KEY` 这个 DSH Credential 即可使用。想换端点/资源/默认音色，或改凭据名，可在 Profile patch 中配置：
 
 ```yaml
-- id: vision-toolkit
+- id: ark-toolkit
   config:
     provider:
       tts:
@@ -196,10 +193,10 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 | 问题 | 处理方式 |
 | --- | --- |
 | 视觉模型测试失败：`Vision API returned an incompatible response structure` | 通常是 API 地址少了路径前缀。LM Studio、Ollama 等本地 OpenAI 兼容服务需填写 `http://127.0.0.1:1234/v1`（带 `/v1`），插件会在其后拼接 `/chat/completions`；只填端口号会命中服务的未知端点并返回该错误 |
-| 粘贴图片后仍提示模型不支持图片 | 重启 Web Profile 并刷新页面，确认当前模型已切换到带 `(Vision Toolkit)` 的变体；也可以把图片先放进会话工作区，再调用 `/vision-skills` |
+| 粘贴图片后仍提示模型不支持图片 | 重启 Web Profile 并刷新页面，确认当前模型已切换到带 `(Ark Toolkit)` 的变体；也可以把图片先放进会话工作区，再调用 `/vision-skills` |
 | 火山方舟返回 429/限流 | 按错误信息等待后重试；或在火山引擎控制台查看配额并升级额度 |
 | 图片过大或像素超限 | 插件会自动压缩/缩放后再上传；超出压缩下限时会明确报字节或像素限制错误 |
-| 自定义 Credential 缺失 | 在 **设置 → 视觉工具** 填写 API Key，并确认 Credential 名称与配置一致 |
+| 自定义 Credential 缺失 | 在 **设置 → 火山视觉工具** 填写 API Key，并确认 Credential 名称与配置一致 |
 | 产物无法预览 | 使用"打开文件"或结果中的工作区路径；预览 URL 只在 Web 路由可用时存在 |
 
 **接入视觉模型会显著增加成本吗？**
@@ -214,7 +211,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 - 版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
-  <img src="assets/community-group-qr.png" alt="DSH Vision Toolkit 项目交流群二维码" width="240" />
+  <img src="assets/community-group-qr.png" alt="DSH Ark Toolkit 项目交流群二维码" width="240" />
 </p>
 
 ## 许可证

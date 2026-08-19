@@ -3,14 +3,14 @@
  * has no reusable Artifact service, so every file-producing tool returns this
  * lossless contract and keeps the file inside the plugin-managed artifact
  * directory for Web, Headless, and later tool calls alike.
- * @module dsh-vision-toolkit/artifacts
+ * @module dsh-ark-toolkit/artifacts
  */
 import { type PathPolicy } from './paths.ts';
 /** Artifact payload family used by clients to select a safe renderer. */
 export type ArtifactKind = 'image' | 'svg' | 'markdown' | 'json' | 'audio';
 /** Intended default client action for one artifact. */
 export type ArtifactPreviewIntent = 'image' | 'svg' | 'text' | 'download';
-/** Stable descriptor returned by every file-producing Vision Toolkit tool. */
+/** Stable descriptor returned by every file-producing Ark Toolkit tool. */
 export interface ArtifactDescriptor {
     path: string;
     filename: string;

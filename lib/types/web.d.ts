@@ -2,31 +2,37 @@
  * Optional Web-profile routes: signed Artifact delivery plus a same-origin
  * Settings/health endpoint. The browser never receives credential values and
  * connection tests run only after an explicit POST action.
- * @module dsh-vision-toolkit/web
+ * @module dsh-ark-toolkit/web
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Context } from '@deepseek-ai/cordis';
 import { ArtifactAccessController } from './artifact-access.ts';
 import { PastedImageBackend, type PasteSelectionQuery, type PasteVerdict } from './paste-images.ts';
-import { type VisionToolkitConfig } from './config.ts';
+import { type ArkToolkitConfig } from './config.ts';
 import { type PluginUpdateCapability, type PluginUpdateCheck, type PluginUpdateResult } from './plugin-update.ts';
-import { VisionToolkitRuntimeManager, type PreparedRuntimeGeneration, type RuntimeManagerStatus } from './runtime-manager.ts';
+import { ArkToolkitRuntimeManager, type PreparedRuntimeGeneration, type RuntimeManagerStatus } from './runtime-manager.ts';
 /** Exact route used by the browser Settings page. */
-export declare const SETTINGS_ROUTE = "/_dsh/vision-toolkit/settings";
+export declare const SETTINGS_ROUTE = "/_dsh/ark-toolkit/settings";
 /** Same-origin route used by the browser client to read display-mode flags. */
-export declare const DISPLAY_CONFIG_ROUTE = "/_dsh/vision-toolkit/display-config";
+export declare const DISPLAY_CONFIG_ROUTE = "/_dsh/ark-toolkit/display-config";
 /** Public Settings snapshot; credential values are deliberately impossible here. */
-export interface VisionToolkitSettingsSnapshot {
+export interface ArkToolkitSettingsSnapshot {
     schemaVersion: 1;
     writable: boolean;
     settings: {
-        value: VisionToolkitConfig;
+        value: ArkToolkitConfig;
         user?: unknown;
         base?: unknown;
         revision: number;
         applies: 'live';
     };
     credential: {
+        ref: string;
+        configured: boolean;
+        source?: string;
+        writable: boolean;
+    };
+    credentialTts: {
         ref: string;
         configured: boolean;
         source?: string;
@@ -42,8 +48,8 @@ export interface VisionToolkitSettingsSnapshot {
 /** Minimal runtime-manager face used by the Web route and its tests. */
 export interface WebRuntimeManager {
     readonly ready: boolean;
-    current(): ReturnType<VisionToolkitRuntimeManager['current']>;
-    prepareCandidate(raw: VisionToolkitConfig): Promise<PreparedRuntimeGeneration>;
+    current(): ReturnType<ArkToolkitRuntimeManager['current']>;
+    prepareCandidate(raw: ArkToolkitConfig): Promise<PreparedRuntimeGeneration>;
     activateCandidate(candidate: PreparedRuntimeGeneration): void;
     recordFailure(error: unknown): void;
     status(): RuntimeManagerStatus;
@@ -58,7 +64,7 @@ export interface WebPluginUpdater {
 /** Callback invoked when a Settings save makes the first runtime available. */
 export type RuntimeActivated = () => void;
 /** Same-origin Settings and health handler. */
-export declare class VisionToolkitWebBackend {
+export declare class ArkToolkitWebBackend {
     private readonly ctx;
     private readonly manager;
     private readonly artifacts;
@@ -68,8 +74,9 @@ export declare class VisionToolkitWebBackend {
     /** Supply the active listener address before the Settings route becomes reachable. */
     configureWebServer(host: string, port: number): void;
     private credential;
+    private credentialTts;
     /** Build the current settings/runtime/credential snapshot without secrets. */
-    snapshot(): Promise<VisionToolkitSettingsSnapshot>;
+    snapshot(): Promise<ArkToolkitSettingsSnapshot>;
     private save;
     private saveCredential;
     private health;
@@ -109,7 +116,7 @@ export declare function createDisplayConfigHandler(getDisplayConfig: () => {
  * @param pastePolicy - paste-policy verdict resolver (sessionId, selection, modelLabel).
  * @param getDisplayConfig - resolves display-mode flags for the browser client.
  */
-export declare function installVisionToolkitWeb(ctx: Context, backend: VisionToolkitWebBackend, artifacts: ArtifactAccessController, pastedImages: PastedImageBackend, pastePolicy: (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>, getDisplayConfig: () => {
+export declare function installArkToolkitWeb(ctx: Context, backend: ArkToolkitWebBackend, artifacts: ArtifactAccessController, pastedImages: PastedImageBackend, pastePolicy: (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>, getDisplayConfig: () => {
     hidden: boolean;
 }): void;
 //# sourceMappingURL=web.d.ts.map

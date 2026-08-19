@@ -2,11 +2,11 @@
  * Stable error vocabulary shared by the runtime, upstream adapter, and tools.
  * Every failure reaching the model carries one of these codes and a message
  * that never contains credentials or raw upstream stack traces.
- * @module dsh-vision-toolkit/errors
+ * @module dsh-ark-toolkit/errors
  */
 
-/** Discriminant tag for every Vision Toolkit failure. */
-export const VISION_TOOLKIT_ERROR_CODES = [
+/** Discriminant tag for every Ark Toolkit failure. */
+export const ARK_TOOLKIT_ERROR_CODES = [
   'config',
   'input',
   'capacity',
@@ -19,15 +19,15 @@ export const VISION_TOOLKIT_ERROR_CODES = [
 ] as const
 
 /** Stable machine-readable error category. */
-export type VisionToolkitErrorCode = typeof VISION_TOOLKIT_ERROR_CODES[number]
+export type ArkToolkitErrorCode = typeof ARK_TOOLKIT_ERROR_CODES[number]
 
 /** Error with a stable category; safe to surface to the model. */
-export class VisionToolkitError extends Error {
-  readonly code: VisionToolkitErrorCode
+export class ArkToolkitError extends Error {
+  readonly code: ArkToolkitErrorCode
 
-  constructor(code: VisionToolkitErrorCode, message: string, options?: { cause?: unknown }) {
+  constructor(code: ArkToolkitErrorCode, message: string, options?: { cause?: unknown }) {
     super(message, options)
-    this.name = 'VisionToolkitError'
+    this.name = 'ArkToolkitError'
     this.code = code
   }
 }

@@ -1,7 +1,7 @@
 /**
  * Pure-Node image codec backed by sharp. Probe, crop, and lossless-first
  * compression replace the former vendored Pillow runtime — no Python involved.
- * @module dsh-vision-toolkit/image-codec
+ * @module dsh-ark-toolkit/image-codec
  */
 /** Probed image facts shared by validation and artifacts. */
 export interface ProbedImage {

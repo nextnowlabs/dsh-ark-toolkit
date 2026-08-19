@@ -3,10 +3,10 @@
  * integration uses a short-lived cache so it does not hammer the same-origin
  * route on every paste. The model selector itself decides purely from DOM
  * display names and does not read this route.
- * @module dsh-vision-toolkit/display-config
+ * @module dsh-ark-toolkit/display-config
  */
 
-export const DISPLAY_CONFIG_ROUTE = '/_dsh/vision-toolkit/display-config'
+export const DISPLAY_CONFIG_ROUTE = '/_dsh/ark-toolkit/display-config'
 
 const CONFIG_TTL_MS = 10_000
 

@@ -3,7 +3,7 @@
  * Runtime readiness is global, while tool schemas enter only an Agent through
  * the matching Skill or its bootstrap tool; administrative diagnostics stay on
  * the Web seam.
- * @module dsh-vision-toolkit/exposure
+ * @module dsh-ark-toolkit/exposure
  */
 
 import type { Agent } from '@deepseek-ai/dsh-agent'
@@ -15,7 +15,7 @@ import { VISION_SKILLS_CONTENT, VISION_SKILLS_NAME } from './skill.ts'
 import { VISION_TOOL_NAMES } from './tools.ts'
 
 /** Small bootstrap tool retained only until the current Agent gains visual tools. */
-export const VISION_TOOLKIT_ACTIVATE = 'vision_toolkit_activate'
+export const ARK_TOOLKIT_ACTIVATE = 'ark_toolkit_activate'
 
 /** Skill name used by releases before the rename to vision-skills. */
 export const LEGACY_VISION_TOOLS_SKILL_NAME = 'vision-tools'
@@ -31,7 +31,7 @@ interface AgentExposure {
 }
 
 /** Result returned by the one-shot activation transport. */
-export interface VisionToolkitActivationResult {
+export interface ArkToolkitActivationResult {
   activated: boolean
   tools: string[]
 }
@@ -113,7 +113,7 @@ function hasLoadedVisionSkill(session: Session): boolean {
 }
 
 /**
- * Owns one progressive-exposure generation for a ready Vision Toolkit runtime.
+ * Owns one progressive-exposure generation for a ready Ark Toolkit runtime.
  * The bootstrap tool is global; visual definitions are created and registered
  * in an Agent scope after the Skill load is durable, just succeeded, or the
  * model explicitly invokes the bootstrap fallback.
@@ -132,8 +132,8 @@ export class VisionToolExposure {
     private readonly createTools: () => ToolDefinition[],
   ) {
     this.activationTool = defineTool({
-      name: VISION_TOOLKIT_ACTIVATE,
-      description: `Activate the independent Vision Toolkit execution tools for this Agent: ${Object.values(VISION_TOOL_NAMES).join(', ')}. `
+      name: ARK_TOOLKIT_ACTIVATE,
+      description: `Activate the independent Ark Toolkit execution tools for this Agent: ${Object.values(VISION_TOOL_NAMES).join(', ')}. `
         + `Loading the ${VISION_SKILLS_NAME} Skill normally activates them automatically; call this once when the visual tools are still absent, then use them for image understanding, OCR, UI detection, and related tasks. `
         + 'It is safe to call before the Skill is loaded, and this activation tool disappears after success.',
       parameters: {},
@@ -148,9 +148,9 @@ export class VisionToolExposure {
         },
         render: renderJson,
       },
-      execute: (_args, exec): Promise<VisionToolkitActivationResult> => {
+      execute: (_args, exec): Promise<ArkToolkitActivationResult> => {
         if (exec.agent === undefined) {
-          throw new Error(`${VISION_TOOLKIT_ACTIVATE}: an Agent Session is required`)
+          throw new Error(`${ARK_TOOLKIT_ACTIVATE}: an Agent Session is required`)
         }
         return Promise.resolve(this.activate(exec.agent))
       },
@@ -160,7 +160,7 @@ export class VisionToolExposure {
 
   /** Install lifecycle listeners and adopt Agents that already exist. */
   install(): () => void {
-    if (this.installed) throw new Error('dsh-vision-toolkit: progressive exposure is already installed')
+    if (this.installed) throw new Error('dsh-ark-toolkit: progressive exposure is already installed')
     this.installed = true
     const listeners = [
       this.ctx.on('agent/created', ({ agent }) => { this.attach(agent) }),
@@ -201,11 +201,11 @@ export class VisionToolExposure {
     if (hasLoadedVisionSkill(agent.session)) this.activate(agent)
   }
 
-  private activate(agent: Agent): VisionToolkitActivationResult {
+  private activate(agent: Agent): ArkToolkitActivationResult {
     this.attach(agent)
     const state = this.states.get(agent)
     /* v8 ignore next -- attach() synchronously creates this exact entry. */
-    if (state === undefined) throw new Error(`dsh-vision-toolkit: Agent ${String(agent.id)} has no exposure state`)
+    if (state === undefined) throw new Error(`dsh-ark-toolkit: Agent ${String(agent.id)} has no exposure state`)
     if (state.active) return { activated: false, tools: [...state.toolNames] }
 
     const definitions = this.createTools()
@@ -243,7 +243,7 @@ export class VisionToolExposure {
   private applyHideActivation(agent: Agent): void {
     const state = this.states.get(agent)
     if (state === undefined || state.liftRestriction !== undefined) return
-    state.liftRestriction = agent.ctx.tools.restrict({ deny: [VISION_TOOLKIT_ACTIVATE] })
+    state.liftRestriction = agent.ctx.tools.restrict({ deny: [ARK_TOOLKIT_ACTIVATE] })
   }
 
   private detach(agent: Agent): void {

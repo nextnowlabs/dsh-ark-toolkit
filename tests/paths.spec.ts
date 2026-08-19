@@ -16,17 +16,17 @@ import {
   resolveOutputFile,
   seedStagedDirectory,
 } from '../src/paths.ts'
-import { VisionToolkitError } from '../src/errors.ts'
+import { ArkToolkitError } from '../src/errors.ts'
 
 const tempDirs: string[] = []
 async function tempDir(prefix: string): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), `dsh-vision-toolkit-${prefix}-`))
+  const dir = await mkdtemp(join(tmpdir(), `dsh-ark-toolkit-${prefix}-`))
   tempDirs.push(dir)
   return dir
 }
 
 async function outsideTempDir(prefix: string): Promise<string> {
-  const dir = await mkdtemp(join(homedir(), `.dsh-vision-toolkit-${prefix}-`))
+  const dir = await mkdtemp(join(homedir(), `.dsh-ark-toolkit-${prefix}-`))
   tempDirs.push(dir)
   return dir
 }
@@ -40,7 +40,7 @@ describe('createPathPolicy', () => {
     const workspace = await tempDir('workspace')
     const policy = await createPathPolicy(workspace, [])
     expect(policy.workspace).toBe(await realpath(workspace))
-    expect(policy.outputDir).toBe(await realpath(join(workspace, '.dsh-vision-toolkit', 'artifacts')))
+    expect(policy.outputDir).toBe(await realpath(join(workspace, '.dsh-ark-toolkit', 'artifacts')))
   })
 
   it('rejects an output directory outside the fence', async () => {
@@ -110,7 +110,7 @@ describe('resolveInputFile', () => {
 
   it('accepts an image in the platform temporary directory', async () => {
     const workspace = await tempDir('workspace')
-    const temporary = await mkdtemp(join(platformTempDirectory(), 'dsh-vision-toolkit-platform-temp-'))
+    const temporary = await mkdtemp(join(platformTempDirectory(), 'dsh-ark-toolkit-platform-temp-'))
     tempDirs.push(temporary)
     const path = join(temporary, 'temporary.png')
     await writeFile(path, 'data')
@@ -257,6 +257,6 @@ describe('managed artifact directories', () => {
     const policy = await createPathPolicy(workspace, [])
     expect(() => resolveOutputDirectory('../run', policy, 'default')).toThrowError(/one visible directory name/)
     expect(() => resolveOutputDirectory('/tmp/run', policy, 'default')).toThrowError(/absolute/)
-    expect(() => resolveOutputDirectory('.vision-toolkit-owned', policy, 'default')).toThrowError(/one visible directory name/)
+    expect(() => resolveOutputDirectory('.ark-toolkit-owned', policy, 'default')).toThrowError(/one visible directory name/)
   })
 })

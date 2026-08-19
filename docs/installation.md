@@ -1,32 +1,26 @@
 # 安装与配置指南
 
-本指南说明如何安装 DSH Vision Toolkit 插件、配置字节火山方舟（Volcengine Ark）视觉后端与 TTS 语音合成，并给出完整的 Profile patch 配置参考。所有配置字段都有默认值，绝大多数用户只需要填 API Key。
+本指南说明如何安装 DSH Ark Toolkit 插件、配置字节火山方舟（Volcengine Ark）视觉后端与 TTS 语音合成，并给出完整的 Profile patch 配置参考。所有配置字段都有默认值，绝大多数用户只需要填 API Key。
 
 ---
 
 ## 1. 安装
 
-插件通过 `dsh` CLI 安装到指定 Profile。推荐先装到 Web Profile，Headless Profile 也可安装。
-
-> **注意：插件尚未发布到 npmjs**，目前只能从 GitHub 克隆到本地后，用本地路径安装；发布到 npmjs 后才支持 `dsh plugin add <包名>` 一行安装。
+插件已发布到 npmjs，通过 `dsh` CLI 一行安装到指定 Profile。推荐先装到 Web Profile，Headless Profile 也可安装。
 
 ```sh
-# 1) 克隆仓库（推荐放到固定位置，便于后续 git pull 更新）
-git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
-cd dsh-ark-toolkit
+# 1) 安装到 Web Profile（推荐，可在图形界面里配置与测试）
+dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit
 
-# 2) 安装到 Web Profile（推荐，可在图形界面里配置与测试）
-dsh plugin --profile web add "$PWD"
-
-# 3) 安装到 Headless Profile（可选）
-dsh plugin --profile headless add "$PWD"
+# 2) 安装到 Headless Profile（可选）
+dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 ```
 
-> 插件**尚未发布到 npmjs**，所以上面的本地路径安装会使用仓库里的 `lib/` 构建产物（已随仓库提交），无需本地构建。升级时在仓库目录执行 `git pull` 后重启 Profile 即可。
+> 若默认 registry 为镜像源（如 npmmirror）导致安装失败，可显式指定官方源：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit --registry=https://registry.npmjs.org/`。
 >
-> 未来发布到 npmjs 后，可直接一行安装：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit`（必要时追加 `--registry=https://registry.npmjs.org/`）。
+> 源码贡献者如需本地开发/修改插件，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`（此时使用仓库 `lib/` 构建产物，升级时 `git pull` 后重启 Profile 即可）。
 
-安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 视觉工具**。
+安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 火山视觉工具**。
 
 插件是**原生 Node/TypeScript** 实现：图片理解直接调用视觉模型服务，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
 
@@ -57,7 +51,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 2.2 填写 API Key
 
-在 **设置 → 视觉工具** 的 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 火山视觉工具** 的 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
 
 保存后运行 **测试视觉模型**，确认连接成功。
 
@@ -89,7 +83,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 除在 Web Settings 里配置外，所有字段都支持在 Profile patch 中覆盖。下面是包含全部常用字段的示例：
 
 ```yaml
-- id: vision-toolkit
+- id: ark-toolkit
   config:
     # —— 视觉后端（字节火山方舟）——
     provider:
@@ -97,7 +91,6 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
       credential: ARK_API_KEY
       model: doubao-seed-2-0-lite-260215
       protocol: openai            # openai | anthropic
-      anthropicThinking: omit     # omit | disabled | adaptive（仅 anthropic 协议）
       # userAgent: 可覆盖出站 User-Agent
       # —— TTS 语音合成（vision_speak）——
       tts:
@@ -108,7 +101,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
     # —— 输出语言 ——
     language: zh                  # zh | en
     # —— 单次远程调用预算（毫秒）——
-    timeoutMs: 30000
+    timeoutMs: 600000
     # —— 图片输入限制（自动压缩/缩放）——
     maxImageBytes: 4194304        # 4 MiB
     maxImagePixels: 20000000      # 2000 万像素
@@ -132,14 +125,13 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 | `provider.credential` | `ARK_API_KEY` | 保存火山方舟 API Key 的 DSH Credential 名 |
 | `provider.model` | `doubao-seed-2-0-lite-260215` | 图片理解模型 |
 | `provider.protocol` | `openai` | 接口协议：OpenAI Chat Completions 或 Anthropic Messages |
-| `provider.anthropicThinking` | `omit` | Anthropic thinking 字段行为 |
 | `provider.userAgent` | 浏览器 UA | 出站请求 User-Agent |
 | `provider.tts.baseUrl` | `https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse` | TTS V3 端点 |
 | `provider.tts.credential` | `VOLCENGINE_TTS_KEY` | 保存 TTS Token 的 DSH Credential 名 |
 | `provider.tts.resource` | `seed-tts-2.0` | TTS 资源/App ID |
 | `provider.tts.voice` | `zh_female_shuangkuaisisi_uranus_bigtts` | 默认音色 |
 | `language` | `zh` | 视觉输出语言 |
-| `timeoutMs` | `30000` | 单次远程调用超时 |
+| `timeoutMs` | `600000` | 单次远程调用超时 |
 | `maxImageBytes` | `4194304` | 输入图片最大字节数，超限自动无损压缩 |
 | `maxImagePixels` | `20000000` | 输入图片最大像素数，超限自动缩放 |
 | `concurrency` | `4` | 会话内并发工具执行上限 |
@@ -150,7 +142,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 
 ## 5. 验证配置
 
-- **Web：** 打开 **设置 → 视觉工具**，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
+- **Web：** 打开 **设置 → 火山视觉工具**，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
 - **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务与模型检查为 `ok`；
 - **直接调用：** 在会话里粘贴一张图片并提问，或调用 `vision_generate_image` / `vision_speak` 验证生成能力。
 

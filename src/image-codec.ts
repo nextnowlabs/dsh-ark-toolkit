@@ -1,11 +1,11 @@
 /**
  * Pure-Node image codec backed by sharp. Probe, crop, and lossless-first
  * compression replace the former vendored Pillow runtime — no Python involved.
- * @module dsh-vision-toolkit/image-codec
+ * @module dsh-ark-toolkit/image-codec
  */
 
 import sharp from 'sharp'
-import { VisionToolkitError } from './errors.ts'
+import { ArkToolkitError } from './errors.ts'
 
 /** Probed image facts shared by validation and artifacts. */
 export interface ProbedImage {
@@ -31,7 +31,7 @@ export async function probeImage(path: string): Promise<ProbedImage> {
   try {
     metadata = await sharp(path).metadata()
   } catch (error) {
-    throw new VisionToolkitError('input', `cannot decode image: ${error instanceof Error ? error.message : 'unsupported or corrupt file'}`)
+    throw new ArkToolkitError('input', `cannot decode image: ${error instanceof Error ? error.message : 'unsupported or corrupt file'}`)
   }
   const width = metadata.width
   const height = metadata.height
@@ -41,7 +41,7 @@ export async function probeImage(path: string): Promise<ProbedImage> {
     || typeof height !== 'number' || !Number.isInteger(height) || height <= 0
     || (format !== 'png' && format !== 'jpeg' && format !== 'gif' && format !== 'webp')
   ) {
-    throw new VisionToolkitError('input', 'cannot decode image: unsupported or corrupt file')
+    throw new ArkToolkitError('input', 'cannot decode image: unsupported or corrupt file')
   }
   return { width, height, format, mode: metadata.channels === 4 ? 'RGBA' : metadata.channels === 2 ? 'LA' : 'RGB' }
 }
@@ -56,15 +56,15 @@ export async function cropRegionToDataUrl(
     const width = region.x2 - region.x1
     const height = region.y2 - region.y1
     if (width <= 0 || height <= 0) {
-      throw new VisionToolkitError('input', 'crop region must have x2 > x1 and y2 > y1')
+      throw new ArkToolkitError('input', 'crop region must have x2 > x1 and y2 > y1')
     }
     buffer = await sharp(path)
       .extract({ left: region.x1, top: region.y1, width, height })
       .png()
       .toBuffer()
   } catch (error) {
-    if (error instanceof VisionToolkitError) throw error
-    throw new VisionToolkitError('input', `cannot crop image: ${error instanceof Error ? error.message : 'crop failed'}`)
+    if (error instanceof ArkToolkitError) throw error
+    throw new ArkToolkitError('input', `cannot crop image: ${error instanceof Error ? error.message : 'crop failed'}`)
   }
   return `data:image/png;base64,${buffer.toString('base64')}`
 }
@@ -75,7 +75,7 @@ export async function imageToDataUrl(path: string): Promise<string> {
   try {
     bytes = await sharp(path).toBuffer()
   } catch (error) {
-    throw new VisionToolkitError('input', `cannot read image: ${error instanceof Error ? error.message : 'read failed'}`)
+    throw new ArkToolkitError('input', `cannot read image: ${error instanceof Error ? error.message : 'read failed'}`)
   }
   const format = await probeImage(path).then(info => info.format).catch(() => 'png' as const)
   const mime = format === 'jpeg' ? 'image/jpeg' : format === 'webp' ? 'image/webp' : format === 'gif' ? 'image/gif' : 'image/png'
@@ -171,7 +171,7 @@ export async function compressImage(
   }
 
   if (best === undefined || !fits(width, height, best.bytes)) {
-    throw new VisionToolkitError('capacity', `cannot compress image under ${maxBytes} bytes / ${maxPixels} pixels`)
+    throw new ArkToolkitError('capacity', `cannot compress image under ${maxBytes} bytes / ${maxPixels} pixels`)
   }
   // Re-run the best candidate to actually write the file.
   const pipeline = build()

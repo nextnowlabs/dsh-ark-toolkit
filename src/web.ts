@@ -2,7 +2,7 @@
  * Optional Web-profile routes: signed Artifact delivery plus a same-origin
  * Settings/health endpoint. The browser never receives credential values and
  * connection tests run only after an explicit POST action.
- * @module dsh-vision-toolkit/web
+ * @module dsh-ark-toolkit/web
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -25,20 +25,20 @@ import {
 } from './paste-images.ts'
 import {
   resolveConfig,
-  VISION_TOOLKIT_SETTINGS_NAMESPACE,
-  type ResolvedVisionToolkitConfig,
-  type VisionToolkitConfig,
+  ARK_TOOLKIT_SETTINGS_NAMESPACE,
+  type ResolvedArkToolkitConfig,
+  type ArkToolkitConfig,
 } from './config.ts'
-import type { VisionToolkitHealthResult } from './runtime.ts'
+import type { ArkToolkitHealthResult } from './runtime.ts'
 import {
   PluginUpdateError,
-  VisionToolkitPluginUpdateService,
+  ArkToolkitPluginUpdateService,
   type PluginUpdateCapability,
   type PluginUpdateCheck,
   type PluginUpdateResult,
 } from './plugin-update.ts'
 import {
-  VisionToolkitRuntimeManager,
+  ArkToolkitRuntimeManager,
   type PreparedRuntimeGeneration,
   type RuntimeManagerStatus,
 } from './runtime-manager.ts'
@@ -46,23 +46,29 @@ import { PLUGIN_VERSION } from './version.ts'
 import { sameOriginPost, sameOriginRequest } from './web-request.ts'
 
 /** Exact route used by the browser Settings page. */
-export const SETTINGS_ROUTE = '/_dsh/vision-toolkit/settings'
+export const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
 
 /** Same-origin route used by the browser client to read display-mode flags. */
-export const DISPLAY_CONFIG_ROUTE = '/_dsh/vision-toolkit/display-config'
+export const DISPLAY_CONFIG_ROUTE = '/_dsh/ark-toolkit/display-config'
 
 /** Public Settings snapshot; credential values are deliberately impossible here. */
-export interface VisionToolkitSettingsSnapshot {
+export interface ArkToolkitSettingsSnapshot {
   schemaVersion: 1
   writable: boolean
   settings: {
-    value: VisionToolkitConfig
+    value: ArkToolkitConfig
     user?: unknown
     base?: unknown
     revision: number
     applies: 'live'
   }
   credential: {
+    ref: string
+    configured: boolean
+    source?: string
+    writable: boolean
+  }
+  credentialTts: {
     ref: string
     configured: boolean
     source?: string
@@ -79,7 +85,7 @@ export interface VisionToolkitSettingsSnapshot {
 interface SaveRequest {
   action: 'save'
   expectedRevision: number
-  value: VisionToolkitConfig
+  value: ArkToolkitConfig
 }
 
 interface HealthRequest {
@@ -121,8 +127,8 @@ type JsonResponse<T> = JsonSuccess<T> | JsonError
 /** Minimal runtime-manager face used by the Web route and its tests. */
 export interface WebRuntimeManager {
   readonly ready: boolean
-  current(): ReturnType<VisionToolkitRuntimeManager['current']>
-  prepareCandidate(raw: VisionToolkitConfig): Promise<PreparedRuntimeGeneration>
+  current(): ReturnType<ArkToolkitRuntimeManager['current']>
+  prepareCandidate(raw: ArkToolkitConfig): Promise<PreparedRuntimeGeneration>
   activateCandidate(candidate: PreparedRuntimeGeneration): void
   recordFailure(error: unknown): void
   status(): RuntimeManagerStatus
@@ -146,8 +152,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 class CredentialReferenceConflictError extends Error {}
 
 function descriptorOf(ctx: Context): SettingsDescriptor {
-  const descriptor = ctx.settings.describe().find(row => row.ns === VISION_TOOLKIT_SETTINGS_NAMESPACE)
-  if (descriptor === undefined) throw new Error('vision-toolkit Settings namespace is not registered')
+  const descriptor = ctx.settings.describe().find(row => row.ns === ARK_TOOLKIT_SETTINGS_NAMESPACE)
+  if (descriptor === undefined) throw new Error('ark-toolkit Settings namespace is not registered')
   return descriptor
 }
 
@@ -198,7 +204,7 @@ function parseRequest(value: unknown): SettingsRequest {
     return {
       action: 'save',
       expectedRevision: value.expectedRevision as number,
-      value: value.value as VisionToolkitConfig,
+      value: value.value as ArkToolkitConfig,
     }
   }
   if (value.action === 'credential') {
@@ -238,7 +244,7 @@ function publicMessage(error: unknown): string {
 }
 
 /** Same-origin Settings and health handler. */
-export class VisionToolkitWebBackend {
+export class ArkToolkitWebBackend {
   private readonly updater: WebPluginUpdater
 
   constructor(
@@ -248,7 +254,7 @@ export class VisionToolkitWebBackend {
     private readonly onRuntimeActivated: RuntimeActivated,
     updater?: WebPluginUpdater,
   ) {
-    this.updater = updater ?? new VisionToolkitPluginUpdateService(ctx, PLUGIN_VERSION, {
+    this.updater = updater ?? new ArkToolkitPluginUpdateService(ctx, PLUGIN_VERSION, {
       runtimeReady: () => this.manager.status().ready,
     })
   }
@@ -258,16 +264,21 @@ export class VisionToolkitWebBackend {
     this.updater.configureWebServer?.(host, port)
   }
 
-  private async credential(config: ResolvedVisionToolkitConfig): Promise<CredentialInfo> {
+  private async credential(config: ResolvedArkToolkitConfig): Promise<CredentialInfo> {
     return this.ctx.credentials.describe(credentialRef(String(config.provider.credential)))
   }
 
+  private async credentialTts(config: ResolvedArkToolkitConfig): Promise<CredentialInfo> {
+    return this.ctx.credentials.describe(credentialRef(String(config.provider.tts.credential)))
+  }
+
   /** Build the current settings/runtime/credential snapshot without secrets. */
-  async snapshot(): Promise<VisionToolkitSettingsSnapshot> {
+  async snapshot(): Promise<ArkToolkitSettingsSnapshot> {
     const descriptor = descriptorOf(this.ctx)
-    const value = descriptor.value as VisionToolkitConfig
+    const value = descriptor.value as ArkToolkitConfig
     const resolved = resolveConfig(value)
     const credential = await this.credential(resolved)
+    const credentialTts = await this.credentialTts(resolved)
     const update = await this.updater.capability()
     return {
       schemaVersion: 1,
@@ -285,6 +296,12 @@ export class VisionToolkitWebBackend {
         ...(credential.source === undefined ? {} : { source: credential.source }),
         writable: credential.writable,
       },
+      credentialTts: {
+        ref: String(resolved.provider.tts.credential),
+        configured: credentialTts.configured,
+        ...(credentialTts.source === undefined ? {} : { source: credentialTts.source }),
+        writable: credentialTts.writable,
+      },
       runtime: this.manager.status(),
       release: {
         pluginVersion: PLUGIN_VERSION,
@@ -294,7 +311,7 @@ export class VisionToolkitWebBackend {
     }
   }
 
-  private async save(request: SaveRequest): Promise<VisionToolkitSettingsSnapshot> {
+  private async save(request: SaveRequest): Promise<ArkToolkitSettingsSnapshot> {
     if (!this.ctx.settings.writable) throw new Error('settings provider is read-only')
     let candidate: PreparedRuntimeGeneration
     try {
@@ -304,7 +321,7 @@ export class VisionToolkitWebBackend {
       throw error
     }
     await this.ctx.settings.replace(
-      VISION_TOOLKIT_SETTINGS_NAMESPACE,
+      ARK_TOOLKIT_SETTINGS_NAMESPACE,
       request.value as object,
       request.expectedRevision,
     )
@@ -313,27 +330,31 @@ export class VisionToolkitWebBackend {
     return this.snapshot()
   }
 
-  private async saveCredential(request: CredentialRequest): Promise<VisionToolkitSettingsSnapshot> {
+  private async saveCredential(request: CredentialRequest): Promise<ArkToolkitSettingsSnapshot> {
     const descriptor = descriptorOf(this.ctx)
     if (descriptor.revision !== request.expectedRevision) {
       throw new SettingsConflictError(
-        VISION_TOOLKIT_SETTINGS_NAMESPACE,
+        ARK_TOOLKIT_SETTINGS_NAMESPACE,
         request.expectedRevision,
         descriptor.revision,
       )
     }
-    const resolved = resolveConfig(descriptor.value as VisionToolkitConfig)
-    const currentRef = credentialRef(String(resolved.provider.credential))
-    if (currentRef !== request.ref) {
+    const resolved = resolveConfig(descriptor.value as ArkToolkitConfig)
+    const visionRef = credentialRef(String(resolved.provider.credential))
+    const ttsRef = credentialRef(String(resolved.provider.tts.credential))
+    const target = request.ref === visionRef ? visionRef
+      : request.ref === ttsRef ? ttsRef
+        : undefined
+    if (target === undefined) {
       throw new CredentialReferenceConflictError(
-        `credential reference changed from "${request.ref}" to "${currentRef}"; reload Settings and try again`,
+        `credential reference "${request.ref}" does not match the configured "${visionRef}" or "${ttsRef}"; reload Settings and try again`,
       )
     }
-    await this.ctx.credentials.set(currentRef, request.value)
+    await this.ctx.credentials.set(target, request.value)
     return this.snapshot()
   }
 
-  private async health(request: HealthRequest, req: IncomingMessage): Promise<VisionToolkitHealthResult> {
+  private async health(request: HealthRequest, req: IncomingMessage): Promise<ArkToolkitHealthResult> {
     if (!this.manager.ready) throw new Error('runtime is not ready; fix Settings and save a valid configuration first')
     const controller = new AbortController()
     const abort = (): void => { controller.abort() }
@@ -342,11 +363,11 @@ export class VisionToolkitWebBackend {
     try {
       const runtime = this.manager.current()
       // Health only needs a scratch workspace to validate output staging.
-      const workspace = join(tmpdir(), `dsh-vision-toolkit-health-${process.pid}`)
+      const workspace = join(tmpdir(), `dsh-ark-toolkit-health-${process.pid}`)
       return await runtime.health(request.testConnection, {
         signal: controller.signal,
         workspace,
-        sessionId: 'vision-toolkit-settings',
+        sessionId: 'ark-toolkit-settings',
       }, request.testModel)
     } finally {
       req.off('aborted', abort)
@@ -360,8 +381,8 @@ export class VisionToolkitWebBackend {
       try {
         responseJson(res, 200, { ok: true, value: await this.snapshot() })
       } catch (error) {
-        this.ctx.logger.warn('dsh-vision-toolkit Settings snapshot failed: %s', publicMessage(error))
-        requestError(res, 503, 'settings-unavailable', 'Vision Toolkit Settings are unavailable')
+        this.ctx.logger.warn('dsh-ark-toolkit Settings snapshot failed: %s', publicMessage(error))
+        requestError(res, 503, 'settings-unavailable', 'Ark Toolkit Settings are unavailable')
       }
       return
     }
@@ -425,7 +446,7 @@ export class VisionToolkitWebBackend {
             : updateError
               ? 500
               : 400
-      this.ctx.logger.warn('dsh-vision-toolkit Web action=%s failed: %s', parsed.action, publicMessage(error))
+      this.ctx.logger.warn('dsh-ark-toolkit Web action=%s failed: %s', parsed.action, publicMessage(error))
       requestError(res, status, code, publicMessage(error))
     }
   }
@@ -535,9 +556,9 @@ export function createDisplayConfigHandler(
  * @param pastePolicy - paste-policy verdict resolver (sessionId, selection, modelLabel).
  * @param getDisplayConfig - resolves display-mode flags for the browser client.
  */
-export function installVisionToolkitWeb(
+export function installArkToolkitWeb(
   ctx: Context,
-  backend: VisionToolkitWebBackend,
+  backend: ArkToolkitWebBackend,
   artifacts: ArtifactAccessController,
   pastedImages: PastedImageBackend,
   pastePolicy: (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>,
@@ -580,6 +601,6 @@ export function installVisionToolkitWeb(
         disposeArtifact()
         detach()
       }
-    }, 'dsh-vision-toolkit: Web routes')
+    }, 'dsh-ark-toolkit: Web routes')
   })
 }

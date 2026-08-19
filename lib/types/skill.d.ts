@@ -1,6 +1,6 @@
 /**
  * DSH-native adapter for the vision-skills Skill.
- * @module dsh-vision-toolkit/skill
+ * @module dsh-ark-toolkit/skill
  */
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';
 /** Stable catalog/invocation name shared with progressive tool exposure. */

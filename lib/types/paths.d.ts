@@ -3,12 +3,12 @@
  * platform temporary directory, or an explicitly authorized directory;
  * outputs stay inside the plugin-managed output directory, and a symbolic
  * link is allowed only when its real target stays inside the fence.
- * @module dsh-vision-toolkit/paths
+ * @module dsh-ark-toolkit/paths
  */
 /** Supported input image extensions (the vision client's allowlist). */
 export declare const SUPPORTED_IMAGE_EXTENSIONS: readonly [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 /** Persistent per-DSH-home cache root shared by runtime and Web support files. */
-export declare function visionToolkitStateRoot(): string;
+export declare function arkToolkitStateRoot(): string;
 /** Resolved path policy for one tool invocation. */
 export interface PathPolicy {
     /** Real workspace root. */
@@ -36,7 +36,7 @@ export declare function normalizePlatformTempPath(raw: string, platform?: NodeJS
  * the output directory inside the fence.
  * @param workspaceRaw - session workspace (or process cwd fallback).
  * @param allowedDirs - configured extra allowed roots.
- * @param outputDirRaw - configured output directory (default `.dsh-vision-toolkit/artifacts`).
+ * @param outputDirRaw - configured output directory (default `.dsh-ark-toolkit/artifacts`).
  * @returns the resolved policy.
  */
 export declare function createPathPolicy(workspaceRaw: string, allowedDirs: readonly string[], outputDirRaw?: string): Promise<PathPolicy>;

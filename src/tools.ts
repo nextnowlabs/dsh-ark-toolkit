@@ -2,13 +2,13 @@
  * Model-facing native tools. Every definition projects one structured runtime
  * operation and preserves canonical result metadata for the optional Web client
  * without changing Headless or model-visible semantics.
- * @module dsh-vision-toolkit/tools
+ * @module dsh-ark-toolkit/tools
  */
 
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import { defineTool, type JsonValue, type ToolRunContext, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 import {
-  VisionToolkitRuntime,
+  ArkToolkitRuntime,
   type GenerateImageRequest,
   type GlanceRequest,
   type SpeakRequest,
@@ -94,12 +94,12 @@ const artifactSchema = {
 const requiredArtifactSchema = { ...artifactSchema, required: true } as const
 
 /** Runtime lookup accepted by tools so Settings can atomically swap generations. */
-export type VisionToolkitRuntimeSource = VisionToolkitRuntime | (() => VisionToolkitRuntime)
+export type ArkToolkitRuntimeSource = ArkToolkitRuntime | (() => ArkToolkitRuntime)
 
 /** Browser-only metadata projector; the model-visible value remains unchanged. */
-export type VisionToolkitPresentationProjector = (value: JsonValue) => JsonValue
+export type ArkToolkitPresentationProjector = (value: JsonValue) => JsonValue
 
-function runtimeFrom(source: VisionToolkitRuntimeSource): VisionToolkitRuntime {
+function runtimeFrom(source: ArkToolkitRuntimeSource): ArkToolkitRuntime {
   return typeof source === 'function' ? source() : source
 }
 
@@ -111,8 +111,8 @@ function runtimeFrom(source: VisionToolkitRuntimeSource): VisionToolkitRuntime {
  * @returns Native tool definitions registered as one lifecycle generation.
  */
 export function createVisionTools(
-  source: VisionToolkitRuntimeSource,
-  projectPresentation: VisionToolkitPresentationProjector = presentationIdentity,
+  source: ArkToolkitRuntimeSource,
+  projectPresentation: ArkToolkitPresentationProjector = presentationIdentity,
   lifecycleSignal?: AbortSignal,
 ): ReturnType<typeof defineTool>[] {
   const presentationMeta = (_args: unknown, value: JsonValue): JsonValue => projectPresentation(value)

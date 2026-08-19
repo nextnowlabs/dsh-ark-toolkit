@@ -11,11 +11,11 @@ import SkillService from '@deepseek-ai/dsh-skill'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
-import * as VisionToolkit from '../src/index.ts'
+import * as ArkToolkit from '../src/index.ts'
 import {
   LEGACY_VISION_TOOLS_SKILL_MARKER,
   LEGACY_VISION_TOOLS_SKILL_NAME,
-  VISION_TOOLKIT_ACTIVATE,
+  ARK_TOOLKIT_ACTIVATE,
 } from '../src/exposure.ts'
 import { VISION_SKILLS_CONTENT, VISION_SKILLS_NAME, VISION_SKILLS_RESOURCE_BASE } from '../src/skill.ts'
 import { VISION_TOOL_NAMES } from '../src/tools.ts'
@@ -158,7 +158,7 @@ async function setupContext() {
   await ctx.plugin(ToolSkill)
   await ctx.plugin(MemorySettings)
   ctx.provide('credentials', fakeCredentials())
-  const fiber = await ctx.plugin(VisionToolkit, {
+  const fiber = await ctx.plugin(ArkToolkit, {
     provider: {
       baseUrl: 'https://vision.example/v1',
       credential: 'VISION_API_KEY',
@@ -168,10 +168,10 @@ async function setupContext() {
   return { ctx, fiber }
 }
 
-describe('dsh-vision-toolkit plugin lifecycle', () => {
+describe('dsh-ark-toolkit plugin lifecycle', () => {
   it('keeps visual schemas hidden until the matching Skill loads for one Agent', async () => {
     const { ctx } = await setupContext()
-    expect(ctx.tools.schemas().map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas().map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas().some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
     const skills = await ctx.skills.list()
     const skill = skills.find(entry => entry.name === VISION_SKILLS_NAME)
@@ -180,7 +180,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     expect(skill?.provider).toBe('runtime')
     const definition = await ctx.skills.get(VISION_SKILLS_NAME)
     expect(definition?.content).toContain('untrusted visual evidence')
-    expect(definition?.content).toContain('vision_toolkit_activate')
+    expect(definition?.content).toContain('ark_toolkit_activate')
     expect(definition?.content).toContain('immediately repeated `vision_glance`')
     expect(definition?.content).toContain('Disabling or unloading the plugin cancels')
     expect(definition?.content).toContain('platform temporary directory automatically')
@@ -193,18 +193,18 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
 
     const activated = await registerAgent(ctx, 'activated')
     const untouched = await registerAgent(ctx, 'untouched')
-    expect(ctx.tools.schemas(activated).map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas(activated).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas(activated).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
 
     await loadVisionSkill(ctx, activated)
     await loadVisionSkill(ctx, activated)
     const activatedNames = ctx.tools.schemas(activated).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(activatedNames).toContain(name)
-    expect(activatedNames).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(activatedNames).not.toContain(ARK_TOOLKIT_ACTIVATE)
     const glance = ctx.tools.schemas(activated).find(tool => tool.name === 'vision_glance')
     expect(glance?.description).toContain('platform temporary directory')
     expect(glance?.description).toContain('/tmp/')
-    expect(ctx.tools.schemas(untouched).map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas(untouched).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas(untouched).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
   })
 
@@ -216,7 +216,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const agent = await registerAgent(ctx, 'restored-native-skill', session)
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('restores Code Mode Skill activation before a persisted Agent is registered', async () => {
@@ -227,7 +227,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const agent = await registerAgent(ctx, 'restored-code-skill', session)
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('restores activation from legacy vision-tools Skill history after the rename', async () => {
@@ -243,7 +243,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const agent = await registerAgent(ctx, 'legacy-vision-tools-skill', session)
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('unregisters every tool and skill on dispose', async () => {
@@ -253,7 +253,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(true)
     await fiber.dispose()
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
-    expect(ctx.tools.get(VISION_TOOLKIT_ACTIVATE)).toBeUndefined()
+    expect(ctx.tools.get(ARK_TOOLKIT_ACTIVATE)).toBeUndefined()
     const skills = await ctx.skills.list()
     expect(skills.find(entry => entry.name === VISION_SKILLS_NAME)).toBeUndefined()
   })
@@ -263,12 +263,12 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const session = Session.create(SessionId('direct-skill'))
     const agent = await registerAgent(ctx, 'direct-skill', session)
     recordDirectSkillInvocation(session)
-    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('activate-after-direct-skill'),
-      name: VISION_TOOLKIT_ACTIVATE,
+      name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
     })
@@ -276,7 +276,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
 
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('does not activate from a same-name scoped Skill shadow', async () => {
@@ -309,7 +309,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     })
     expect(result.isError, JSON.stringify(result)).toBe(false)
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
-    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('does not restore activation from same-name direct Skill evidence with non-bundled content', async () => {
@@ -319,20 +319,20 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const agent = await registerAgent(ctx, 'foreign-direct-skill', session)
 
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
-    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(ctx.tools.schemas(agent).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('activates without a prior Skill load', async () => {
     const { ctx } = await setupContext()
     const agent = await registerAgent(ctx, 'no-skill')
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
-    const activation = ctx.tools.get(VISION_TOOLKIT_ACTIVATE, agent)
+    const activation = ctx.tools.get(ARK_TOOLKIT_ACTIVATE, agent)
     for (const name of TOOL_NAMES) expect(activation?.description).toContain(name)
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('activate-without-skill'),
-      name: VISION_TOOLKIT_ACTIVATE,
+      name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
     })
@@ -340,7 +340,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
 
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('keeps the bootstrap callable after a Skill result until step/end', async () => {
@@ -359,7 +359,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     const activationResult = await ctx.tools.execute({
       signal,
       callId: CallId('activate-call'),
-      name: VISION_TOOLKIT_ACTIVATE,
+      name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
     })
@@ -370,7 +370,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     session.append('step/end', { turn: 1, step: 1 })
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
-    expect(names).not.toContain(VISION_TOOLKIT_ACTIVATE)
+    expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
   it('cancels an in-flight vision tool when the plugin is disposed', async () => {
@@ -403,7 +403,7 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     await ctx.plugin(ToolSkill)
     await ctx.plugin(MemorySettings)
     ctx.provide('credentials', fakeCredentials())
-    await expect(ctx.plugin(VisionToolkit, {
+    await expect(ctx.plugin(ArkToolkit, {
       provider: { baseUrl: 'not-a-url', credential: 'K', model: 'm' },
     })).rejects.toMatchObject({ code: 'config' })
   })
@@ -430,8 +430,8 @@ describe('dsh-vision-toolkit plugin lifecycle', () => {
     })
     expect(ctx.tools.get('vision_ground')).toBeUndefined()
     expect(ctx.tools.get('vision_pixel_diff')).toBeUndefined()
-    expect(ctx.tools.get('vision_toolkit_health')).toBeUndefined()
-    expect(ctx.tools.get('vision_toolkit_version')).toBeUndefined()
+    expect(ctx.tools.get('ark_toolkit_health')).toBeUndefined()
+    expect(ctx.tools.get('ark_toolkit_version')).toBeUndefined()
   })
 
   it('declares replay-safe file locations and presentation metadata for artifact tools', async () => {

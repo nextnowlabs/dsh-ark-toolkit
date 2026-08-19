@@ -18,8 +18,8 @@ function menuHtml(): string {
         <div id=":r2:-openai" class="aTjPya_groupTitle">openai</div>
         <button role="menuitemradio" title="GPT-5.6 Sol"><span>GPT-5.6 Sol</span></button>
       </section>
-      <section role="group" aria-labelledby=":r2:-vision-toolkit-deepseek-official">
-        <div id=":r2:-vision-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek</div>
+      <section role="group" aria-labelledby=":r2:-ark-toolkit-deepseek-official">
+        <div id=":r2:-ark-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek</div>
         <button role="menuitemradio" title="DeepSeek-V4-Flash"><span>DeepSeek-V4-Flash</span></button>
         <button role="menuitemradio" title="DeepSeek-V4-Pro"><span>DeepSeek-V4-Pro</span></button>
       </section>
@@ -34,8 +34,8 @@ function explicitMenuHtml(): string {
         <div id=":r2:-deepseek-official" class="aTjPya_groupTitle">DeepSeek</div>
         <button role="menuitemradio" title="DeepSeek-V4-Flash"><span>DeepSeek-V4-Flash</span></button>
       </section>
-      <section role="group" aria-labelledby=":r2:-vision-toolkit-deepseek-official">
-        <div id=":r2:-vision-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek (Vision Toolkit)</div>
+      <section role="group" aria-labelledby=":r2:-ark-toolkit-deepseek-official">
+        <div id=":r2:-ark-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek (Vision Toolkit)</div>
         <button role="menuitemradio" title="DeepSeek-V4-Flash (Vision Toolkit)"><span>DeepSeek-V4-Flash (Vision Toolkit)</span></button>
       </section>
     </div>
@@ -73,8 +73,8 @@ describe('tidyModelSelector', () => {
           <div id=":r2:-deepseek-official"></div>
           <button role="menuitemradio" title="DeepSeek-V4-Flash"></button>
         </section>
-        <section role="group" aria-labelledby=":r2:-vision-toolkit-deepseek-official">
-          <div id=":r2:-vision-toolkit-deepseek-official"></div>
+        <section role="group" aria-labelledby=":r2:-ark-toolkit-deepseek-official">
+          <div id=":r2:-ark-toolkit-deepseek-official"></div>
           <button role="menuitemradio" title="DeepSeek-V4-Pro"></button>
         </section>
       </div>
@@ -91,7 +91,7 @@ describe('tidyModelSelector', () => {
 
     // Simulate the adapter rebuild after transparent routing is disabled:
     // the variant twins keep the same DOM nodes but gain explicit suffixes.
-    const variantGroup = document.querySelector('[aria-labelledby=":r2:-vision-toolkit-deepseek-official"]') as HTMLElement
+    const variantGroup = document.querySelector('[aria-labelledby=":r2:-ark-toolkit-deepseek-official"]') as HTMLElement
     const variantTitle = variantGroup.querySelector(':scope > div') as HTMLElement
     variantTitle.textContent = 'DeepSeek (Vision Toolkit)'
     for (const button of variantGroup.querySelectorAll<HTMLElement>('[role="menuitemradio"]')) {

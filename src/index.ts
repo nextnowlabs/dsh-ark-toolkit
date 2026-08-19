@@ -1,5 +1,5 @@
 /**
- * @nextnowlabs/dsh-ark-toolkit — DSH Vision Toolkit profile bundle.
+ * @nextnowlabs/dsh-ark-toolkit — DSH Ark Toolkit profile bundle.
  *
  * Plugin lifecycle follows the documented readiness chain: publish the
  * vision-skills Skill and its one-shot bootstrap, then mount the execution
@@ -16,17 +16,17 @@ import type {} from '@deepseek-ai/dsh-settings'
 import { ArtifactAccessController, prepareArtifactAccessKey } from './artifact-access.ts'
 import {
   Config,
-  VISION_TOOLKIT_SETTINGS_NAMESPACE,
+  ARK_TOOLKIT_SETTINGS_NAMESPACE,
   resolveConfig,
-  type VisionToolkitConfig,
+  type ArkToolkitConfig,
 } from './config.ts'
 import { VisionToolExposure } from './exposure.ts'
 import { createPasteTakeoverResolver, installImageInputVariants } from './image-input-variants.ts'
-import { VisionToolkitRuntimeManager } from './runtime-manager.ts'
+import { ArkToolkitRuntimeManager } from './runtime-manager.ts'
 import { VISION_SKILLS_SKILL } from './skill.ts'
 import { createVisionTools } from './tools.ts'
 import { PLUGIN_VERSION } from './version.ts'
-import { installVisionToolkitWeb, VisionToolkitWebBackend } from './web.ts'
+import { installArkToolkitWeb, ArkToolkitWebBackend } from './web.ts'
 import { MAX_PASTE_IMAGE_BYTES, PastedImageBackend } from './paste-images.ts'
 
 export const name = '@nextnowlabs/dsh-ark-toolkit'
@@ -36,17 +36,17 @@ export { Config }
 export const inject = ['tools', 'credentials', 'skills', 'subprocess', 'settings', 'agents', 'sessions']
 
 /** Plugin entry: validate configuration synchronously, then mount asynchronously. */
-export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Promise<() => void> {
+export async function apply(ctx: Context, config: ArkToolkitConfig = {}): Promise<() => void> {
   // Registration itself rejects an invalid stored section before any runtime
   // or Tool becomes visible. The custom Web editor preflights runtime changes
   // before persistence; hand-edited settings still fail loud here or retain
   // the last serving generation when changed live.
-  const settings = ctx.settings.register(VISION_TOOLKIT_SETTINGS_NAMESPACE, Config, {
+  const settings = ctx.settings.register(ARK_TOOLKIT_SETTINGS_NAMESPACE, Config, {
     base: config,
     applies: 'live',
     validate: (value) => { resolveConfig(value) },
   })
-  const manager = new VisionToolkitRuntimeManager(ctx)
+  const manager = new ArkToolkitRuntimeManager(ctx)
   const artifacts = new ArtifactAccessController(await prepareArtifactAccessKey())
   const lifecycle = new AbortController()
   const disposers: Array<() => void> = []
@@ -67,7 +67,7 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
       skill = ctx.skills.register(VISION_SKILLS_SKILL)
       exposureDisposer = exposure.install()
       operationalDisposers = { activationTool, exposure: exposureDisposer, skill }
-      ctx.logger.info('dsh-vision-toolkit %s ready (pure-node runtime)', PLUGIN_VERSION)
+      ctx.logger.info('dsh-ark-toolkit %s ready (pure-node runtime)', PLUGIN_VERSION)
     } catch (error) {
       exposureDisposer?.()
       if (skill !== undefined) skill()
@@ -82,13 +82,13 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     ctx.logger.error(
-      'dsh-vision-toolkit %s: runtime not ready; the vision-skills skill, activation bootstrap, and Agent-scoped visual tools are NOT registered. Settings remain available for repair. %s',
+      'dsh-ark-toolkit %s: runtime not ready; the vision-skills skill, activation bootstrap, and Agent-scoped visual tools are NOT registered. Settings remain available for repair. %s',
       PLUGIN_VERSION,
       message,
     )
   }
 
-  const backend = new VisionToolkitWebBackend(ctx, manager, artifacts, ensureOperational)
+  const backend = new ArkToolkitWebBackend(ctx, manager, artifacts, ensureOperational)
   const pastedImages = new PastedImageBackend(ctx, {
     maxUploadBytes: () => MAX_PASTE_IMAGE_BYTES,
   })
@@ -100,7 +100,7 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
     () => resolveConfig(settings.get()),
     () => manager.ready ? manager.current() : undefined,
   )
-  installVisionToolkitWeb(
+  installArkToolkitWeb(
     ctx,
     backend,
     artifacts,
@@ -116,7 +116,7 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
       variants.reconcile()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
-      ctx.logger.error('dsh-vision-toolkit: keeping the previous runtime after a refused Settings generation. %s', message)
+      ctx.logger.error('dsh-ark-toolkit: keeping the previous runtime after a refused Settings generation. %s', message)
     }
   }))
 

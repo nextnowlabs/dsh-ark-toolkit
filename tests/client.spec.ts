@@ -85,7 +85,6 @@ function settingsSnapshot(runtime: { ready: boolean; lastError?: string } = { re
           credential: 'VISION_API_KEY',
           model: 'gemini-3.6-flash',
           protocol: 'openai',
-          anthropicThinking: 'omit',
           userAgent: 'fixture-agent/1.0',
         },
         language: 'zh',
@@ -99,6 +98,7 @@ function settingsSnapshot(runtime: { ready: boolean; lastError?: string } = { re
       applies: 'live',
     },
     credential: { ref: 'VISION_API_KEY', configured: false, writable: true },
+    credentialTts: { ref: 'VOLCENGINE_TTS_KEY', configured: false, writable: true },
     runtime: {
       ...runtime,
       generation: 1,
@@ -155,7 +155,7 @@ describe('Vision Toolkit client plugin', () => {
       'vision_speak',
     ])
     expect(registrations.find(entry => entry.options.name === 'settings.section')?.options).toMatchObject({
-      id: 'vision-toolkit', order: 30,
+      id: 'ark-toolkit', order: 30,
     })
   })
 
@@ -204,7 +204,7 @@ describe('Vision Toolkit client plugin', () => {
       return found.component
     }
     const image = artifact(
-      '/workspace/.dsh-vision-toolkit/artifacts/cat.png',
+      '/workspace/.dsh-ark-toolkit/artifacts/cat.png',
       'cat.png',
       'image/png',
       'image',
@@ -217,7 +217,7 @@ describe('Vision Toolkit client plugin', () => {
       images: [
         { width: 256, height: 256, format: 'png', artifact: image },
       ],
-      $dshVisionToolkit: {
+      $dshArkToolkit: {
         schemaVersion: 1,
         artifacts: [{ path: image.path, previewUrl: '/preview-token', downloadUrl: '/download-token' }],
       },
@@ -242,7 +242,7 @@ describe('Vision Toolkit client plugin', () => {
       return found.component
     }
     const audio = artifact(
-      '/workspace/.dsh-vision-toolkit/artifacts/hi.mp3',
+      '/workspace/.dsh-ark-toolkit/artifacts/hi.mp3',
       'hi.mp3',
       'audio/mpeg',
       'audio',
@@ -254,7 +254,7 @@ describe('Vision Toolkit client plugin', () => {
       voiceType: 'zh_female_shuangkuaisisi_uranus_bigtts',
       format: 'mp3',
       artifact: audio,
-      $dshVisionToolkit: {
+      $dshArkToolkit: {
         schemaVersion: 1,
         artifacts: [{ path: audio.path, previewUrl: '/audio-preview', downloadUrl: '/audio-download' }],
       },
@@ -436,11 +436,11 @@ describe('Vision Toolkit client plugin', () => {
     const updateButton = await screen.findByRole('button', { name: 'updateNow' }) as HTMLButtonElement
     expect(updateButton.disabled).toBe(false)
 
-    fireEvent.change(screen.getByLabelText('baseUrl'), { target: { value: 'https://changed.example/v1' } })
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'changed-model' } })
     expect(updateButton.disabled).toBe(true)
     expect(screen.getByText('updateSaveFirst')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('baseUrl'), { target: { value: 'https://api.inferera.com/v1' } })
+    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'gemini-3.6-flash' } })
     const keyInput = screen.getByLabelText('apiKey') as HTMLInputElement
     expect(keyInput.disabled).toBe(false)
     fireEvent.change(keyInput, { target: { value: 'unsaved-secret' } })
@@ -459,7 +459,7 @@ describe('Vision Toolkit client plugin', () => {
     expect((await readDisplayConfig()).hidden).toBe(true)
     expect(displayConfig).toHaveBeenCalledTimes(1)
 
-    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, true)
+    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, undefined, true)
 
     expect(saved).toBe(true)
     expect((await readDisplayConfig()).hidden).toBe(true)
@@ -487,7 +487,7 @@ describe('Vision Toolkit client plugin', () => {
     await new Promise(resolve => setTimeout(resolve, 0))
     expect(displayRequests).toBe(1)
 
-    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, true)
+    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, undefined, true)
     expect(saved).toBe(true)
 
     resolveFirstDisplay?.(jsonResponse({ ok: true, value: { hidden: false } }))
@@ -495,14 +495,13 @@ describe('Vision Toolkit client plugin', () => {
     expect(displayRequests).toBe(2)
   })
 
-  it('locks the API key input for a read-only credential and unlocks it for a writable one', async () => {
+  it('locks the API key input for a read-only credential', async () => {
     const initial = settingsSnapshot()
     initial.settings.value.provider = {
       baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
       credential: 'ARK_API_KEY',
       model: 'doubao-seed-2-0-lite-260215',
       protocol: 'openai',
-      anthropicThinking: 'omit',
       userAgent: 'fixture-agent/1.0',
     }
     initial.credential = {
@@ -521,8 +520,6 @@ describe('Vision Toolkit client plugin', () => {
 
     const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
     expect(keyInput.disabled).toBe(true)
-    fireEvent.change(screen.getByLabelText('credential'), { target: { value: 'MY_OWN_ARK_KEY' } })
-    expect(keyInput.disabled).toBe(false)
   })
 
   it('labels the lightweight API probe separately from the real multimodal model test', async () => {
@@ -679,23 +676,15 @@ describe('Vision Toolkit client plugin', () => {
       t: (key: string) => key,
     }))
 
-    const baseUrl = await screen.findByLabelText('baseUrl')
-    const protocol = screen.getByLabelText('protocol')
-    fireEvent.change(protocol, { target: { value: 'anthropic' } })
-    expect(screen.getByText('anthropicThinkingHint')).toBeTruthy()
-    fireEvent.change(screen.getByLabelText('anthropicThinking'), { target: { value: 'disabled' } })
-    fireEvent.change(screen.getByLabelText('userAgent'), { target: { value: 'custom-agent/2.0' } })
-    fireEvent.change(baseUrl, { target: { value: 'not-a-url' } })
+    const model = await screen.findByLabelText('model')
+    fireEvent.change(model, { target: { value: 'next-model' } })
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
     await screen.findByText('provider.baseUrl must be an http(s) URL')
     const saveRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(JSON.parse(String(saveRequest.body))).toMatchObject({
       value: {
         provider: {
-          baseUrl: 'not-a-url',
-          protocol: 'anthropic',
-          anthropicThinking: 'disabled',
-          userAgent: 'custom-agent/2.0',
+          model: 'next-model',
         },
       },
     })

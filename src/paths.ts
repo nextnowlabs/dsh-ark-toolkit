@@ -3,23 +3,23 @@
  * platform temporary directory, or an explicitly authorized directory;
  * outputs stay inside the plugin-managed output directory, and a symbolic
  * link is allowed only when its real target stays inside the fence.
- * @module dsh-vision-toolkit/paths
+ * @module dsh-ark-toolkit/paths
  */
 
 import { randomUUID } from 'node:crypto'
 import { cp, link, lstat, mkdir, readdir, realpath, rename, rm, stat } from 'node:fs/promises'
 import { extname, isAbsolute, join, relative, resolve, sep, win32 } from 'node:path'
 import { homedir, tmpdir } from 'node:os'
-import { VisionToolkitError } from './errors.ts'
+import { ArkToolkitError } from './errors.ts'
 
 /** Supported input image extensions (the vision client's allowlist). */
 export const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'] as const
 
 /** Persistent per-DSH-home cache root shared by runtime and Web support files. */
-export function visionToolkitStateRoot(): string {
+export function arkToolkitStateRoot(): string {
   const dshHome = process.env.DSH_HOME?.trim()
   const base = dshHome === undefined || dshHome.length === 0 ? join(homedir(), '.dsh') : resolve(dshHome)
-  return join(base, 'cache', 'dsh-vision-toolkit')
+  return join(base, 'cache', 'dsh-ark-toolkit')
 }
 
 /** Resolved path policy for one tool invocation. */
@@ -78,7 +78,7 @@ export function normalizePlatformTempPath(
  * the output directory inside the fence.
  * @param workspaceRaw - session workspace (or process cwd fallback).
  * @param allowedDirs - configured extra allowed roots.
- * @param outputDirRaw - configured output directory (default `.dsh-vision-toolkit/artifacts`).
+ * @param outputDirRaw - configured output directory (default `.dsh-ark-toolkit/artifacts`).
  * @returns the resolved policy.
  */
 export async function createPathPolicy(
@@ -90,14 +90,14 @@ export async function createPathPolicy(
   try {
     workspace = await realpath(expandUserHome(workspaceRaw))
   } catch (error) {
-    throw new VisionToolkitError('path', `workspace is not accessible: ${workspaceRaw}`, { cause: error })
+    throw new ArkToolkitError('path', `workspace is not accessible: ${workspaceRaw}`, { cause: error })
   }
   let tempDir: string
   const tempDirectoryRaw = platformTempDirectory()
   try {
     tempDir = await realpath(tempDirectoryRaw)
   } catch (error) {
-    throw new VisionToolkitError('path', `platform temporary directory is not accessible: ${tempDirectoryRaw}`, { cause: error })
+    throw new ArkToolkitError('path', `platform temporary directory is not accessible: ${tempDirectoryRaw}`, { cause: error })
   }
   const roots = [workspace, tempDir]
   for (const raw of allowedDirs) {
@@ -106,21 +106,21 @@ export async function createPathPolicy(
     try {
       roots.push(await realpath(target))
     } catch (error) {
-      throw new VisionToolkitError('path', `allowedDirs entry is not accessible: ${raw}`, { cause: error })
+      throw new ArkToolkitError('path', `allowedDirs entry is not accessible: ${raw}`, { cause: error })
     }
   }
   const outputRaw = outputDirRaw === undefined || outputDirRaw.trim().length === 0
-    ? join(workspace, '.dsh-vision-toolkit', 'artifacts')
+    ? join(workspace, '.dsh-ark-toolkit', 'artifacts')
     : resolve(workspace, expandUserHome(outputDirRaw))
   if (!roots.some(root => isWithin(root, outputRaw))) {
-    throw new VisionToolkitError('path', 'output directory must stay inside the workspace or an allowedDirs entry')
+    throw new ArkToolkitError('path', 'output directory must stay inside the workspace or an allowedDirs entry')
   }
   let outputDir: string
   try {
     await mkdir(outputRaw, { recursive: true })
     outputDir = await realpath(outputRaw)
   } catch (error) {
-    throw new VisionToolkitError('path', `output directory is not writable: ${outputRaw}`, { cause: error })
+    throw new ArkToolkitError('path', `output directory is not writable: ${outputRaw}`, { cause: error })
   }
   return { workspace, tempDir, allowedDirs: [...new Set(roots)], outputDir }
 }
@@ -158,21 +158,21 @@ export async function resolveAuthorizedFile(
   try {
     real = await realpath(target)
   } catch (error) {
-    throw new VisionToolkitError('input', `${kind} not found: ${raw}`, { cause: error })
+    throw new ArkToolkitError('input', `${kind} not found: ${raw}`, { cause: error })
   }
   if (!policy.allowedDirs.some(root => isWithin(root, real))) {
-    throw new VisionToolkitError('path', `${kind} escapes the allowed directories: ${raw}`)
+    throw new ArkToolkitError('path', `${kind} escapes the allowed directories: ${raw}`)
   }
   let info
   try {
     info = await stat(real)
   } catch (error) {
-    throw new VisionToolkitError('input', `${kind} is not readable: ${raw}`, { cause: error })
+    throw new ArkToolkitError('input', `${kind} is not readable: ${raw}`, { cause: error })
   }
-  if (!info.isFile()) throw new VisionToolkitError('input', `${kind} is not a regular file: ${raw}`)
+  if (!info.isFile()) throw new ArkToolkitError('input', `${kind} is not a regular file: ${raw}`)
   const extension = real.slice(real.lastIndexOf('.')).toLowerCase()
   if (!extensions.includes(extension)) {
-    throw new VisionToolkitError(
+    throw new ArkToolkitError(
       'input',
       `unsupported ${kind} format "${extension || '(none)'}"; supported: ${extensions.join(', ')}`,
     )
@@ -202,18 +202,18 @@ export function resolveOutputFile(
 ): string {
   const name = raw === undefined || raw.trim().length === 0 ? defaultName : raw.trim()
   const expanded = expandUserHome(name)
-  if (isAbsolute(expanded)) throw new VisionToolkitError('path', 'output must be a filename, not an absolute path')
+  if (isAbsolute(expanded)) throw new ArkToolkitError('path', 'output must be a filename, not an absolute path')
   const segments = expanded.split(/[\\/]/)
   if (segments.length !== 1 || segments[0] === '' || segments[0] === '.' || segments[0] === '..') {
-    throw new VisionToolkitError('path', 'output must be one filename inside the output directory')
+    throw new ArkToolkitError('path', 'output must be one filename inside the output directory')
   }
   const extension = expanded.slice(expanded.lastIndexOf('.')).toLowerCase()
   if (!extensions.includes(extension)) {
-    throw new VisionToolkitError('output', `output must use one of: ${extensions.join(', ')}`)
+    throw new ArkToolkitError('output', `output must use one of: ${extensions.join(', ')}`)
   }
   const target = resolve(policy.outputDir, expanded)
   if (!isWithin(policy.outputDir, target)) {
-    throw new VisionToolkitError('path', 'output must stay inside the output directory')
+    throw new ArkToolkitError('path', 'output must stay inside the output directory')
   }
   return target
 }
@@ -228,36 +228,36 @@ export function resolveOutputFile(
  */
 export function createStagedOutput(policy: PathPolicy, extension: string): string {
   if (extension !== extname(`file${extension}`) || !/^\.[a-z0-9]+$/i.test(extension)) {
-    throw new VisionToolkitError('output', `invalid staging extension: ${extension}`)
+    throw new ArkToolkitError('output', `invalid staging extension: ${extension}`)
   }
-  return join(policy.outputDir, `.vision-toolkit-${randomUUID()}${extension}`)
+  return join(policy.outputDir, `.ark-toolkit-${randomUUID()}${extension}`)
 }
 
 /** Resolve one direct child directory of the managed artifact root. */
 export function resolveOutputDirectory(raw: string | undefined, policy: PathPolicy, defaultName: string): string {
   const name = raw === undefined || raw.trim().length === 0 ? defaultName : raw.trim()
   const expanded = expandUserHome(name)
-  if (isAbsolute(expanded)) throw new VisionToolkitError('path', 'artifact directory must not be an absolute path')
+  if (isAbsolute(expanded)) throw new ArkToolkitError('path', 'artifact directory must not be an absolute path')
   const segments = expanded.split(/[\\/]/)
   if (
     segments.length !== 1
     || segments[0] === ''
     || segments[0] === '.'
     || segments[0] === '..'
-    || expanded.startsWith('.vision-toolkit-')
+    || expanded.startsWith('.ark-toolkit-')
   ) {
-    throw new VisionToolkitError('path', 'artifact directory must be one visible directory name inside the output directory')
+    throw new ArkToolkitError('path', 'artifact directory must be one visible directory name inside the output directory')
   }
   const target = resolve(policy.outputDir, expanded)
   if (!isWithin(policy.outputDir, target)) {
-    throw new VisionToolkitError('path', 'artifact directory must stay inside the output directory')
+    throw new ArkToolkitError('path', 'artifact directory must stay inside the output directory')
   }
   return target
 }
 
 /** Create a random staging directory that no upstream command can choose. */
 export async function createStagedDirectory(policy: PathPolicy): Promise<string> {
-  const path = join(policy.outputDir, `.vision-toolkit-${randomUUID()}`)
+  const path = join(policy.outputDir, `.ark-toolkit-${randomUUID()}`)
   await mkdir(path)
   return path
 }
@@ -267,18 +267,18 @@ async function assertSafeDirectoryTree(root: string, current = root): Promise<vo
     const path = join(current, entry.name)
     const info = await lstat(path)
     if (info.isSymbolicLink()) {
-      throw new VisionToolkitError('path', `managed artifact directory contains a symbolic link: ${entry.name}`)
+      throw new ArkToolkitError('path', `managed artifact directory contains a symbolic link: ${entry.name}`)
     }
     if (info.isDirectory()) {
       await assertSafeDirectoryTree(root, path)
       continue
     }
     if (!info.isFile()) {
-      throw new VisionToolkitError('path', `managed artifact directory contains a non-regular entry: ${entry.name}`)
+      throw new ArkToolkitError('path', `managed artifact directory contains a non-regular entry: ${entry.name}`)
     }
     const real = await realpath(path)
     if (!isWithin(root, real)) {
-      throw new VisionToolkitError('path', `managed artifact entry escaped its directory: ${entry.name}`)
+      throw new ArkToolkitError('path', `managed artifact entry escaped its directory: ${entry.name}`)
     }
   }
 }
@@ -294,14 +294,14 @@ export async function seedStagedDirectory(finalPath: string, staged: string, pol
     info = await lstat(finalPath)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false
-    throw new VisionToolkitError('path', 'existing artifact directory is not accessible', { cause: error })
+    throw new ArkToolkitError('path', 'existing artifact directory is not accessible', { cause: error })
   }
   if (info.isSymbolicLink() || !info.isDirectory()) {
-    throw new VisionToolkitError('path', 'resume target must be a real managed artifact directory')
+    throw new ArkToolkitError('path', 'resume target must be a real managed artifact directory')
   }
   const real = await realpath(finalPath)
   if (!isWithin(policy.outputDir, real)) {
-    throw new VisionToolkitError('path', 'resume target escaped the managed output directory')
+    throw new ArkToolkitError('path', 'resume target escaped the managed output directory')
   }
   await assertSafeDirectoryTree(real)
   await cp(real, staged, { recursive: true, force: true })
@@ -316,17 +316,17 @@ export async function seedStagedDirectory(finalPath: string, staged: string, pol
  */
 export async function commitStagedDirectory(staged: string, finalPath: string, policy: PathPolicy): Promise<void> {
   const stagedReal = await realpath(staged).catch((error: unknown) => {
-    throw new VisionToolkitError('output', 'upstream did not create the expected artifact directory', { cause: error })
+    throw new ArkToolkitError('output', 'upstream did not create the expected artifact directory', { cause: error })
   })
   if (!isWithin(policy.outputDir, stagedReal)) {
-    throw new VisionToolkitError('path', 'staged artifact directory escaped the managed output directory')
+    throw new ArkToolkitError('path', 'staged artifact directory escaped the managed output directory')
   }
   const stagedInfo = await lstat(stagedReal)
   if (stagedInfo.isSymbolicLink() || !stagedInfo.isDirectory()) {
-    throw new VisionToolkitError('output', 'staged artifact output is not a real directory')
+    throw new ArkToolkitError('output', 'staged artifact output is not a real directory')
   }
   await assertSafeDirectoryTree(stagedReal)
-  const backup = join(policy.outputDir, `.vision-toolkit-backup-${randomUUID()}`)
+  const backup = join(policy.outputDir, `.ark-toolkit-backup-${randomUUID()}`)
   let movedPrevious = false
   try {
     try {
@@ -343,7 +343,7 @@ export async function commitStagedDirectory(staged: string, finalPath: string, p
     }
     if (movedPrevious) await rm(backup, { recursive: true, force: true })
   } catch (error) {
-    throw new VisionToolkitError('output', 'could not commit the managed artifact directory', { cause: error })
+    throw new ArkToolkitError('output', 'could not commit the managed artifact directory', { cause: error })
   }
 }
 
@@ -357,13 +357,13 @@ export async function commitStagedDirectory(staged: string, finalPath: string, p
  */
 export async function commitStagedOutput(staged: string, finalPath: string, policy: PathPolicy): Promise<void> {
   const real = await realpath(staged).catch((error: unknown) => {
-    throw new VisionToolkitError('output', 'upstream did not create the expected output file', { cause: error })
+    throw new ArkToolkitError('output', 'upstream did not create the expected output file', { cause: error })
   })
   if (!isWithin(policy.outputDir, real)) {
-    throw new VisionToolkitError('path', 'staged output escaped the managed output directory')
+    throw new ArkToolkitError('path', 'staged output escaped the managed output directory')
   }
   const info = await stat(real)
-  if (!info.isFile()) throw new VisionToolkitError('output', 'upstream output is not a regular file')
+  if (!info.isFile()) throw new ArkToolkitError('output', 'upstream output is not a regular file')
   try {
     await rename(real, finalPath)
   } catch (error) {
@@ -374,7 +374,7 @@ export async function commitStagedOutput(staged: string, finalPath: string, poli
       await link(real, finalPath)
     } catch (linkError) {
       if ((linkError as NodeJS.ErrnoException).code === 'EEXIST') {
-        throw new VisionToolkitError('path', 'output destination changed while the staged file was being committed', { cause: linkError })
+        throw new ArkToolkitError('path', 'output destination changed while the staged file was being committed', { cause: linkError })
       }
       throw linkError
     }
@@ -385,6 +385,6 @@ export async function commitStagedOutput(staged: string, finalPath: string, poli
 /** Reject an output that would overwrite its own input file. */
 export function assertDistinctOutput(input: string, output: string): void {
   if (input === output) {
-    throw new VisionToolkitError('input', 'output would overwrite the input image')
+    throw new ArkToolkitError('input', 'output would overwrite the input image')
   }
 }

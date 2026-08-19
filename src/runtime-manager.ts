@@ -2,39 +2,39 @@
  * Atomic live configuration owner for the plugin's internal runtime. A new
  * runtime is fully constructed before it replaces the currently serving one,
  * so failed Settings edits never interrupt in-flight or later calls.
- * @module dsh-vision-toolkit/runtime-manager
+ * @module dsh-ark-toolkit/runtime-manager
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { resolveConfig, type ResolvedVisionToolkitConfig, type VisionToolkitConfig } from './config.ts'
-import { VisionToolkitRuntime } from './runtime.ts'
+import { resolveConfig, type ResolvedArkToolkitConfig, type ArkToolkitConfig } from './config.ts'
+import { ArkToolkitRuntime } from './runtime.ts'
 
 /** One completely validated configuration generation. */
 export interface PreparedRuntimeGeneration {
-  config: ResolvedVisionToolkitConfig
+  config: ResolvedArkToolkitConfig
   fingerprint: string
-  runtime: VisionToolkitRuntime
+  runtime: ArkToolkitRuntime
 }
 
 /** Public, secret-free status used by the Settings page. */
 export interface RuntimeManagerStatus {
   ready: boolean
   generation: number
-  activeConfig?: ResolvedVisionToolkitConfig
+  activeConfig?: ResolvedArkToolkitConfig
   lastError?: string
 }
 
 /** Test seam for preparing one generation. */
 export type RuntimeGenerationFactory = (
   ctx: Context,
-  config: ResolvedVisionToolkitConfig,
-) => Promise<VisionToolkitRuntime>
+  config: ResolvedArkToolkitConfig,
+) => Promise<ArkToolkitRuntime>
 
-async function defaultFactory(ctx: Context, config: ResolvedVisionToolkitConfig): Promise<VisionToolkitRuntime> {
-  return new VisionToolkitRuntime(ctx, config)
+async function defaultFactory(ctx: Context, config: ResolvedArkToolkitConfig): Promise<ArkToolkitRuntime> {
+  return new ArkToolkitRuntime(ctx, config)
 }
 
-function fingerprint(config: ResolvedVisionToolkitConfig): string {
+function fingerprint(config: ResolvedArkToolkitConfig): string {
   // Transparent routing is a display/policy flag: toggling it must not rebuild
   // the runtime, only reconcile the model-selector routes.
   return JSON.stringify({
@@ -48,7 +48,7 @@ function messageOf(error: unknown): string {
 }
 
 /** Internal runtime source with prepare-before-swap semantics. */
-export class VisionToolkitRuntimeManager {
+export class ArkToolkitRuntimeManager {
   private active: PreparedRuntimeGeneration | undefined
   private generation = 0
   private reconfigureTicket = 0
@@ -60,8 +60,8 @@ export class VisionToolkitRuntimeManager {
   ) {}
 
   /** The currently serving runtime; unavailable until one generation prepares. */
-  current(): VisionToolkitRuntime {
-    if (this.active === undefined) throw new Error('dsh-vision-toolkit runtime is not ready')
+  current(): ArkToolkitRuntime {
+    if (this.active === undefined) throw new Error('dsh-ark-toolkit runtime is not ready')
     return this.active.runtime
   }
 
@@ -71,7 +71,7 @@ export class VisionToolkitRuntimeManager {
   }
 
   /** Resolve and fully prepare a candidate without changing the active runtime. */
-  async prepareCandidate(raw: VisionToolkitConfig): Promise<PreparedRuntimeGeneration> {
+  async prepareCandidate(raw: ArkToolkitConfig): Promise<PreparedRuntimeGeneration> {
     const config = resolveConfig(raw)
     const resolvedFingerprint = fingerprint(config)
     if (this.active?.fingerprint === resolvedFingerprint) {
@@ -95,11 +95,11 @@ export class VisionToolkitRuntimeManager {
     this.active = candidate
     this.generation += 1
     this.lastError = undefined
-    this.ctx.logger.info('dsh-vision-toolkit runtime generation=%d active', this.generation)
+    this.ctx.logger.info('dsh-ark-toolkit runtime generation=%d active', this.generation)
   }
 
   /** Prepare and publish the initial or explicitly validated generation. */
-  async initialize(raw: VisionToolkitConfig): Promise<void> {
+  async initialize(raw: ArkToolkitConfig): Promise<void> {
     try {
       this.activateCandidate(await this.prepareCandidate(raw))
     } catch (error) {
@@ -113,7 +113,7 @@ export class VisionToolkitRuntimeManager {
    * last-write-wins; a slower obsolete prepare can never overwrite a newer one.
    * @returns whether this call published a new active generation.
    */
-  async reconfigure(raw: VisionToolkitConfig): Promise<boolean> {
+  async reconfigure(raw: ArkToolkitConfig): Promise<boolean> {
     const ticket = ++this.reconfigureTicket
     let candidate: PreparedRuntimeGeneration
     try {
@@ -127,7 +127,7 @@ export class VisionToolkitRuntimeManager {
     this.active = candidate
     if (changed) {
       this.generation += 1
-      this.ctx.logger.info('dsh-vision-toolkit Settings activated runtime generation=%d', this.generation)
+      this.ctx.logger.info('dsh-ark-toolkit Settings activated runtime generation=%d', this.generation)
     }
     this.lastError = undefined
     return changed

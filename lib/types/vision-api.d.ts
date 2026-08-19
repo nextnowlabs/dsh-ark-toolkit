@@ -3,7 +3,7 @@
  * sends prepared data-URL image parts to the configured OpenAI-compatible
  * `/chat/completions` (or Anthropic `/v1/messages`) endpoint directly from
  * Node — no Python runtime is involved. Credentials never leave the plugin.
- * @module dsh-vision-toolkit/vision-api
+ * @module dsh-ark-toolkit/vision-api
  */
 /** Fully resolved remote vision service configuration (no secrets logged). */
 export interface VisionServiceOptions {
@@ -11,7 +11,6 @@ export interface VisionServiceOptions {
     apiKey: string;
     model: string;
     protocol: 'openai' | 'anthropic';
-    anthropicThinking: 'omit' | 'disabled' | 'adaptive';
     userAgent: string;
     language: 'zh' | 'en';
     signal: AbortSignal;

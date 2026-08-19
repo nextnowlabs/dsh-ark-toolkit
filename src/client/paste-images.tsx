@@ -7,9 +7,9 @@ import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigge
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { readDisplayConfig } from './display-config.ts'
 
-const SOURCE = 'vision-toolkit-pasted-image'
-export const PASTE_IMAGES_ROUTE = '/_dsh/vision-toolkit/paste-images'
-export const PASTE_POLICY_ROUTE = '/_dsh/vision-toolkit/paste-policy'
+const SOURCE = 'ark-toolkit-pasted-image'
+export const PASTE_IMAGES_ROUTE = '/_dsh/ark-toolkit/paste-images'
+export const PASTE_POLICY_ROUTE = '/_dsh/ark-toolkit/paste-policy'
 const MAX_IMAGES = 20
 /** Hard per-image paste ceiling; must match MAX_PASTE_IMAGE_BYTES on the server. */
 const MAX_IMAGE_BYTES = 20 * 1024 * 1024
@@ -492,7 +492,7 @@ export class PasteImageController {
       const { hidden } = await readDisplayConfig()
       input.notify('info', hidden
         ? 'Visual enhancement active: pasted images keep the native attachment flow'
-        : `Switched to ${route.label || `${route.model} (Vision Toolkit)`}; pasted images now keep the native attachment flow`)
+        : `Switched to ${route.label || `${route.model} (Ark Toolkit)`}; pasted images now keep the native attachment flow`)
     } catch (error) {
       input.notify('error', `Model switch failed; images will be sent as workspace paths: ${message(error)}`)
       this.takeoverPaste(sessionId, target, files, text)
@@ -713,7 +713,7 @@ export function installPasteImages(ctx: ClientContext): void {
         registered.delete(identity)
         registration.dispose()
       }
-    }, 'dsh-vision-toolkit: pasted image reference codec')
+    }, 'dsh-ark-toolkit: pasted image reference codec')
   }
   ctx.inject(['slash'], (scope: ClientContext) => {
     register(scope, (scope as unknown as LegacySlashContext).slash)
@@ -734,10 +734,10 @@ export function installPasteImages(ctx: ClientContext): void {
       document.removeEventListener('paste', listener, true)
       document.removeEventListener('focusin', onFocusIn, true)
     }
-  }, 'dsh-vision-toolkit: clipboard image capture')
+  }, 'dsh-ark-toolkit: clipboard image capture')
   ctx.slots.inject('conversation.input.dock', () => ctx.slots.register({
     name: 'conversation.input.dock',
-    id: 'vision-toolkit-pasted-images',
+    id: 'ark-toolkit-pasted-images',
     order: 6,
     inject: sessionId => ({
       controller,

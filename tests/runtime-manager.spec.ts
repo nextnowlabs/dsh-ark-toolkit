@@ -1,8 +1,8 @@
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { ResolvedVisionToolkitConfig } from '../src/config.ts'
-import type { VisionToolkitRuntime } from '../src/runtime.ts'
-import { VisionToolkitRuntimeManager, type RuntimeGenerationFactory } from '../src/runtime-manager.ts'
+import type { ResolvedArkToolkitConfig } from '../src/config.ts'
+import type { ArkToolkitRuntime } from '../src/runtime.ts'
+import { ArkToolkitRuntimeManager, type RuntimeGenerationFactory } from '../src/runtime-manager.ts'
 
 const contexts: Context[] = []
 
@@ -10,11 +10,11 @@ afterEach(async () => {
   await Promise.all(contexts.splice(0).map(ctx => ctx.fiber.dispose()))
 })
 
-function fakeRuntime(config: ResolvedVisionToolkitConfig): VisionToolkitRuntime {
+function fakeRuntime(config: ResolvedArkToolkitConfig): ArkToolkitRuntime {
   return {
     runtimeInfo: { pluginVersion: 'fixture', runtime: 'pure-node' as const },
     runtimeName: config.provider.model,
-  } as unknown as VisionToolkitRuntime
+  } as unknown as ArkToolkitRuntime
 }
 
 function config(model: string) {
@@ -23,7 +23,7 @@ function config(model: string) {
   }
 }
 
-describe('VisionToolkitRuntimeManager', () => {
+describe('ArkToolkitRuntimeManager', () => {
   it('prepares before publishing and retains the serving generation after failure', async () => {
     const ctx = new Context()
     contexts.push(ctx)
@@ -33,7 +33,7 @@ describe('VisionToolkitRuntimeManager', () => {
       if (resolved.provider.model === 'broken') throw new Error('fixture runtime unavailable')
       return fakeRuntime(resolved)
     }
-    const manager = new VisionToolkitRuntimeManager(ctx, factory)
+    const manager = new ArkToolkitRuntimeManager(ctx, factory)
     await manager.initialize(config('first'))
     const first = manager.current()
 
@@ -46,8 +46,8 @@ describe('VisionToolkitRuntimeManager', () => {
   it('treats transparent-routing visibility as display-only so toggling it does not rebuild the runtime', async () => {
     const ctx = new Context()
     contexts.push(ctx)
-    const factory = vi.fn(async (_ctx: Context, resolved: ResolvedVisionToolkitConfig) => fakeRuntime(resolved))
-    const manager = new VisionToolkitRuntimeManager(ctx, factory)
+    const factory = vi.fn(async (_ctx: Context, resolved: ResolvedArkToolkitConfig) => fakeRuntime(resolved))
+    const manager = new ArkToolkitRuntimeManager(ctx, factory)
     await manager.initialize(config('first'))
     expect(factory).toHaveBeenCalledTimes(1)
 
@@ -68,7 +68,7 @@ describe('VisionToolkitRuntimeManager', () => {
       if (resolved.provider.model === 'slow') await slow
       return fakeRuntime(resolved)
     }
-    const manager = new VisionToolkitRuntimeManager(ctx, factory)
+    const manager = new ArkToolkitRuntimeManager(ctx, factory)
     await manager.initialize(config('first'))
 
     const older = manager.reconfigure(config('slow'))

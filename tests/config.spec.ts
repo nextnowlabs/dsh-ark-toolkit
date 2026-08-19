@@ -24,10 +24,9 @@ describe('resolveConfig', () => {
     expect(ARK_SEEDREAM_MODEL).toBe('doubao-seedream-5-0-260128')
     expect(ARK_BASE_URL).toBe('https://ark.cn-beijing.volces.com/api/v3')
     expect(config.provider.protocol).toBe('openai')
-    expect(config.provider.anthropicThinking).toBe('omit')
     expect(config.provider.userAgent).toBe(DEFAULT_VISION_USER_AGENT)
     expect(config.language).toBe('zh')
-    expect(config.timeoutMs).toBe(30000)
+    expect(config.timeoutMs).toBe(600000)
     expect(config.maxImageBytes).toBe(4194304)
     expect(config.maxImagePixels).toBe(20000000)
     expect(config.concurrency).toBe(4)
@@ -93,7 +92,6 @@ describe('resolveConfig', () => {
         credential: 'MY_VISION_KEY',
         model: 'model-x',
         protocol: 'anthropic',
-        anthropicThinking: 'disabled',
         userAgent: 'custom-vision-client/2.0',
       },
       language: 'en',
@@ -102,7 +100,6 @@ describe('resolveConfig', () => {
     expect(config.provider.baseUrl).toBe('https://example.com/v1')
     expect(config.provider.credential).toBe('MY_VISION_KEY')
     expect(config.provider.protocol).toBe('anthropic')
-    expect(config.provider.anthropicThinking).toBe('disabled')
     expect(config.provider.userAgent).toBe('custom-vision-client/2.0')
     expect(config.allowedDirs).toEqual(['~/Pictures'])
   })
@@ -127,11 +124,6 @@ describe('resolveConfig', () => {
       .toThrowError(/provider\.userAgent/)
   })
 
-  it('rejects an unsupported Anthropic thinking mode', () => {
-    expect(() => resolveConfig({ provider: { anthropicThinking: 'manual' as 'omit' } }))
-      .toThrowError(/provider\.anthropicThinking/)
-  })
-
   it('rejects an unsupported provider protocol', () => {
     expect(() => resolveConfig({ provider: { protocol: 'responses' as 'openai' } }))
       .toThrowError(/provider\.protocol/)
@@ -147,7 +139,7 @@ describe('resolveConfig', () => {
 
   it('ignores the removed Python runtime options', () => {
     const config = resolveConfig({
-      runtime: { mode: 'external', agentVisionToolkitPath: '/tmp/toolkit', python: 'python3.12' } as never,
+      runtime: { mode: 'external', agentArkToolkitPath: '/tmp/toolkit', python: 'python3.12' } as never,
     })
     expect(config).not.toHaveProperty('runtime')
     expect(config.provider.baseUrl).toBe(ARK_BASE_URL)

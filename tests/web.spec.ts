@@ -4,11 +4,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import { ArtifactAccessController } from '../src/artifact-access.ts'
-import { Config, VISION_TOOLKIT_SETTINGS_NAMESPACE, resolveConfig } from '../src/config.ts'
-import type { VisionToolkitRuntime, VisionToolkitHealthResult } from '../src/runtime.ts'
+import { Config, ARK_TOOLKIT_SETTINGS_NAMESPACE, resolveConfig } from '../src/config.ts'
+import type { ArkToolkitRuntime, ArkToolkitHealthResult } from '../src/runtime.ts'
 import type { PreparedRuntimeGeneration, RuntimeManagerStatus } from '../src/runtime-manager.ts'
 import {
-  VisionToolkitWebBackend,
+  ArkToolkitWebBackend,
   createDisplayConfigHandler,
   createPastePolicyHandler,
   type WebPluginUpdater,
@@ -46,7 +46,7 @@ function credentials(): Credentials {
   } as unknown as Credentials
 }
 
-function healthResult(testConnection: boolean, testModel = false): VisionToolkitHealthResult {
+function healthResult(testConnection: boolean, testModel = false): ArkToolkitHealthResult {
   const ok = { status: 'ok' as const, detail: 'fixture ok' }
   return {
     pluginVersion: '0.1.0',
@@ -71,10 +71,10 @@ class FakeManager implements WebRuntimeManager {
       this.healthCalls.push({ testConnection, testModel, workspace: options.workspace })
       return healthResult(testConnection, testModel)
     },
-  } as unknown as VisionToolkitRuntime
+  } as unknown as ArkToolkitRuntime
 
   get ready(): boolean { return true }
-  current(): VisionToolkitRuntime { return this.runtime }
+  current(): ArkToolkitRuntime { return this.runtime }
   prepareCandidate(raw: Parameters<WebRuntimeManager['prepareCandidate']>[0]): Promise<PreparedRuntimeGeneration> {
     const config = resolveConfig(raw)
     return Promise.resolve({ config, fingerprint: JSON.stringify(config), runtime: this.runtime })
@@ -126,14 +126,14 @@ async function setup() {
   await ctx.plugin(MemorySettings)
   const credentialService = credentials()
   ctx.provide('credentials', credentialService)
-  ctx.settings.register(VISION_TOOLKIT_SETTINGS_NAMESPACE, Config, {
+  ctx.settings.register(ARK_TOOLKIT_SETTINGS_NAMESPACE, Config, {
     base: {}, applies: 'live', validate: (value) => { resolveConfig(value) },
   })
   const manager = new FakeManager()
   const artifacts = new ArtifactAccessController(Buffer.alloc(32, 7))
   const activated = vi.fn()
   const updater = new FakeUpdater()
-  const backend = new VisionToolkitWebBackend(ctx, manager, artifacts, activated, updater)
+  const backend = new ArkToolkitWebBackend(ctx, manager, artifacts, activated, updater)
   const server = createServer((req, res) => { void backend.handle(req, res) })
   servers.push(server)
   await new Promise<void>((resolve, reject) => {
@@ -151,7 +151,7 @@ async function setup() {
   return { ctx, credentialService, manager, activated, updater, base, post }
 }
 
-describe('VisionToolkitWebBackend', () => {
+describe('ArkToolkitWebBackend', () => {
   it('describes Settings and the Ark credential status without resolving or exposing the secret', async () => {
     const { ctx, base, credentialService } = await setup()
     const response = await fetch(base)
@@ -278,9 +278,9 @@ describe('VisionToolkitWebBackend', () => {
     const model = await post({ action: 'health', testConnection: true, testModel: true })
     expect(model.status).toBe(200)
     expect(manager.healthCalls).toEqual([
-      { testConnection: false, testModel: false, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
-      { testConnection: true, testModel: false, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
-      { testConnection: true, testModel: true, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
+      { testConnection: false, testModel: false, workspace: expect.stringMatching(/dsh-ark-toolkit-health-/) },
+      { testConnection: true, testModel: false, workspace: expect.stringMatching(/dsh-ark-toolkit-health-/) },
+      { testConnection: true, testModel: true, workspace: expect.stringMatching(/dsh-ark-toolkit-health-/) },
     ])
   })
 
@@ -342,7 +342,7 @@ describe('paste policy route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/paste-policy`
+    const route = `${base}/_dsh/ark-toolkit/paste-policy`
 
     const taken = await fetch(`${route}?sessionId=s1`, { headers: { Origin: base } })
     expect(taken.status).toBe(200)
@@ -369,7 +369,7 @@ describe('paste policy route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/paste-policy`
+    const route = `${base}/_dsh/ark-toolkit/paste-policy`
 
     const taken = await fetch(`${route}?sessionId=s1&model=${encodeURIComponent('DeepSeek V4 Flash')}`, {
       headers: { Origin: base },
@@ -382,7 +382,7 @@ describe('paste policy route', () => {
     const takeover = vi.fn(async () => ({
       takeOver: false,
       autoSwitch: {
-        provider: 'vision-toolkit-deepseek-official',
+        provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
         label: 'DeepSeek V4 Flash (Vision Toolkit)',
         reasoningEffort: 'medium',
@@ -397,7 +397,7 @@ describe('paste policy route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/paste-policy`
+    const route = `${base}/_dsh/ark-toolkit/paste-policy`
     const query = new URLSearchParams({
       sessionId: 's1',
       provider: 'deepseek-official',
@@ -413,7 +413,7 @@ describe('paste policy route', () => {
       value: {
         takeOver: false,
         autoSwitch: {
-          provider: 'vision-toolkit-deepseek-official',
+          provider: 'ark-toolkit-deepseek-official',
           model: 'deepseek-v4-flash',
           label: 'DeepSeek V4 Flash (Vision Toolkit)',
           reasoningEffort: 'medium',
@@ -438,7 +438,7 @@ describe('paste policy route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/paste-policy`
+    const route = `${base}/_dsh/ark-toolkit/paste-policy`
 
     const duplicated = await fetch(
       `${route}?sessionId=s1&provider=a&provider=b&modelId=x&modelId=y`,
@@ -459,7 +459,7 @@ describe('paste policy route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/paste-policy`
+    const route = `${base}/_dsh/ark-toolkit/paste-policy`
 
     const crossSite = await fetch(`${route}?sessionId=s1`, { headers: { Origin: 'https://attacker.example' } })
     expect(crossSite.status).toBe(403)
@@ -486,7 +486,7 @@ describe('paste policy route', () => {
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
 
-    const response = await fetch(`${base}/_dsh/vision-toolkit/paste-policy?sessionId=s1`, { headers: { Origin: base } })
+    const response = await fetch(`${base}/_dsh/ark-toolkit/paste-policy?sessionId=s1`, { headers: { Origin: base } })
     expect(response.status).toBe(500)
     expect(await response.json()).toMatchObject({ ok: false, error: { code: 'policy-failed' } })
   })
@@ -504,7 +504,7 @@ describe('display-config route', () => {
     const address = server.address()
     if (address === null || typeof address === 'string') throw new Error('server did not bind')
     const base = `http://127.0.0.1:${address.port}`
-    const route = `${base}/_dsh/vision-toolkit/display-config`
+    const route = `${base}/_dsh/ark-toolkit/display-config`
 
     const response = await fetch(route, { headers: { Origin: base } })
     expect(response.status).toBe(200)

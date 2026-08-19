@@ -1,5 +1,5 @@
 /**
- * @nextnowlabs/dsh-ark-toolkit — DSH Vision Toolkit profile bundle.
+ * @nextnowlabs/dsh-ark-toolkit — DSH Ark Toolkit profile bundle.
  *
  * Plugin lifecycle follows the documented readiness chain: publish the
  * vision-skills Skill and its one-shot bootstrap, then mount the execution
@@ -9,10 +9,10 @@
  * @module @nextnowlabs/dsh-ark-toolkit
  */
 import type { Context } from '@deepseek-ai/cordis';
-import { Config, type VisionToolkitConfig } from './config.ts';
+import { Config, type ArkToolkitConfig } from './config.ts';
 export declare const name = "@nextnowlabs/dsh-ark-toolkit";
 export { Config };
 export declare const inject: string[];
 /** Plugin entry: validate configuration synchronously, then mount asynchronously. */
-export declare function apply(ctx: Context, config?: VisionToolkitConfig): Promise<() => void>;
+export declare function apply(ctx: Context, config?: ArkToolkitConfig): Promise<() => void>;
 //# sourceMappingURL=index.d.ts.map

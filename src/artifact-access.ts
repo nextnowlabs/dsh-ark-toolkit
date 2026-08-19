@@ -1,8 +1,8 @@
 /**
- * Capability-gated HTTP delivery for managed Vision Toolkit artifacts.
+ * Capability-gated HTTP delivery for managed Ark Toolkit artifacts.
  * Signed tokens are durable across process restarts, expose no secret, and
  * are accepted only for the exact artifact facts projected into a tool result.
- * @module dsh-vision-toolkit/artifact-access
+ * @module dsh-ark-toolkit/artifact-access
  */
 
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto'
@@ -14,13 +14,13 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import type { JsonValue } from '@deepseek-ai/dsh-tools'
 import type { ArtifactDescriptor, ArtifactKind } from './artifacts.ts'
-import { isWithin, visionToolkitStateRoot } from './paths.ts'
+import { isWithin, arkToolkitStateRoot } from './paths.ts'
 
 /** Prefix owned by the plugin's artifact capability route. */
-export const ARTIFACT_ROUTE_PREFIX = '/_dsh/vision-toolkit/artifacts'
+export const ARTIFACT_ROUTE_PREFIX = '/_dsh/ark-toolkit/artifacts'
 
 /** Presentation metadata key reserved by the browser half of this package. */
-export const PRESENTATION_META_KEY = '$dshVisionToolkit'
+export const PRESENTATION_META_KEY = '$dshArkToolkit'
 
 interface ArtifactTokenPayload {
   v: 1
@@ -139,7 +139,7 @@ async function readKey(path: string): Promise<Buffer> {
  * @param root - state root override used by tests; defaults to the plugin cache.
  * @returns the 32-byte signing key.
  */
-export async function prepareArtifactAccessKey(root = visionToolkitStateRoot()): Promise<Buffer> {
+export async function prepareArtifactAccessKey(root = arkToolkitStateRoot()): Promise<Buffer> {
   await mkdir(root, { recursive: true, mode: 0o700 })
   const path = join(root, 'artifact-access.key')
   try {
@@ -160,7 +160,7 @@ export async function prepareArtifactAccessKey(root = visionToolkitStateRoot()):
 function artifactRoot(path: string): string | undefined {
   let current = dirname(path)
   while (true) {
-    if (basename(current) === 'artifacts' && basename(dirname(current)) === '.dsh-vision-toolkit') return current
+    if (basename(current) === 'artifacts' && basename(dirname(current)) === '.dsh-ark-toolkit') return current
     const parent = dirname(current)
     if (parent === current) return undefined
     current = parent

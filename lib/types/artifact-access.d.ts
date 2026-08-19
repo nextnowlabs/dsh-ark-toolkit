@@ -1,16 +1,16 @@
 /**
- * Capability-gated HTTP delivery for managed Vision Toolkit artifacts.
+ * Capability-gated HTTP delivery for managed Ark Toolkit artifacts.
  * Signed tokens are durable across process restarts, expose no secret, and
  * are accepted only for the exact artifact facts projected into a tool result.
- * @module dsh-vision-toolkit/artifact-access
+ * @module dsh-ark-toolkit/artifact-access
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { JsonValue } from '@deepseek-ai/dsh-tools';
 import type { ArtifactDescriptor, ArtifactKind } from './artifacts.ts';
 /** Prefix owned by the plugin's artifact capability route. */
-export declare const ARTIFACT_ROUTE_PREFIX = "/_dsh/vision-toolkit/artifacts";
+export declare const ARTIFACT_ROUTE_PREFIX = "/_dsh/ark-toolkit/artifacts";
 /** Presentation metadata key reserved by the browser half of this package. */
-export declare const PRESENTATION_META_KEY = "$dshVisionToolkit";
+export declare const PRESENTATION_META_KEY = "$dshArkToolkit";
 interface ArtifactTokenPayload {
     v: 1;
     path: string;

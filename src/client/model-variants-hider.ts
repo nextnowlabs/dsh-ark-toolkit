@@ -5,24 +5,24 @@
  * Users then see one entry per model — the original name — while the session
  * actually runs on the image-capable variant, so pasted images, history with
  * images, and the built-in `read_image` tool all keep working on text-only
- * models without exposing `(Vision Toolkit)` routes.
+ * models without exposing `(Ark Toolkit)` routes.
  *
  * The host selector renders one `[role=group]` per provider whose group title
  * id is `:<react-radix>:-<providerId>`, and one `[role=menuitemradio]` per
  * model. We key groups by that provider id (variant routes carry the
- * `vision-toolkit-` prefix) and hide every upstream entry whose display name
+ * `ark-toolkit-` prefix) and hide every upstream entry whose display name
  * matches a variant twin, collapsing fully-hidden upstream groups.
  *
  * The hiding decision is purely DOM-local: transparent mode is exactly the
  * case where a variant twin keeps the upstream display name, while explicit
- * mode appends `(Vision Toolkit)` and therefore never matches. No display-config
+ * mode appends `(Ark Toolkit)` and therefore never matches. No display-config
  * round-trip is needed before the selector can be tidied, so the first paint
  * of an opened menu already shows the merged list instead of flashing the
  * duplicate upstream group.
- * @module dsh-vision-toolkit/model-variants-hider
+ * @module dsh-ark-toolkit/model-variants-hider
  */
 
-const VARIANT_PROVIDER_PREFIX = 'vision-toolkit-'
+const VARIANT_PROVIDER_PREFIX = 'ark-toolkit-'
 
 /** Elements we hid and their original inline display value, for restoration. */
 const hiddenElements = new Map<HTMLElement, string>()
@@ -103,7 +103,7 @@ export function tidyModelSelector(): void {
   }
 
   // Restore entries whose twin disappeared (e.g. transparent routing was
-  // disabled and the wrapper rebuilt with explicit `(Vision Toolkit)` names).
+  // disabled and the wrapper rebuilt with explicit `(Ark Toolkit)` names).
   for (const [element, display] of [...hiddenElements]) {
     if (!shouldHide.has(element)) {
       element.style.display = display

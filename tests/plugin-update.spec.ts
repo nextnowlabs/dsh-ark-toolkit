@@ -10,8 +10,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   compareVersions,
   PLUGIN_RESTART_HELPER_SOURCE,
-  VisionToolkitPluginUpdateService,
-  VISION_TOOLKIT_PACKAGE,
+  ArkToolkitPluginUpdateService,
+  ARK_TOOLKIT_PACKAGE,
 } from '../src/plugin-update.ts'
 
 const roots: string[] = []
@@ -65,15 +65,15 @@ async function profileFixture(spec = '0.1.0') {
   const root = await mkdtemp(join(tmpdir(), 'dvt-plugin-update-'))
   roots.push(root)
   const profileDir = join(root, 'profiles', 'web')
-  const installedDir = join(profileDir, 'node_modules', '@anionex', 'dsh-vision-toolkit')
+  const installedDir = join(profileDir, 'node_modules', '@nextnowlabs', 'dsh-ark-toolkit')
   await mkdir(installedDir, { recursive: true })
   await writeFile(join(profileDir, 'package.json'), JSON.stringify({
     name: 'dsh-profile-web',
     private: true,
-    dependencies: { [VISION_TOOLKIT_PACKAGE]: spec },
+    dependencies: { [ARK_TOOLKIT_PACKAGE]: spec },
   }))
   await writeFile(join(installedDir, 'package.json'), JSON.stringify({
-    name: VISION_TOOLKIT_PACKAGE,
+    name: ARK_TOOLKIT_PACKAGE,
     version: '0.1.0',
   }))
   return { profileDir, installedDir }
@@ -92,11 +92,11 @@ describe('plugin update version ordering', () => {
   })
 })
 
-describe('VisionToolkitPluginUpdateService', () => {
+describe('ArkToolkitPluginUpdateService', () => {
   it('does not overwrite a local link installation', async () => {
-    const fixture = await profileFixture('link:/workspace/dsh-vision-toolkit')
+    const fixture = await profileFixture('link:/workspace/dsh-ark-toolkit')
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -107,7 +107,7 @@ describe('VisionToolkitPluginUpdateService', () => {
       supported: false,
       checkSupported: true,
       profile: 'web',
-      dependencySpec: 'link:/workspace/dsh-vision-toolkit',
+      dependencySpec: 'link:/workspace/dsh-ark-toolkit',
       reason: 'unsupported-install-source',
     })
     expect(subprocess.resolveExecutable).toHaveBeenCalledWith('pnpm')
@@ -116,7 +116,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('supports installing from a detached Web process and leaves restart to the user', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -132,7 +132,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('still supports installation when DSH Web uses a dynamically allocated port', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web', '--port', '0'],
@@ -145,7 +145,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('falls back to manual restart when the active WebServer port cannot be reproduced', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -159,7 +159,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('uses the active WebServer address when it matches an explicit fixed port', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web', '--host', '0.0.0.0', '--port', '8080'],
@@ -173,7 +173,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('supports installation on Windows even though automatic restart is unavailable', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -188,7 +188,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.0"\n' }))
     subprocess.resolveExecutable.mockResolvedValue('C:\\Users\\tester\\AppData\\Roaming\\npm\\pnpm.CMD')
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -204,7 +204,7 @@ describe('VisionToolkitPluginUpdateService', () => {
       '/c',
       'C:\\Users\\tester\\AppData\\Roaming\\npm\\pnpm.CMD',
       'view',
-      VISION_TOOLKIT_PACKAGE,
+      ARK_TOOLKIT_PACKAGE,
       'version',
       '--json',
     ])
@@ -215,14 +215,14 @@ describe('VisionToolkitPluginUpdateService', () => {
     const subprocess = new FakeSubprocess(async (spec) => {
       if (spec.argv.includes('view')) return { stdout: '"0.2.0"\n' }
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: '0.2.0',
       }))
       return { stdout: 'updated\n' }
     })
     const prepareRestart = vi.fn()
     const schedule = vi.fn()
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -244,7 +244,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('checks the configured registry through pnpm without mutating the profile', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.0"\n' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -261,7 +261,7 @@ describe('VisionToolkitPluginUpdateService', () => {
       checkedAt: '2026-08-16T12:00:00.000Z',
     })
     expect(subprocess.spawns[0]?.argv).toEqual([
-      '/usr/local/bin/pnpm', 'view', VISION_TOOLKIT_PACKAGE, 'version', '--json',
+      '/usr/local/bin/pnpm', 'view', ARK_TOOLKIT_PACKAGE, 'version', '--json',
     ])
   })
 
@@ -270,7 +270,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     const subprocess = new FakeSubprocess(async (spec) => {
       if (spec.argv.includes('view')) return { stdout: '"0.2.0"\n' }
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: '0.2.0',
       }))
       return { stdout: 'updated\n' }
@@ -278,7 +278,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     const prepareRestart = vi.fn()
     const terminateCurrent = vi.fn()
     const schedule = vi.fn((callback: () => void) => { callback() })
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -297,7 +297,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     expect(subprocess.spawns[1]?.argv).toEqual([
       '/usr/local/bin/pnpm',
       'add',
-      `${VISION_TOOLKIT_PACKAGE}@0.2.0`,
+      `${ARK_TOOLKIT_PACKAGE}@0.2.0`,
       '--save-exact',
       '--yes',
       '--reporter=append-only',
@@ -312,7 +312,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('rejects a stale confirmation instead of installing an unexpected release', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.1"\n' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -327,7 +327,7 @@ describe('VisionToolkitPluginUpdateService', () => {
   it('rechecks the profile source instead of overwriting a link introduced after an earlier check', async () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.0"\n' }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -338,7 +338,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     await writeFile(join(fixture.profileDir, 'package.json'), JSON.stringify({
       name: 'dsh-profile-web',
       private: true,
-      dependencies: { [VISION_TOOLKIT_PACKAGE]: 'link:/workspace/dsh-vision-toolkit' },
+      dependencies: { [ARK_TOOLKIT_PACKAGE]: 'link:/workspace/dsh-ark-toolkit' },
     }))
 
     await expect(service.installAndRestart('0.2.0')).rejects.toMatchObject({ code: 'update-unavailable' })
@@ -355,12 +355,12 @@ describe('VisionToolkitPluginUpdateService', () => {
         return { stdout: '"0.2.0"\n' }
       }
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: '0.2.0',
       }))
       return { stdout: 'updated\n' }
     })
-    const first = new VisionToolkitPluginUpdateService(host(firstSubprocess), '0.1.0', {
+    const first = new ArkToolkitPluginUpdateService(host(firstSubprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -373,7 +373,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     await vi.waitFor(() => { expect(firstSubprocess.spawns).toHaveLength(1) })
 
     const secondSubprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.0"\n' }))
-    const second = new VisionToolkitPluginUpdateService(host(secondSubprocess), '0.1.0', {
+    const second = new ArkToolkitPluginUpdateService(host(secondSubprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -393,7 +393,7 @@ describe('VisionToolkitPluginUpdateService', () => {
       stderr: 'GET https://alice:secret@registry.example/?token=query-secret failed '
         + 'https://single-secret@registry.example/ npm_supersecret _authToken=token-value _auth=base64-secret',
     }))
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -425,26 +425,26 @@ describe('VisionToolkitPluginUpdateService', () => {
       if (spec.argv.includes('view')) return { stdout: '"0.2.0"\n' }
       addCalls += 1
       if (addCalls === 1) {
-        await writeFile(manifestPath, JSON.stringify({ dependencies: { [VISION_TOOLKIT_PACKAGE]: '0.2.0' } }))
+        await writeFile(manifestPath, JSON.stringify({ dependencies: { [ARK_TOOLKIT_PACKAGE]: '0.2.0' } }))
         await writeFile(lockfilePath, 'partially-updated: true\n')
         await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-          name: VISION_TOOLKIT_PACKAGE,
+          name: ARK_TOOLKIT_PACKAGE,
           version: '0.2.0',
         }))
         return { exitCode: 1, stderr: 'late lifecycle failure' }
       }
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: '0.1.0',
       }))
       return { stdout: 'restored\n' }
     })
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
       allowDetachedRestart: true,
-      healthUrl: 'http://127.0.0.1:3080/_dsh/vision-toolkit/settings',
+      healthUrl: 'http://127.0.0.1:3080/_dsh/ark-toolkit/settings',
     })
 
     await expect(service.installAndRestart('0.2.0')).rejects.toMatchObject({ code: 'update-failed' })
@@ -455,7 +455,7 @@ describe('VisionToolkitPluginUpdateService', () => {
       '/usr/local/bin/pnpm', 'install', '--frozen-lockfile', '--reporter=append-only',
     ])
     await expect(readFile(join(fixture.installedDir, 'package.json'), 'utf8')).resolves.toContain('0.1.0')
-    await expect(readFile(join(fixture.profileDir, '.dsh-vision-toolkit-update.lock')))
+    await expect(readFile(join(fixture.profileDir, '.dsh-ark-toolkit-update.lock')))
       .rejects.toMatchObject({ code: 'ENOENT' })
   })
 
@@ -466,14 +466,14 @@ describe('VisionToolkitPluginUpdateService', () => {
       if (spec.argv.includes('view')) return { stdout: '"0.2.0"\n' }
       addCalls += 1
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: '0.2.0',
       }))
       return addCalls === 1
         ? { exitCode: 1, stderr: 'install failed after mutation' }
         : { exitCode: 1, stderr: 'rollback failed' }
     })
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web', '--port', '3080'],
@@ -483,12 +483,12 @@ describe('VisionToolkitPluginUpdateService', () => {
     const failure = await service.installAndRestart('0.2.0').catch((error: unknown) => error)
     expect(failure).toMatchObject({ code: 'update-rollback-failed' })
     expect((failure as Error).message).toContain('recovery files preserved at')
-    const lock = JSON.parse(await readFile(join(fixture.profileDir, '.dsh-vision-toolkit-update.lock'), 'utf8')) as {
+    const lock = JSON.parse(await readFile(join(fixture.profileDir, '.dsh-ark-toolkit-update.lock'), 'utf8')) as {
       token: string
     }
     await expect(readFile(join(
       fixture.profileDir,
-      `.dsh-vision-toolkit-update-backup-${lock.token}`,
+      `.dsh-ark-toolkit-update-backup-${lock.token}`,
       'package.json',
     ))).resolves.toBeInstanceOf(Buffer)
   })
@@ -497,15 +497,15 @@ describe('VisionToolkitPluginUpdateService', () => {
     const fixture = await profileFixture()
     const subprocess = new FakeSubprocess(async (spec) => {
       if (spec.argv.includes('view')) return { stdout: '"0.2.0"\n' }
-      const target = spec.argv.find(value => value.startsWith(`${VISION_TOOLKIT_PACKAGE}@`))
+      const target = spec.argv.find(value => value.startsWith(`${ARK_TOOLKIT_PACKAGE}@`))
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version: target?.endsWith('@0.1.0') === true ? '0.1.0' : '0.3.0',
       }))
       return { stdout: 'updated\n' }
     })
     const prepareRestart = vi.fn()
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
@@ -525,14 +525,14 @@ describe('VisionToolkitPluginUpdateService', () => {
       addCalls += 1
       const version = addCalls === 1 ? '0.2.0' : '0.1.0'
       await writeFile(join(fixture.installedDir, 'package.json'), JSON.stringify({
-        name: VISION_TOOLKIT_PACKAGE,
+        name: ARK_TOOLKIT_PACKAGE,
         version,
       }))
       return { stdout: `${version}\n` }
     })
     const terminateCurrent = vi.fn()
     const schedule = vi.fn()
-    const service = new VisionToolkitPluginUpdateService(host(subprocess), '0.1.0', {
+    const service = new ArkToolkitPluginUpdateService(host(subprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web', '--port', '3080'],
@@ -546,7 +546,7 @@ describe('VisionToolkitPluginUpdateService', () => {
     expect(addCalls).toBe(2)
     expect(schedule).not.toHaveBeenCalled()
     expect(terminateCurrent).not.toHaveBeenCalled()
-    await expect(readFile(join(fixture.profileDir, '.dsh-vision-toolkit-update.lock')))
+    await expect(readFile(join(fixture.profileDir, '.dsh-ark-toolkit-update.lock')))
       .rejects.toMatchObject({ code: 'ENOENT' })
   })
 })
@@ -562,15 +562,15 @@ describe('plugin restart helper', () => {
     const backupDir = join(root, '.update-backup')
     const appPath = join(root, 'fake-dsh.cjs')
     const pnpmPath = join(root, 'fake-pnpm.cjs')
-    const installedPackagePath = join(root, 'node_modules', '@anionex', 'dsh-vision-toolkit', 'package.json')
+    const installedPackagePath = join(root, 'node_modules', '@nextnowlabs', 'dsh-ark-toolkit', 'package.json')
     await writeFile(statePath, '0.2.0')
     await mkdir(dirname(installedPackagePath), { recursive: true })
-    await writeFile(installedPackagePath, JSON.stringify({ name: VISION_TOOLKIT_PACKAGE, version: '0.2.0' }))
+    await writeFile(installedPackagePath, JSON.stringify({ name: ARK_TOOLKIT_PACKAGE, version: '0.2.0' }))
     await writeFile(lockPath, JSON.stringify({ pid: process.pid, token: lockToken }))
     await mkdir(backupDir)
     await writeFile(join(backupDir, 'package.json'), JSON.stringify({
       name: 'dsh-profile-web',
-      dependencies: { [VISION_TOOLKIT_PACKAGE]: '0.1.0' },
+      dependencies: { [ARK_TOOLKIT_PACKAGE]: '0.1.0' },
     }))
     await writeFile(join(backupDir, 'metadata.json'), JSON.stringify({ hadLockfile: false, manifestMode: 0o644 }))
     await writeFile(appPath, `
@@ -620,10 +620,10 @@ writeFileSync(process.env.DVT_INSTALLED_PACKAGE, JSON.stringify({ name: '@nextno
       handoffPath: join(backupDir, 'handoff.json'),
       profileDir: root,
       pnpmPath,
-      packageName: VISION_TOOLKIT_PACKAGE,
+      packageName: ARK_TOOLKIT_PACKAGE,
       fromVersion: '0.1.0',
       toVersion: '0.2.0',
-      healthUrl: `http://127.0.0.1:${port}/_dsh/vision-toolkit/settings`,
+      healthUrl: `http://127.0.0.1:${port}/_dsh/ark-toolkit/settings`,
       baselineRuntimeReady: true,
       rollbackTimeoutMs: 5_000,
       processKillGraceMs: 100,
@@ -643,7 +643,7 @@ writeFileSync(process.env.DVT_INSTALLED_PACKAGE, JSON.stringify({ name: '@nextno
     await vi.waitFor(async () => {
       expect(Number(await readFile(pidPath, 'utf8'))).toBeGreaterThan(0)
     })
-    const restored = await fetch(`http://127.0.0.1:${port}/_dsh/vision-toolkit/settings`)
+    const restored = await fetch(`http://127.0.0.1:${port}/_dsh/ark-toolkit/settings`)
     await expect(restored.json()).resolves.toMatchObject({
       ok: true,
       value: { release: { pluginVersion: '0.1.0' } },
@@ -660,7 +660,7 @@ writeFileSync(process.env.DVT_INSTALLED_PACKAGE, JSON.stringify({ name: '@nextno
     const fixture = await profileFixture()
     const root = dirname(dirname(fixture.profileDir))
     const statePath = join(root, 'version.txt')
-    const lockPath = join(fixture.profileDir, '.dsh-vision-toolkit-update.lock')
+    const lockPath = join(fixture.profileDir, '.dsh-ark-toolkit-update.lock')
     const lockToken = 'handoff-token'
     const backupDir = join(fixture.profileDir, '.update-backup')
     const appPath = join(root, 'exit-immediately.cjs')
@@ -690,10 +690,10 @@ while :; do sleep 1; done
       handoffPath: join(backupDir, 'handoff.json'),
       profileDir: fixture.profileDir,
       pnpmPath,
-      packageName: VISION_TOOLKIT_PACKAGE,
+      packageName: ARK_TOOLKIT_PACKAGE,
       fromVersion: '0.1.0',
       toVersion: '0.2.0',
-      healthUrl: 'http://127.0.0.1:1/_dsh/vision-toolkit/settings',
+      healthUrl: 'http://127.0.0.1:1/_dsh/ark-toolkit/settings',
       rollbackTimeoutMs: 100,
       processKillGraceMs: 50,
       readinessTimeoutMs: 100,
@@ -712,12 +712,12 @@ while :; do sleep 1; done
       expect(owner).toMatchObject({ pid: helper.pid, token: lockToken })
     })
     const secondSubprocess = new FakeSubprocess(async () => ({ stdout: '"0.2.0"\n' }))
-    const second = new VisionToolkitPluginUpdateService(host(secondSubprocess), '0.1.0', {
+    const second = new ArkToolkitPluginUpdateService(host(secondSubprocess), '0.1.0', {
       profileDir: fixture.profileDir,
       packageRoot: fixture.installedDir,
       argv: ['web'],
       allowDetachedRestart: true,
-      healthUrl: 'http://127.0.0.1:3080/_dsh/vision-toolkit/settings',
+      healthUrl: 'http://127.0.0.1:3080/_dsh/ark-toolkit/settings',
     })
     await expect(second.installAndRestart('0.2.0')).rejects.toMatchObject({ code: 'update-in-progress' })
     expect(secondSubprocess.spawns).toHaveLength(0)
