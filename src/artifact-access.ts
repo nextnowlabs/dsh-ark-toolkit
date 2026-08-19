@@ -14,8 +14,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
 import type { JsonValue } from '@deepseek-ai/dsh-tools'
 import type { ArtifactDescriptor, ArtifactKind } from './artifacts.ts'
-import { isWithin } from './paths.ts'
-import { visionToolkitStateRoot } from './runtime-install.ts'
+import { isWithin, visionToolkitStateRoot } from './paths.ts'
 
 /** Prefix owned by the plugin's artifact capability route. */
 export const ARTIFACT_ROUTE_PREFIX = '/_dsh/vision-toolkit/artifacts'

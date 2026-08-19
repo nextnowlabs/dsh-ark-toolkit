@@ -12,8 +12,15 @@ import { extname, isAbsolute, join, relative, resolve, sep, win32 } from 'node:p
 import { homedir, tmpdir } from 'node:os'
 import { VisionToolkitError } from './errors.ts'
 
-/** Supported input image extensions (the upstream client's allowlist). */
+/** Supported input image extensions (the vision client's allowlist). */
 export const SUPPORTED_IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp'] as const
+
+/** Persistent per-DSH-home cache root shared by runtime and Web support files. */
+export function visionToolkitStateRoot(): string {
+  const dshHome = process.env.DSH_HOME?.trim()
+  const base = dshHome === undefined || dshHome.length === 0 ? join(homedir(), '.dsh') : resolve(dshHome)
+  return join(base, 'cache', 'dsh-vision-toolkit')
+}
 
 /** Resolved path policy for one tool invocation. */
 export interface PathPolicy {

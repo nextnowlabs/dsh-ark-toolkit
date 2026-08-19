@@ -1,21 +1,19 @@
 {
   "name": "@anionex/dsh-vision-toolkit",
   "version": "0.1.34",
-  "description": "DeepSeek Harness-native integration for agent-vision-toolkit: image Q&A, OCR, grounding, UI restoration, pixel diff, Artifacts, and Web UI.",
+  "description": "DeepSeek Harness image understanding plugin: vision-model image Q&A, OCR, and comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS — pure TypeScript, no Python.",
   "keywords": [
     "deepseek",
     "deepseek-harness",
-    "agent-vision-toolkit",
-    "agent-skills",
     "text-only-llm",
     "vision-language-model",
-    "vision-tools",
-    "vision-skills",
-    "computer-vision",
+    "vision",
     "ocr",
-    "ui-restoration",
-    "screenshot-testing",
-    "gui-automation"
+    "image-understanding",
+    "volcengine",
+    "ark",
+    "seedream",
+    "tts"
   ],
   "repository": {
     "type": "git",
@@ -48,27 +46,17 @@
   "files": [
     "lib",
     "src",
-    "examples",
     "docs",
     "assets",
-    "patches",
-    "runtime",
-    "vendor",
     "cordis.patch.yml",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "node scripts/python-bootstrap.mjs && node scripts/upstream-manifest.mjs && node scripts/verify-skill.mjs && node scripts/clean-build.mjs && tsc -p tsconfig.json && tsc -p tsconfig.client.json && tsc -p tsconfig.client.public.json && node scripts/build-client.mjs",
+    "build": "node scripts/clean-build.mjs && tsc -p tsconfig.json && tsc -p tsconfig.client.json && tsc -p tsconfig.client.public.json && node scripts/build-client.mjs",
     "prepack": "npm run build",
     "test": "vitest run tests",
-    "verify:portable": "node scripts/python-bootstrap.mjs && node scripts/upstream-manifest.mjs && node scripts/verify-skill.mjs && node scripts/verify-portable.mjs",
-    "example:ui-restoration": "node scripts/run-ui-restoration-example.mjs --check",
-    "example:ui-restoration:write": "node scripts/run-ui-restoration-example.mjs --write",
-    "upstream:manifest": "node scripts/upstream-manifest.mjs --write",
-    "upstream:sync": "node scripts/sync-upstream.mjs",
-    "upstream:skill:sync": "node scripts/sync-skill.mjs",
-    "upstream:skill:verify": "node scripts/verify-skill.mjs"
+    "verify:portable": "node scripts/verify-portable.mjs"
   },
   "dsh": {
     "bundle": {
@@ -85,20 +73,16 @@
         "@deepseek-ai/dsh-client-locale"
       ],
       "platform": "web"
-    },
-    "visionToolkit": {
-      "upstreamRepository": "https://github.com/Anionex/agent-vision-toolkit",
-      "upstreamVersion": "v0.1.0+snapshot.bc9803d",
-      "upstreamCommit": "bc9803d7d6300c864d17460ecbb33540b26638e0",
-      "upstreamSkillCommit": "77c24ad5b5d7a123119862893129f939307f1d3f"
     }
   },
   "dependencies": {
     "saxes": "6.0.0",
+    "sharp": "0.34.2",
     "tar": "7.5.22",
     "undici": "8.10.0"
   },
   "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/dsh-agent": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-api-remotes": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-attachment": "^0.1.0-rc.6",
@@ -118,7 +102,6 @@
     "@deepseek-ai/dsh-skill": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-subprocess": "^0.1.0-rc.6",
     "@deepseek-ai/dsh-tools": "^0.1.0-rc.6",
-    "@deepseek-ai/cordis": "^4.0.1",
     "@deepseek-ai/schemastery": "^3.18.1",
     "react": "^18.2.0"
   },

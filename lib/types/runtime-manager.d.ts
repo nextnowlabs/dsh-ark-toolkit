@@ -1,14 +1,13 @@
 /**
  * Atomic live configuration owner for the plugin's internal runtime. A new
- * upstream adapter is fully prepared before it replaces the currently serving
- * runtime, so failed Settings edits never interrupt in-flight or later calls.
+ * runtime is fully constructed before it replaces the currently serving one,
+ * so failed Settings edits never interrupt in-flight or later calls.
  * @module dsh-vision-toolkit/runtime-manager
  */
 import type { Context } from '@deepseek-ai/cordis';
 import { type ResolvedVisionToolkitConfig, type VisionToolkitConfig } from './config.ts';
 import { VisionToolkitRuntime } from './runtime.ts';
-import { type UpstreamVersionInfo } from './upstream.ts';
-/** One completely prepared configuration generation. */
+/** One completely validated configuration generation. */
 export interface PreparedRuntimeGeneration {
     config: ResolvedVisionToolkitConfig;
     fingerprint: string;
@@ -19,7 +18,6 @@ export interface RuntimeManagerStatus {
     ready: boolean;
     generation: number;
     activeConfig?: ResolvedVisionToolkitConfig;
-    upstream?: UpstreamVersionInfo;
     lastError?: string;
 }
 /** Test seam for preparing one generation. */

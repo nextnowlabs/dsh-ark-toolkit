@@ -1,8 +1,8 @@
 /**
  * Plugin configuration: provider endpoint and credential reference, output
- * language, limits, and the external upstream runtime location. Secrets never
- * live here — `provider.credential` is a DSH Credential reference resolved per
- * operation through `ctx.credentials`.
+ * language, and local safety limits. Secrets never live here —
+ * `provider.credential` is a DSH Credential reference resolved per operation
+ * through `ctx.credentials`. There is no Python or vendored runtime to locate.
  * @module dsh-vision-toolkit/config
  */
 import type Schema from '@deepseek-ai/schemastery';
@@ -58,14 +58,6 @@ export interface VisionToolkitConfig {
     maxImagePixels?: number;
     /** In-flight tool execution cap per session. */
     concurrency?: number;
-    runtime?: {
-        /** `managed` uses the packaged snapshot and isolated venv; `external` uses a clean pinned checkout. */
-        mode?: 'managed' | 'external';
-        /** Required path to the clean pinned checkout when `mode` is `external`. */
-        agentVisionToolkitPath?: string;
-        /** Optional Python 3.11+ bootstrap/interpreter override. */
-        python?: string;
-    };
     /** Extra directories (besides the workspace) inputs may come from. */
     allowedDirs?: string[];
     /**
@@ -122,11 +114,6 @@ export interface ResolvedVisionToolkitConfig {
     maxImageBytes: number;
     maxImagePixels: number;
     concurrency: number;
-    runtime: {
-        mode: 'managed' | 'external';
-        agentVisionToolkitPath?: string;
-        python?: string;
-    };
     allowedDirs: string[];
     imageInputVariants: {
         enabled: boolean;

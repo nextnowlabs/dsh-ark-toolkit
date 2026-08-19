@@ -6,8 +6,8 @@ import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runti
 declare const en: {
     readonly nav: "Vision";
     readonly settingsTitle: "Vision Toolkit";
-    readonly settingsIntro: "Configure the pinned visual engineering runtime, its external vision endpoint, and local safety limits.";
-    readonly externalNotice: "Remote tools send the selected image bytes to the configured external vision API. Local crop, trace, pixel diff, palette, foreground extraction, and HTML rendering do not upload images.";
+    readonly settingsIntro: "Configure the vision service endpoint, model, credential, and local safety limits.";
+    readonly externalNotice: "Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
     readonly provider: "Vision service";
     readonly providerHint: "Choose the API protocol, then provide the service address, model, and API key used by online vision features.";
     readonly arkTutorial: "Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →";
@@ -133,6 +133,8 @@ declare const en: {
     readonly extractForegroundTitle: "Extract Foreground";
     readonly htmlScreenshotTitle: "HTML Screenshot";
     readonly artifactTitle: "Vision Artifact";
+    readonly generateImageTitle: "Generated image";
+    readonly speakTitle: "Synthesized speech";
     readonly dominantColorsTitle: "Dominant Colors";
     readonly artifactGroundPreview: "Grounding bounding-box preview";
     readonly artifactDetectPreview: "Detected-element bounding-box preview";
@@ -147,7 +149,9 @@ declare const en: {
     readonly artifactOcrSidecar: "OCR sidecar for chunk {index}";
     readonly artifactForeground: "Extracted transparent foreground";
     readonly artifactHtmlScreenshot: "Headless browser screenshot of local HTML";
+    readonly artifactSeedreamImage: "Seedream generated image";
     readonly artifactTtsSpeech: "ByteDance TTS synthesized speech";
+    readonly runtimePureNode: "Pure Node";
     readonly label: "Label";
     readonly paths: "paths";
     readonly healthPython: "Python";

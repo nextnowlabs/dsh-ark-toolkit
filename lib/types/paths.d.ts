@@ -5,8 +5,10 @@
  * link is allowed only when its real target stays inside the fence.
  * @module dsh-vision-toolkit/paths
  */
-/** Supported input image extensions (the upstream client's allowlist). */
+/** Supported input image extensions (the vision client's allowlist). */
 export declare const SUPPORTED_IMAGE_EXTENSIONS: readonly [".png", ".jpg", ".jpeg", ".gif", ".webp"];
+/** Persistent per-DSH-home cache root shared by runtime and Web support files. */
+export declare function visionToolkitStateRoot(): string;
 /** Resolved path policy for one tool invocation. */
 export interface PathPolicy {
     /** Real workspace root. */

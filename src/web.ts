@@ -6,12 +6,15 @@
  */
 
 import type { IncomingMessage, ServerResponse } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialInfo, CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
 import { SettingsConflictError, type SettingsDescriptor } from '@deepseek-ai/dsh-settings'
-// Type-only import activates the optional webServer Context declaration.
+// Type-only imports activate the optional webServer and subprocess Context declarations.
 import type {} from '@deepseek-ai/dsh-host-webserver'
+import type {} from '@deepseek-ai/dsh-subprocess'
 import { ArtifactAccessController, ARTIFACT_ROUTE_PREFIX } from './artifact-access.ts'
 import {
   PastedImageBackend,
@@ -39,7 +42,7 @@ import {
   type PreparedRuntimeGeneration,
   type RuntimeManagerStatus,
 } from './runtime-manager.ts'
-import { PLUGIN_VERSION, UPSTREAM_COMMIT, UPSTREAM_REPOSITORY, UPSTREAM_VERSION } from './version.ts'
+import { PLUGIN_VERSION } from './version.ts'
 import { sameOriginPost, sameOriginRequest } from './web-request.ts'
 
 /** Exact route used by the browser Settings page. */
@@ -68,9 +71,6 @@ export interface VisionToolkitSettingsSnapshot {
   runtime: RuntimeManagerStatus
   release: {
     pluginVersion: string
-    upstreamRepository: string
-    upstreamVersion: string
-    upstreamCommit: string
     update: PluginUpdateCapability
   }
   artifactRouteAvailable: boolean
@@ -288,9 +288,6 @@ export class VisionToolkitWebBackend {
       runtime: this.manager.status(),
       release: {
         pluginVersion: PLUGIN_VERSION,
-        upstreamRepository: UPSTREAM_REPOSITORY,
-        upstreamVersion: UPSTREAM_VERSION,
-        upstreamCommit: UPSTREAM_COMMIT,
         update,
       },
       artifactRouteAvailable: this.artifacts.routeAvailable,
@@ -344,10 +341,11 @@ export class VisionToolkitWebBackend {
     req.socket.once('close', abort)
     try {
       const runtime = this.manager.current()
-      // Use the prepared runtime home instead of the host process cwd.
+      // Health only needs a scratch workspace to validate output staging.
+      const workspace = join(tmpdir(), `dsh-vision-toolkit-health-${process.pid}`)
       return await runtime.health(request.testConnection, {
         signal: controller.signal,
-        workspace: runtime.upstreamVersion.runtimeHome,
+        workspace,
         sessionId: 'vision-toolkit-settings',
       }, request.testModel)
     } finally {

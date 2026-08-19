@@ -1,10 +1,9 @@
 /**
  * @anionex/dsh-vision-toolkit — DSH Vision Toolkit profile bundle.
  *
- * Plugin lifecycle follows the documented readiness chain: verify the pinned
- * upstream checkout, publish the vision-skills Skill and its one-shot bootstrap,
- * then mount the execution tools only in Agents that load that Skill or invoke
- * the bootstrap. Any
+ * Plugin lifecycle follows the documented readiness chain: publish the
+ * vision-skills Skill and its one-shot bootstrap, then mount the execution
+ * tools only in Agents that load that Skill or invoke the bootstrap. Any
  * failure leaves no model capability behind, and disposal unregisters every
  * global and Agent-scoped contribution the plugin mounted.
  * @module @anionex/dsh-vision-toolkit
@@ -68,14 +67,7 @@ export async function apply(ctx: Context, config: VisionToolkitConfig = {}): Pro
       skill = ctx.skills.register(VISION_SKILLS_SKILL)
       exposureDisposer = exposure.install()
       operationalDisposers = { activationTool, exposure: exposureDisposer, skill }
-      const info = manager.current().upstreamVersion
-      ctx.logger.info(
-        'dsh-vision-toolkit %s ready (upstream %s @ %s, checkout %s)',
-        PLUGIN_VERSION,
-        info.version,
-        info.commit,
-        info.path,
-      )
+      ctx.logger.info('dsh-vision-toolkit %s ready (pure-node runtime)', PLUGIN_VERSION)
     } catch (error) {
       exposureDisposer?.()
       if (skill !== undefined) skill()

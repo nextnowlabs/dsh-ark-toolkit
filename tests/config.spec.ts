@@ -31,8 +31,6 @@ describe('resolveConfig', () => {
     expect(config.maxImageBytes).toBe(4194304)
     expect(config.maxImagePixels).toBe(20000000)
     expect(config.concurrency).toBe(4)
-    expect(config.runtime.mode).toBe('managed')
-    expect(config.runtime.python).toBeUndefined()
     expect(config.allowedDirs).toEqual([])
     expect(config.imageInputVariants).toEqual({ enabled: true, providers: [], autoSwitch: true, hidden: true })
   })
@@ -99,12 +97,10 @@ describe('resolveConfig', () => {
         userAgent: 'custom-vision-client/2.0',
       },
       language: 'en',
-      runtime: { mode: 'external', agentVisionToolkitPath: '/tmp/toolkit', python: 'python3.12' },
       allowedDirs: ['~/Pictures'],
     })
     expect(config.provider.baseUrl).toBe('https://example.com/v1')
     expect(config.provider.credential).toBe('MY_VISION_KEY')
-    expect(config.runtime.agentVisionToolkitPath).toBe('/tmp/toolkit')
     expect(config.provider.protocol).toBe('anthropic')
     expect(config.provider.anthropicThinking).toBe('disabled')
     expect(config.provider.userAgent).toBe('custom-vision-client/2.0')
@@ -149,14 +145,11 @@ describe('resolveConfig', () => {
     expect(() => resolveConfig({ concurrency: 0 })).toThrowError(/concurrency/)
   })
 
-  it('accepts managed runtime without a local checkout path', () => {
-    expect(resolveConfig({ runtime: { mode: 'managed' } }).runtime).toEqual({ mode: 'managed' })
-  })
-
-  it('rejects contradictory or empty runtime settings', () => {
-    expect(() => resolveConfig({ runtime: { mode: 'external', agentVisionToolkitPath: '  ' } })).toThrowError(/agentVisionToolkitPath/)
-    expect(() => resolveConfig({ runtime: { mode: 'external' } })).toThrowError(/agentVisionToolkitPath/)
-    expect(() => resolveConfig({ runtime: { mode: 'managed', agentVisionToolkitPath: '/tmp/toolkit' } })).toThrowError(/only valid/)
-    expect(() => resolveConfig({ runtime: { python: '  ' } })).toThrowError(/runtime\.python/)
+  it('ignores the removed Python runtime options', () => {
+    const config = resolveConfig({
+      runtime: { mode: 'external', agentVisionToolkitPath: '/tmp/toolkit', python: 'python3.12' } as never,
+    })
+    expect(config).not.toHaveProperty('runtime')
+    expect(config.provider.baseUrl).toBe(ARK_BASE_URL)
   })
 })

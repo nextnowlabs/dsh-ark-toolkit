@@ -57,30 +57,27 @@ describe('package layout contract', () => {
     ]))
   })
 
-  it('ships runtime, pinned upstream, adapted Skill resources, lib, src, patch, and docs in files', async () => {
-    for (const required of ['lib', 'src', 'runtime', 'vendor', 'assets', 'patches', 'cordis.patch.yml', 'README.md', 'LICENSE']) {
+  it('ships the pure-Node plugin: lib, src, docs, assets, patch, and docs in files', async () => {
+    for (const required of ['lib', 'src', 'docs', 'assets', 'cordis.patch.yml', 'README.md', 'LICENSE']) {
       expect(PACKAGE.files).toContain(required)
     }
-    expect(PACKAGE.dsh?.visionToolkit?.upstreamSkillCommit).toMatch(/^[0-9a-f]{40}$/u)
+    expect(PACKAGE.files).not.toContain('runtime')
+    expect(PACKAGE.files).not.toContain('vendor')
+    expect(PACKAGE.files).not.toContain('patches')
     await expect(stat(join(ROOT, 'assets', 'skill', 'SKILL.md'))).resolves.toBeDefined()
-    await expect(stat(join(ROOT, 'assets', 'skill', 'UPSTREAM.json'))).resolves.toBeDefined()
-    await expect(stat(join(ROOT, 'assets', 'skill', 'references', 'restore-ui.md'))).resolves.toBeDefined()
+    await expect(stat(join(ROOT, 'assets', 'skill', 'UPSTREAM.json'))).rejects.toMatchObject({ code: 'ENOENT' })
+    expect(PACKAGE.dependencies).toHaveProperty('sharp', '0.34.2')
   })
 
   it('has reproducible build and prepack scripts', () => {
-    expect(PACKAGE.scripts.build).toContain('node scripts/python-bootstrap.mjs')
-    expect(PACKAGE.scripts.build).toContain('node scripts/upstream-manifest.mjs')
-    expect(PACKAGE.scripts.build).toContain('node scripts/verify-skill.mjs')
     expect(PACKAGE.scripts.build).toContain('node scripts/clean-build.mjs')
     expect(PACKAGE.scripts.build).toContain('tsc -p tsconfig.json')
     expect(PACKAGE.scripts.build).toContain('tsc -p tsconfig.client.json')
     expect(PACKAGE.scripts.build).toContain('tsc -p tsconfig.client.public.json')
     expect(PACKAGE.scripts.build).toContain('node scripts/build-client.mjs')
-    expect(PACKAGE.scripts['verify:portable']).toContain('node scripts/python-bootstrap.mjs')
-    expect(PACKAGE.scripts['upstream:sync']).toBe('node scripts/sync-upstream.mjs')
-    expect(PACKAGE.scripts['upstream:skill:sync']).toBe('node scripts/sync-skill.mjs')
-    expect(PACKAGE.scripts['upstream:skill:verify']).toBe('node scripts/verify-skill.mjs')
-    expect(PACKAGE.scripts['upstream:manifest']).toContain('--write')
+    expect(PACKAGE.scripts.build).not.toContain('python-bootstrap')
+    expect(PACKAGE.scripts.build).not.toContain('upstream-manifest')
+    expect(PACKAGE.scripts['verify:portable']).toBe('node scripts/verify-portable.mjs')
     expect(PACKAGE.scripts.prepack).toBe('npm run build')
     expect(PACKAGE.scripts.test).toContain('vitest')
   })
@@ -133,10 +130,12 @@ describe('package layout contract', () => {
     const runtime = await readFile(join(ROOT, 'lib', 'runtime.js'), 'utf8')
     expect(runtime).toContain('anthropic-version')
     expect(runtime).toContain('x-api-key')
-    const upstream = await readFile(join(ROOT, 'lib', 'upstream.js'), 'utf8')
-    expect(upstream).toContain('VISION_API_PROTOCOL')
-    expect(upstream).toContain('VISION_ANTHROPIC_THINKING')
-    expect(upstream).toContain('VISION_USER_AGENT')
+    const visionApi = await readFile(join(ROOT, 'lib', 'vision-api.js'), 'utf8')
+    expect(visionApi).toContain('x-api-key')
+    expect(visionApi).toContain('anthropic-version')
+    expect(visionApi).toContain('chat/completions')
+    await expect(stat(join(ROOT, 'lib', 'upstream.js'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(ROOT, 'lib', 'runtime-install.js'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('indexes each client source map section at the generated module source line', async () => {

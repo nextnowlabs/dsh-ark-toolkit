@@ -50,13 +50,9 @@ function healthResult(testConnection: boolean, testModel = false): VisionToolkit
   const ok = { status: 'ok' as const, detail: 'fixture ok' }
   return {
     pluginVersion: '0.1.0',
-    upstream: {
-      repository: 'fixture', version: 'fixture', commit: 'fixture', path: '/fixture', source: 'managed',
-      runtimeHome: '/fixture/runtime', python: 'python3', pythonVersion: '3.12.0', dependencies: {},
-    },
     checks: {
-      python: ok, dependencies: ok, chrome: ok, credential: ok,
-      artifactDirectory: ok, tempDirectory: ok,
+      credential: ok,
+      artifactDirectory: ok,
       service: testConnection ? ok : { status: 'not_tested', detail: 'not tested' },
       model: testModel ? ok : { status: 'not_tested', detail: 'not tested' },
     },
@@ -71,10 +67,6 @@ class FakeManager implements WebRuntimeManager {
   private active = resolveConfig({})
   private generation = 1
   readonly runtime = {
-    upstreamVersion: {
-      repository: 'fixture', version: 'fixture', commit: 'fixture', path: '/fixture', source: 'managed',
-      runtimeHome: '/fixture/runtime', python: 'python3', pythonVersion: '3.12.0', dependencies: {},
-    },
     health: async (testConnection: boolean, options: { workspace: string }, testModel = false) => {
       this.healthCalls.push({ testConnection, testModel, workspace: options.workspace })
       return healthResult(testConnection, testModel)
@@ -93,7 +85,7 @@ class FakeManager implements WebRuntimeManager {
   }
   recordFailure(): void {}
   status(): RuntimeManagerStatus {
-    return { ready: true, generation: this.generation, activeConfig: this.active, upstream: this.runtime.upstreamVersion }
+    return { ready: true, generation: this.generation, activeConfig: this.active }
   }
 }
 
@@ -286,9 +278,9 @@ describe('VisionToolkitWebBackend', () => {
     const model = await post({ action: 'health', testConnection: true, testModel: true })
     expect(model.status).toBe(200)
     expect(manager.healthCalls).toEqual([
-      { testConnection: false, testModel: false, workspace: '/fixture/runtime' },
-      { testConnection: true, testModel: false, workspace: '/fixture/runtime' },
-      { testConnection: true, testModel: true, workspace: '/fixture/runtime' },
+      { testConnection: false, testModel: false, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
+      { testConnection: true, testModel: false, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
+      { testConnection: true, testModel: true, workspace: expect.stringMatching(/dsh-vision-toolkit-health-/) },
     ])
   })
 

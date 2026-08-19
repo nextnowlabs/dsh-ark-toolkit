@@ -1,8 +1,8 @@
 /**
  * Plugin configuration: provider endpoint and credential reference, output
- * language, limits, and the external upstream runtime location. Secrets never
- * live here — `provider.credential` is a DSH Credential reference resolved per
- * operation through `ctx.credentials`.
+ * language, and local safety limits. Secrets never live here —
+ * `provider.credential` is a DSH Credential reference resolved per operation
+ * through `ctx.credentials`. There is no Python or vendored runtime to locate.
  * @module dsh-vision-toolkit/config
  */
 
@@ -91,14 +91,6 @@ export interface VisionToolkitConfig {
   maxImagePixels?: number
   /** In-flight tool execution cap per session. */
   concurrency?: number
-  runtime?: {
-    /** `managed` uses the packaged snapshot and isolated venv; `external` uses a clean pinned checkout. */
-    mode?: 'managed' | 'external'
-    /** Required path to the clean pinned checkout when `mode` is `external`. */
-    agentVisionToolkitPath?: string
-    /** Optional Python 3.11+ bootstrap/interpreter override. */
-    python?: string
-  }
   /** Extra directories (besides the workspace) inputs may come from. */
   allowedDirs?: string[]
   /**
@@ -154,11 +146,6 @@ export const Config: Schema<VisionToolkitConfig> = z.object({
   maxImageBytes: z.number().default(4194304),
   maxImagePixels: z.number().default(20000000),
   concurrency: z.number().default(4),
-  runtime: z.object({
-    mode: z.union(['managed', 'external'] as const).default('managed'),
-    agentVisionToolkitPath: z.string(),
-    python: z.string(),
-  }),
   allowedDirs: z.array(z.string()).default([]),
   imageInputVariants: z.object({
     enabled: z.boolean().default(true),
@@ -189,11 +176,6 @@ export interface ResolvedVisionToolkitConfig {
   maxImageBytes: number
   maxImagePixels: number
   concurrency: number
-  runtime: {
-    mode: 'managed' | 'external'
-    agentVisionToolkitPath?: string
-    python?: string
-  }
   allowedDirs: string[]
   imageInputVariants: {
     enabled: boolean
@@ -218,7 +200,6 @@ const MAX_CONCURRENCY = 16
  */
 export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionToolkitConfig {
   const provider = config.provider ?? {}
-  const runtime = config.runtime ?? {}
   const baseUrl = (provider.baseUrl ?? ARK_BASE_URL).trim().replace(/\/+$/, '')
   if (!/^https?:\/\//i.test(baseUrl) || baseUrl.length <= 'https://'.length) {
     throw new VisionToolkitError('config', 'provider.baseUrl must be an http(s) URL')
@@ -292,24 +273,6 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > MAX_CONCURRENCY) {
     throw new VisionToolkitError('config', `concurrency must be an integer between 1 and ${MAX_CONCURRENCY}`)
   }
-  const mode = runtime.mode ?? 'managed'
-  if (mode !== 'managed' && mode !== 'external') {
-    throw new VisionToolkitError('config', 'runtime.mode must be "managed" or "external"')
-  }
-  const toolkitPath = runtime.agentVisionToolkitPath?.trim()
-  if (toolkitPath !== undefined && toolkitPath.length === 0) {
-    throw new VisionToolkitError('config', 'runtime.agentVisionToolkitPath must not be empty when provided')
-  }
-  if (mode === 'external' && toolkitPath === undefined) {
-    throw new VisionToolkitError('config', 'runtime.agentVisionToolkitPath is required when runtime.mode is external')
-  }
-  if (mode === 'managed' && toolkitPath !== undefined) {
-    throw new VisionToolkitError('config', 'runtime.agentVisionToolkitPath is only valid when runtime.mode is external')
-  }
-  const python = runtime.python?.trim()
-  if (python !== undefined && python.length === 0) {
-    throw new VisionToolkitError('config', 'runtime.python must not be empty')
-  }
   const allowedDirs = (config.allowedDirs ?? []).map(dir => dir.trim()).filter(dir => dir.length > 0)
   const imageInputVariants = config.imageInputVariants ?? {}
   const variantProviders = (imageInputVariants.providers ?? [])
@@ -330,11 +293,6 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
     maxImageBytes,
     maxImagePixels,
     concurrency,
-    runtime: {
-      mode,
-      ...(toolkitPath !== undefined ? { agentVisionToolkitPath: toolkitPath } : {}),
-      ...(python !== undefined ? { python } : {}),
-    },
     allowedDirs,
     imageInputVariants: {
       enabled: imageInputVariants.enabled ?? true,

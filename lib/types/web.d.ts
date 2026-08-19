@@ -35,9 +35,6 @@ export interface VisionToolkitSettingsSnapshot {
     runtime: RuntimeManagerStatus;
     release: {
         pluginVersion: string;
-        upstreamRepository: string;
-        upstreamVersion: string;
-        upstreamCommit: string;
         update: PluginUpdateCapability;
     };
     artifactRouteAvailable: boolean;

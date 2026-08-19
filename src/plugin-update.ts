@@ -15,6 +15,8 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
+// Activates the subprocess Context declaration used by the update runner.
+import type {} from '@deepseek-ai/dsh-subprocess'
 
 export const VISION_TOOLKIT_PACKAGE = '@anionex/dsh-vision-toolkit'
 

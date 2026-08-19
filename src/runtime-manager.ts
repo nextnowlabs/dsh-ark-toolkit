@@ -1,16 +1,15 @@
 /**
  * Atomic live configuration owner for the plugin's internal runtime. A new
- * upstream adapter is fully prepared before it replaces the currently serving
- * runtime, so failed Settings edits never interrupt in-flight or later calls.
+ * runtime is fully constructed before it replaces the currently serving one,
+ * so failed Settings edits never interrupt in-flight or later calls.
  * @module dsh-vision-toolkit/runtime-manager
  */
 
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveConfig, type ResolvedVisionToolkitConfig, type VisionToolkitConfig } from './config.ts'
 import { VisionToolkitRuntime } from './runtime.ts'
-import { UpstreamAdapter, type UpstreamVersionInfo } from './upstream.ts'
 
-/** One completely prepared configuration generation. */
+/** One completely validated configuration generation. */
 export interface PreparedRuntimeGeneration {
   config: ResolvedVisionToolkitConfig
   fingerprint: string
@@ -22,7 +21,6 @@ export interface RuntimeManagerStatus {
   ready: boolean
   generation: number
   activeConfig?: ResolvedVisionToolkitConfig
-  upstream?: UpstreamVersionInfo
   lastError?: string
 }
 
@@ -33,14 +31,12 @@ export type RuntimeGenerationFactory = (
 ) => Promise<VisionToolkitRuntime>
 
 async function defaultFactory(ctx: Context, config: ResolvedVisionToolkitConfig): Promise<VisionToolkitRuntime> {
-  const adapter = new UpstreamAdapter(ctx, config)
-  await adapter.prepare()
-  return new VisionToolkitRuntime(ctx, config, adapter)
+  return new VisionToolkitRuntime(ctx, config)
 }
 
 function fingerprint(config: ResolvedVisionToolkitConfig): string {
   // Transparent routing is a display/policy flag: toggling it must not rebuild
-  // or re-verify the vision runtime, only reconcile the model-selector routes.
+  // the runtime, only reconcile the model-selector routes.
   return JSON.stringify({
     ...config,
     imageInputVariants: { ...config.imageInputVariants, hidden: false },
@@ -99,13 +95,7 @@ export class VisionToolkitRuntimeManager {
     this.active = candidate
     this.generation += 1
     this.lastError = undefined
-    this.ctx.logger.info(
-      'dsh-vision-toolkit runtime generation=%d active (upstream %s @ %s, checkout %s)',
-      this.generation,
-      candidate.runtime.upstreamVersion.version,
-      candidate.runtime.upstreamVersion.commit,
-      candidate.runtime.upstreamVersion.path,
-    )
+    this.ctx.logger.info('dsh-vision-toolkit runtime generation=%d active', this.generation)
   }
 
   /** Prepare and publish the initial or explicitly validated generation. */
@@ -137,13 +127,7 @@ export class VisionToolkitRuntimeManager {
     this.active = candidate
     if (changed) {
       this.generation += 1
-      this.ctx.logger.info(
-        'dsh-vision-toolkit Settings activated runtime generation=%d (upstream %s @ %s, checkout %s)',
-        this.generation,
-        candidate.runtime.upstreamVersion.version,
-        candidate.runtime.upstreamVersion.commit,
-        candidate.runtime.upstreamVersion.path,
-      )
+      this.ctx.logger.info('dsh-vision-toolkit Settings activated runtime generation=%d', this.generation)
     }
     this.lastError = undefined
     return changed
@@ -167,7 +151,6 @@ export class VisionToolkitRuntimeManager {
       ready: true,
       generation: this.generation,
       activeConfig: this.active.config,
-      upstream: this.active.runtime.upstreamVersion,
       ...(this.lastError === undefined ? {} : { lastError: this.lastError }),
     }
   }

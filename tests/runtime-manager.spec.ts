@@ -12,24 +12,14 @@ afterEach(async () => {
 
 function fakeRuntime(config: ResolvedVisionToolkitConfig): VisionToolkitRuntime {
   return {
-    upstreamVersion: {
-      repository: 'https://github.com/Anionex/agent-vision-toolkit',
-      version: 'fixture',
-      commit: 'c27d1a300962b553c0884993c575cd3e819465ce',
-      path: `/fixture/${config.provider.model}`,
-      source: config.runtime.mode,
-      runtimeHome: '/fixture/runtime',
-      python: 'python3',
-      pythonVersion: '3.12.0',
-      dependencies: {},
-    },
+    runtimeInfo: { pluginVersion: 'fixture', runtime: 'pure-node' as const },
+    runtimeName: config.provider.model,
   } as unknown as VisionToolkitRuntime
 }
 
 function config(model: string) {
   return {
     provider: { baseUrl: 'https://vision.example/v1', credential: 'VISION_API_KEY', model },
-    runtime: { mode: 'managed' as const },
   }
 }
 
@@ -87,6 +77,6 @@ describe('VisionToolkitRuntimeManager', () => {
     await older
 
     expect(manager.status().activeConfig?.provider.model).toBe('newest')
-    expect(manager.current().upstreamVersion.path).toBe('/fixture/newest')
+    expect((manager.current().runtimeInfo as { pluginVersion: string }).pluginVersion).toBe('fixture')
   })
 })

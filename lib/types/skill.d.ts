@@ -1,5 +1,5 @@
 /**
- * DSH-native adapter for the upstream vision-tools Skill and playbooks.
+ * DSH-native adapter for the vision-skills Skill.
  * @module dsh-vision-toolkit/skill
  */
 import type { SkillRegistration } from '@deepseek-ai/dsh-skill';

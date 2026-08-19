@@ -37,8 +37,8 @@ const ARK_TUTORIAL_URL_ZH = 'https://github.com/Anionex/dsh-vision-toolkit/blob/
 const en = {
   nav: 'Vision',
   settingsTitle: 'Vision Toolkit',
-  settingsIntro: 'Configure the pinned visual engineering runtime, its external vision endpoint, and local safety limits.',
-  externalNotice: 'Remote tools send the selected image bytes to the configured external vision API. Local crop, trace, pixel diff, palette, foreground extraction, and HTML rendering do not upload images.',
+  settingsIntro: 'Configure the vision service endpoint, model, credential, and local safety limits.',
+  externalNotice: 'Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.',
   provider: 'Vision service',
   providerHint: 'Choose the API protocol, then provide the service address, model, and API key used by online vision features.',
   arkTutorial: 'Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →',
@@ -164,6 +164,8 @@ const en = {
   extractForegroundTitle: 'Extract Foreground',
   htmlScreenshotTitle: 'HTML Screenshot',
   artifactTitle: 'Vision Artifact',
+  generateImageTitle: 'Generated image',
+  speakTitle: 'Synthesized speech',
   dominantColorsTitle: 'Dominant Colors',
   artifactGroundPreview: 'Grounding bounding-box preview',
   artifactDetectPreview: 'Detected-element bounding-box preview',
@@ -178,7 +180,9 @@ const en = {
   artifactOcrSidecar: 'OCR sidecar for chunk {index}',
   artifactForeground: 'Extracted transparent foreground',
   artifactHtmlScreenshot: 'Headless browser screenshot of local HTML',
+  artifactSeedreamImage: 'Seedream generated image',
   artifactTtsSpeech: 'ByteDance TTS synthesized speech',
+  runtimePureNode: 'Pure Node',
   label: 'Label',
   paths: 'paths',
   healthPython: 'Python',
@@ -226,8 +230,8 @@ type LocaleKey = keyof typeof en
 const zh: Record<LocaleKey, string> = {
   nav: '视觉工具',
   settingsTitle: '视觉工具箱',
-  settingsIntro: '在这里设置视觉模型服务、工具运行环境，以及图片和文件的本地访问范围。',
-  externalNotice: '使用图像理解、目标定位、界面检测或文字识别等在线功能时，所选图片会发送到下方配置的视觉服务。图片裁剪、轮廓描摹、像素对比、主色提取、前景提取和网页截图均在本机完成，不会上传图片。',
+  settingsIntro: '在这里设置视觉模型服务、API 密钥，以及图片和文件的本地访问范围。',
+  externalNotice: '图片理解（vision_glance）、文生图和语音合成会把数据发送到下方配置的远程服务；发送前如需压缩，会在本机完成。',
   provider: '在线视觉服务',
   providerHint: '选择接口协议后，填写在线视觉功能使用的 API 地址、模型名称和 API 密钥。',
   arkTutorial: '用字节火山方舟做图片理解？看这篇图文教程 →',
@@ -353,6 +357,8 @@ const zh: Record<LocaleKey, string> = {
   extractForegroundTitle: '提取前景',
   htmlScreenshotTitle: '网页截图',
   artifactTitle: '视觉处理结果',
+  generateImageTitle: '生成的图片',
+  speakTitle: '合成语音',
   dominantColorsTitle: '主色提取',
   artifactGroundPreview: '目标定位框预览',
   artifactDetectPreview: '界面元素标注预览',
@@ -367,7 +373,9 @@ const zh: Record<LocaleKey, string> = {
   artifactOcrSidecar: '分块 {index} 的文字识别记录',
   artifactForeground: '提取后的透明背景前景图',
   artifactHtmlScreenshot: '本地网页截图',
+  artifactSeedreamImage: 'Seedream 生成的图片',
   artifactTtsSpeech: '字节 TTS 语音合成',
+  runtimePureNode: '纯 Node',
   label: '名称',
   paths: '条路径',
   healthPython: 'Python',
@@ -629,24 +637,10 @@ function collectArtifacts(value: unknown, found = new Map<string, ArtifactDescri
   return [...found.values()]
 }
 
-function numberOf(value: unknown): number | undefined {
-  return typeof value === 'number' && Number.isFinite(value) ? value : undefined
-}
-
-function stringOf(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
-}
-
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function boxText(value: unknown): string {
-  if (!isRecord(value)) return '—'
-  const parts = ['x1', 'y1', 'x2', 'y2'].map(key => numberOf(value[key]))
-  return parts.every(part => part !== undefined) ? parts.join(', ') : '—'
 }
 
 function statusText(block: ToolCallBlock, t: Translate): string | undefined {
@@ -745,17 +739,7 @@ function ArtifactPreview({ artifact, grant, openFile, t }: {
 }
 
 const ARTIFACT_DESCRIPTION_KEYS: Record<string, LocaleKey> = {
-  'Grounding bounding-box preview': 'artifactGroundPreview',
-  'Detected-element bounding-box preview': 'artifactDetectPreview',
-  'Cropped image region': 'artifactCrop',
-  'Traced vector geometry': 'artifactTrace',
-  'Pixel-difference heatmap': 'artifactDiffHeatmap',
-  'Structured pixel-difference report': 'artifactDiffReport',
-  'Long-screenshot split and merge manifest': 'artifactLongManifest',
-  'Merged long-screenshot OCR transcript': 'artifactLongTranscript',
-  'Long-screenshot OCR boundary audit': 'artifactLongAudit',
-  'Extracted transparent foreground': 'artifactForeground',
-  'Headless browser screenshot of local HTML': 'artifactHtmlScreenshot',
+  'Seedream generated image': 'artifactSeedreamImage',
   'ByteDance TTS speech': 'artifactTtsSpeech',
 }
 
@@ -765,133 +749,21 @@ function artifactDescription(description: string, t: Translate): string {
     const translated = t(key)
     return translated === key ? description : translated
   }
-  let match = /^Long-screenshot OCR chunk (\d+)$/u.exec(description)
-  if (match !== null) {
-    const translated = t('artifactLongChunk', { index: match[1] })
-    return translated === 'artifactLongChunk' ? description : translated
-  }
-  match = /^OCR sidecar for chunk (\d+)$/u.exec(description)
-  if (match !== null) {
-    const translated = t('artifactOcrSidecar', { index: match[1] })
-    return translated === 'artifactOcrSidecar' ? description : translated
-  }
   return description
 }
 
 type ViewProps = ToolCallViewProps & { t?: Translate }
 
-function GroundView({ block, openFile, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
-  const matches = Array.isArray(value?.matches) ? value.matches.filter(isRecord) : []
-  const target = stringOf(value?.target) ?? t('groundTitle')
-  const width = numberOf(value?.imageWidth)
-  const height = numberOf(value?.imageHeight)
-  const preview = artifactFrom(value?.preview)
-  const grants = accessMap(value)
-  return (
-    <ToolShell block={block} title={t('groundTitle')} summary={matches.length > 0 ? `${target} · ${matches.length} ${t('matches')}` : target} icon={<VisionIcon kind="target" />} t={t}>
-      {value === undefined ? <p className="dvt-muted">{t('noResult')}</p> : (
-        <div className="dvt-stack">
-          <div className="dvt-metrics">
-            <div><span>{t('dimensions')}</span><strong>{width ?? '—'} × {height ?? '—'}</strong></div>
-            <div><span>{t('coordinates')}</span><strong>{matches[0] === undefined ? '—' : boxText(matches[0].box)}</strong></div>
-          </div>
-          {matches.length > 1 ? (
-            <ol className="dvt-list">{matches.map((match, index) => <li key={index}><span>{stringOf(match.label) ?? `#${index + 1}`}</span><code>{boxText(match.box)}</code></li>)}</ol>
-          ) : null}
-          {preview === undefined ? null : <ArtifactPreview artifact={preview} grant={grants.get(preview.path)} openFile={openFile} t={t} />}
-        </div>
-      )}
-    </ToolShell>
-  )
-}
-
-function DetectView({ block, openFile, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
-  const elements = Array.isArray(value?.elements) ? value.elements.filter(isRecord) : []
-  const width = numberOf(value?.imageWidth)
-  const height = numberOf(value?.imageHeight)
-  const preview = artifactFrom(value?.preview)
-  const grants = accessMap(value)
-  return (
-    <ToolShell block={block} title={t('detectTitle')} summary={`${elements.length} ${t('elements')}`} icon={<VisionIcon kind="layers" />} t={t}>
-      {value === undefined ? <p className="dvt-muted">{t('noResult')}</p> : (
-        <div className="dvt-stack">
-          <div className="dvt-metrics">
-            <div><span>{t('dimensions')}</span><strong>{width ?? '—'} × {height ?? '—'}</strong></div>
-            <div><span>{t('elements')}</span><strong>{elements.length}</strong></div>
-          </div>
-          <div className="dvt-table-wrap"><table className="dvt-table"><thead><tr><th>#</th><th>{t('label')}</th><th>{t('coordinates')}</th></tr></thead><tbody>
-            {elements.map((element, index) => <tr key={index}><td>{numberOf(element.index) ?? index + 1}</td><td>{stringOf(element.label) ?? '—'}</td><td><code>{boxText(element.box)}</code></td></tr>)}
-          </tbody></table></div>
-          {preview === undefined ? null : <ArtifactPreview artifact={preview} grant={grants.get(preview.path)} openFile={openFile} t={t} />}
-        </div>
-      )}
-    </ToolShell>
-  )
-}
-
-function TraceView({ block, openFile, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
-  const artifact = artifactFrom(value?.artifact)
-  const geometry = isRecord(value?.geometry) ? value.geometry : undefined
-  const summary = geometry === undefined ? undefined : `${numberOf(geometry.pathCount) ?? 0} ${t('paths')} · ${formatBytes(numberOf(geometry.bytes) ?? 0)}`
-  const grants = accessMap(value)
-  return (
-    <ToolShell block={block} title={t('traceTitle')} summary={summary} icon={<VisionIcon kind="shape" />} t={t}>
-      {artifact === undefined ? <p className="dvt-muted">{t('noResult')}</p> : <ArtifactPreview artifact={artifact} grant={grants.get(artifact.path)} openFile={openFile} t={t} />}
-    </ToolShell>
-  )
-}
-
-function PixelDiffView({ block, openFile, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
-  const pct = numberOf(value?.overallDifferencePct)
-  const regions = Array.isArray(value?.worstRegions) ? value.worstRegions.filter(isRecord) : []
-  const heatmap = artifactFrom(value?.heatmap)
-  const report = artifactFrom(value?.report)
-  const grants = accessMap(value)
-  return (
-    <ToolShell block={block} title={t('pixelDiffTitle')} summary={pct === undefined ? undefined : `${pct.toFixed(3)}%`} icon={<VisionIcon kind="diff" />} t={t}>
-      {value === undefined ? <p className="dvt-muted">{t('noResult')}</p> : (
-        <div className="dvt-stack">
-          <div className="dvt-diff-score"><span>{t('difference')}</span><strong>{pct?.toFixed(4) ?? '—'}%</strong><div><i style={{ width: `${Math.min(100, Math.max(0, pct ?? 0))}%` }} /></div></div>
-          {regions.length === 0 ? null : <div><h4>{t('worstRegions')}</h4><ol className="dvt-list">{regions.map((region, index) => <li key={index}><span>{(numberOf(region.differencePct) ?? 0).toFixed(3)}%</span><code>{boxText(region.box)}</code></li>)}</ol></div>}
-          {heatmap === undefined ? null : <ArtifactPreview artifact={heatmap} grant={grants.get(heatmap.path)} openFile={openFile} t={t} />}
-          {report === undefined ? null : <ArtifactPreview artifact={report} grant={grants.get(report.path)} openFile={openFile} t={t} />}
-        </div>
-      )}
-    </ToolShell>
-  )
-}
-
 function ArtifactView({ block, openFile, toolName, t = key => en[key] }: ViewProps) {
   const value = decodeVisionResult(block)
   const artifacts = collectArtifacts(value)
   const grants = accessMap(value)
-  const title = toolName === 'vision_crop' ? t('cropTitle')
-    : toolName === 'vision_long_screenshot_ocr' ? t('longOcrTitle')
-      : toolName === 'vision_extract_foreground' ? t('extractForegroundTitle')
-        : toolName === 'vision_html_screenshot' ? t('htmlScreenshotTitle')
-          : t('artifactTitle')
+  const title = toolName === 'vision_generate_image' ? t('generateImageTitle')
+    : toolName === 'vision_speak' ? t('speakTitle')
+      : t('artifactTitle')
   return (
     <ToolShell block={block} title={title} summary={artifacts.length > 0 ? `${artifacts.length} ${t('artifacts')}` : undefined} icon={<VisionIcon />} t={t}>
       {artifacts.length === 0 ? <p className="dvt-muted">{t('noResult')}</p> : <div className="dvt-stack">{artifacts.map(artifact => <ArtifactPreview key={artifact.path} artifact={artifact} grant={grants.get(artifact.path)} openFile={openFile} t={t} />)}</div>}
-    </ToolShell>
-  )
-}
-
-function PaletteView({ block, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
-  const analysis = isRecord(value?.analysis) ? value.analysis : undefined
-  const colors = Array.isArray(analysis?.colors) ? analysis.colors.filter(isRecord) : []
-  return (
-    <ToolShell block={block} title={t('dominantColorsTitle')} summary={`${colors.length} ${t('colors')}`} icon={<VisionIcon kind="palette" />} t={t}>
-      {colors.length === 0 ? <p className="dvt-muted">{t('noResult')}</p> : <div className="dvt-palette">{colors.map((color, index) => {
-        const hex = stringOf(color.color) ?? '#000000'
-        const share = numberOf(color.sharePct)
-        return <div key={`${hex}-${index}`}><i style={{ background: hex }} /><span><strong>{hex}</strong><small>{share === undefined ? '' : `${share.toFixed(2)}%`}</small></span></div>
-      })}</div>}
     </ToolShell>
   )
 }
@@ -1085,9 +957,6 @@ interface Draft {
   maxImageBytes: string
   maxImagePixels: string
   concurrency: string
-  runtimeMode: 'managed' | 'external'
-  toolkitPath: string
-  python: string
   allowedDirs: string
   hiddenVariants: boolean
   variantEnabled: boolean
@@ -1108,9 +977,6 @@ function draftOf(value: SettingsValue): Draft {
     maxImageBytes: String(value.maxImageBytes ?? 4194304),
     maxImagePixels: String(value.maxImagePixels ?? 20000000),
     concurrency: String(value.concurrency ?? 4),
-    runtimeMode: value.runtime?.mode ?? 'managed',
-    toolkitPath: value.runtime?.agentVisionToolkitPath ?? '',
-    python: value.runtime?.python ?? '',
     allowedDirs: (value.allowedDirs ?? []).join('\n'),
     hiddenVariants: value.imageInputVariants?.hidden ?? true,
     variantEnabled: value.imageInputVariants?.enabled ?? true,
@@ -1150,11 +1016,6 @@ function valueOf(draft: Draft, t: Translate): SettingsValue {
     maxImageBytes: positiveInteger(draft.maxImageBytes, t('maxBytes'), t),
     maxImagePixels: positiveInteger(draft.maxImagePixels, t('maxPixels'), t),
     concurrency: positiveInteger(draft.concurrency, t('concurrency'), t),
-    runtime: {
-      mode: draft.runtimeMode,
-      ...(draft.runtimeMode === 'external' ? { agentVisionToolkitPath: draft.toolkitPath.trim() } : {}),
-      ...(draft.python.trim().length === 0 ? {} : { python: draft.python.trim() }),
-    },
     allowedDirs: draft.allowedDirs.split(/\r?\n/).map(entry => entry.trim()).filter(Boolean),
     imageInputVariants: {
       ...(draft.variantEnabled ? {} : { enabled: false }),
@@ -1192,12 +1053,8 @@ function SettingsSection({ controller, t }: SettingsProps) {
 }
 
 const HEALTH_NAME_KEYS: Record<string, LocaleKey> = {
-  python: 'healthPython',
-  dependencies: 'healthDependencies',
-  chrome: 'healthChrome',
   credential: 'healthCredential',
   artifactDirectory: 'healthArtifactDirectory',
-  tempDirectory: 'healthTempDirectory',
   service: 'healthService',
   model: 'healthModel',
 }
@@ -1209,13 +1066,7 @@ const HEALTH_STATUS_KEYS: Record<HealthCheck['status'], LocaleKey> = {
   not_tested: 'statusNotTested',
 }
 
-function healthDetail(name: string, detail: string, t: Translate): string {
-  if (name === 'python') {
-    const match = /^(.+) via (.+)$/u.exec(detail)
-    if (match !== null) return t('healthPythonDetail', { version: match[1], path: match[2] })
-  }
-  if (detail === 'Chrome/Chromium/Edge was not found; vision_html_screenshot is unavailable') return t('healthChromeMissing')
-  if (detail === 'Chrome availability probe failed') return t('healthChromeProbeFailed')
+function healthDetail(detail: string, t: Translate): string {
   let match = /^credential (.+) is not configured$/u.exec(detail)
   if (match !== null) return t('healthCredentialMissing', { credential: match[1] })
   match = /^credential (.+) is resolvable$/u.exec(detail)
@@ -1409,7 +1260,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
         <p className="dvt-muted">{t('saveBeforeTesting')}</p>
         {state.health === undefined ? <p className="dvt-muted">{t('notTested')}</p> : <div className="dvt-health-grid">{Object.entries(state.health.checks).map(([name, check]) => {
           const testTag = name === 'model' ? modelTestTag(state.health as HealthResult, check) : undefined
-          return <div key={name} data-status={check.status}><span>{t(HEALTH_NAME_KEYS[name] ?? 'health')}</span>{testTag === undefined ? null : <em className="dvt-health-test-tag" data-status={testTag.status}>{t(testTag.label)}</em>}<strong>{t(HEALTH_STATUS_KEYS[check.status])}</strong><p>{healthDetail(name, check.detail, t)}</p></div>
+          return <div key={name} data-status={check.status}><span>{t(HEALTH_NAME_KEYS[name] ?? 'health')}</span>{testTag === undefined ? null : <em className="dvt-health-test-tag" data-status={testTag.status}>{t(testTag.label)}</em>}<strong>{t(HEALTH_STATUS_KEYS[check.status])}</strong><p>{healthDetail(check.detail, t)}</p></div>
         })}</div>}
       </section>
 
@@ -1456,13 +1307,9 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
 
           <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('imageInput')}</h3></div><label className="dvt-check"><input type="checkbox" checked={draft.hiddenVariants} disabled={!snapshot.writable || busy} onChange={(event) => { update('hiddenVariants', event.target.checked) }} /><span>{t('hiddenVariantsLabel')}</span><small>{t('hiddenVariantsHint')}</small></label></section>
 
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('runtime')}</h3><span className={`dvt-badge ${snapshot.runtime.ready ? 'ok' : 'error'}`}>{snapshot.runtime.ready ? snapshot.runtime.upstream?.source === 'managed' ? t('runtimeManaged') : snapshot.runtime.upstream?.source === 'external' ? t('runtimeExternal') : t('runtimeReady') : t('runtimeUnavailable')}</span></div><div className="dvt-form-grid">
-            <Field label={t('runtimeMode')}><select value={draft.runtimeMode} onChange={(event) => { update('runtimeMode', event.target.value as 'managed' | 'external') }}><option value="managed">{t('runtimeManaged')}</option><option value="external">{t('runtimeExternal')}</option></select></Field>
-            {draft.runtimeMode === 'external' ? <Field label={t('toolkitPath')}><Input value={draft.toolkitPath} onChange={(event) => { update('toolkitPath', event.target.value) }} /></Field> : null}
-            <Field label={t('python')}><Input placeholder="python3" value={draft.python} onChange={(event) => { update('python', event.target.value) }} /></Field>
+          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('runtime')}</h3><span className={`dvt-badge ${snapshot.runtime.ready ? 'ok' : 'error'}`}>{snapshot.runtime.ready ? t('runtimePureNode') : t('runtimeUnavailable')}</span></div><div className="dvt-form-grid">
             <Field label={t('allowedDirs')} hint={t('allowedDirsHint')}><textarea rows={3} value={draft.allowedDirs} onChange={(event) => { update('allowedDirs', event.target.value) }} /></Field>
           </div>
-          {snapshot.runtime.upstream === undefined ? null : <div className="dvt-runtime-facts"><code>{snapshot.runtime.upstream.path}</code><code>{snapshot.runtime.upstream.python} · {snapshot.runtime.upstream.pythonVersion}</code><code>{snapshot.runtime.upstream.runtimeHome}</code></div>}
           </section>
 
         </div>
@@ -1470,7 +1317,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
 
       <footer className="dvt-settings-footer">
         <div><span className="dvt-kicker">{t('pluginKind')}</span><h2>{t('settingsTitle')}</h2><p>{t('settingsIntro')}</p></div>
-        <div className="dvt-release"><span>{t('pluginVersion')} <strong>{snapshot.release.pluginVersion}</strong></span><span>{t('upstreamVersion')} <strong>{snapshot.release.upstreamVersion}</strong></span><span>{t('activeGeneration')} <strong>{t('activeGenerationValue', { generation: snapshot.runtime.generation })}</strong></span></div>
+        <div className="dvt-release"><span>{t('pluginVersion')} <strong>{snapshot.release.pluginVersion}</strong></span><span>{t('activeGeneration')} <strong>{t('activeGenerationValue', { generation: snapshot.runtime.generation })}</strong></span></div>
       </footer>
     </div>
   )
@@ -1512,15 +1359,8 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const injected = () => ({ t })
   const entries: Array<[string, (props: ViewProps) => ReactNode]> = [
-    ['vision_ground', GroundView],
-    ['vision_detect', DetectView],
-    ['vision_trace', TraceView],
-    ['vision_pixel_diff', PixelDiffView],
-    ['vision_crop', ArtifactView],
-    ['vision_long_screenshot_ocr', ArtifactView],
-    ['vision_extract_foreground', ArtifactView],
-    ['vision_html_screenshot', ArtifactView],
-    ['vision_dominant_colors', PaletteView],
+    ['vision_generate_image', ArtifactView],
+    ['vision_speak', ArtifactView],
   ]
   ctx.slots.inject('tool.call.toolview', function* () {
     for (const [key, component] of entries) {
