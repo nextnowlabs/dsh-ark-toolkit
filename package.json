@@ -1,6 +1,6 @@
 {
   "name": "@nextnowlabs/dsh-ark-toolkit",
-  "version": "0.1.34",
+  "version": "0.1.35",
   "description": "DeepSeek Harness image understanding plugin: vision-model image Q&A, OCR, and comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS — pure TypeScript, no Python.",
   "keywords": [
     "deepseek",
