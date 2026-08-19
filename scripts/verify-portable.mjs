@@ -155,7 +155,6 @@ for (const group of dependencyGroups) {
 const requiredFiles = [
   '.gitattributes',
   'LICENSE',
-  'README.md',
   'README.zh.md',
   'CHANGELOG.md',
   'CODE_OF_CONDUCT.md',
@@ -192,7 +191,6 @@ for (const path of requiredFiles) {
 const publicRepositoryFiles = [
   '.github/ISSUE_TEMPLATE/config.yml',
   'CHANGELOG.md',
-  'README.md',
   'README.zh.md',
   'SUPPORT.md',
   'index.html',
@@ -221,7 +219,7 @@ for (const entrypoint of new Set(declaredEntrypoints.filter(value => typeof valu
   check(await exists(resolve(root, entrypoint)), `declared package entrypoint is missing: ${entrypoint}`)
 }
 
-for (const markdownPath of ['README.md', 'README.zh.md', 'CONTRIBUTING.md', 'SUPPORT.md', 'SECURITY.md', 'FUNDING.md', 'CHANGELOG.md', 'index.html']) {
+for (const markdownPath of ['README.zh.md', 'CONTRIBUTING.md', 'SUPPORT.md', 'SECURITY.md', 'FUNDING.md', 'CHANGELOG.md', 'index.html']) {
   const absolute = join(root, markdownPath)
   const markdown = await readFile(absolute, 'utf8')
   for (const target of localTargets(markdown)) {

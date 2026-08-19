@@ -1,6 +1,6 @@
 # 火山方舟接入教程：用豆包 Seed Vision 识图、Seedream 生图
 
-[English](ark-doubao-vision.md) | **中文**
+**中文**
 
 DSH Vision Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
 

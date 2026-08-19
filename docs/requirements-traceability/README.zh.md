@@ -1,6 +1,6 @@
 # Vision Toolkit 需求追踪
 
-[English](README.md) | 中文
+中文
 
 本参考将 DSH Vision Toolkit 产品需求中承诺的 P0/P1 条目映射到对应实现、自动化覆盖和可运行验收证据。标记为**已交付**的条目属于软件包契约；P2/P3 条目记录有意设置的产品边界，不代表尚未完成的 P0/P1 工作。
 
@@ -15,7 +15,7 @@
 | P0-5 skill 生命周期 | **已交付** | [`src/index.ts`](../../src/index.ts) 中的就绪顺序、生命周期中止和全局 disposer；[`src/exposure.ts`](../../src/exposure.ts) 中的逐 Agent 激活、恢复和释放；[`src/skill.ts`](../../src/skill.ts) 中的打包内容 | [`tests/tools.spec.ts`](../../tests/tools.spec.ts) 中的 Agent 隔离、原生/直接/Code Mode 激活、Session 恢复、在途取消和释放用例；[`tests/profile-install.e2e.spec.ts`](../../tests/profile-install.e2e.spec.ts) 中的渐进暴露、禁用和卸载路径 |
 | P0-6 纯文本模型结果 | **已交付** | [`src/tools.ts`](../../src/tools.ts) 中的 JSON 输出 schema 与纯渲染函数；[`src/artifacts.ts`](../../src/artifacts.ts) 中的规范产物描述；[`src/exposure.ts`](../../src/exposure.ts) 中由持久 Skill 加载证据派生的 schema 可见性 | [`tests/tools.spec.ts`](../../tests/tools.spec.ts) 中的工具 schema/展示断言、[`tests/profile-install.e2e.spec.ts`](../../tests/profile-install.e2e.spec.ts) 中逐请求的 schema 与模型可见 transcript（文本记录）断言 |
 | P0-7 稳定错误 | **已交付** | [`src/errors.ts`](../../src/errors.ts)，以及 [`src/paths.ts`](../../src/paths.ts)、[`src/runtime.ts`](../../src/runtime.ts)、[`src/upstream.ts`](../../src/upstream.ts) 中的边界验证 | [`tests/errors.spec.ts`](../../tests/errors.spec.ts)、[`tests/paths.spec.ts`](../../tests/paths.spec.ts)，以及运行时/上游测试中的解析、超时、取消、Credential 和容量用例 |
-| P0-8 测试与文档 | **已交付** | 双语 [`README.md`](../../README.md)、软件包测试、managed 运行时、示例和已提交构建产物 | `pnpm run build`、`pnpm test`、`pnpm pack --dry-run`、翻译/Markdown 门禁和无真实 Key 的干净 Profile e2e |
+| P0-8 测试与文档 | **已交付** | 中文 [`README.zh.md`](../../README.zh.md)、软件包测试、managed 运行时、示例和已提交构建产物 | `pnpm run build`、`pnpm test`、`pnpm pack --dry-run`、Markdown 门禁和无真实 Key 的干净 Profile e2e |
 
 ## P1 产品需求
 
@@ -39,7 +39,7 @@
 | 模型上下文经济性 | Profile 级运行时只发布一个很小的引导工具，[`src/exposure.ts`](../../src/exposure.ts) 仅为加载 `vision-skills` 的 Agent 挂载 10 个执行 schema，并在成功后隐藏引导工具。其他 Agent 不受影响。健康检查、连接测试和版本诊断只存在于 Web Settings 边界，永远不会成为模型工具。单元测试覆盖 Agent 隔离与恢复；每条真实 Profile 工具流程都会断言初始和激活后的 schema 集合。 |
 | 可维护性 | 每个工具都调用同一个 [`VisionToolkitRuntime`](../../src/runtime.ts)；DSH 专用适配保留在 [`src/tools.ts`](../../src/tools.ts)、[`src/exposure.ts`](../../src/exposure.ts)、[`src/index.ts`](../../src/index.ts)、[`src/web.ts`](../../src/web.ts) 和 [`src/client/index.tsx`](../../src/client/index.tsx)，固定上游继续作为算法唯一来源。运行时就绪、skill/引导工具发布和 Agent 级 schema 属于同一个生命周期 generation。 |
 | HTML 截图隔离 | 固定截图 guard 使用一次性 Chrome Profile、`--use-mock-keychain` 和 `--incognito`，每次调用后删除 Profile，并保持网络禁用。[`tests/html-screenshot-guard.spec.ts`](../../tests/html-screenshot-guard.spec.ts) 捕获实际 argv 与清理行为。 |
-| UI 还原验收 | [`scripts/ui-restoration-example.ts`](../../scripts/ui-restoration-example.ts) 通过真实运行时执行参考页面 → HTML 渲染 → 像素差异。[`examples/ui-restoration/README.md`](../../examples/ui-restoration/README.md) 负责可复现流程与已提交证据；[`tests/ui-restoration-example.spec.ts`](../../tests/ui-restoration-example.spec.ts) 强制执行该契约。 |
+| UI 还原验收 | [`scripts/ui-restoration-example.ts`](../../scripts/ui-restoration-example.ts) 通过真实运行时执行参考页面 → HTML 渲染 → 像素差异。[`examples/ui-restoration/README.zh.md`](../../examples/ui-restoration/README.zh.md) 负责可复现流程与已提交证据；[`tests/ui-restoration-example.spec.ts`](../../tests/ui-restoration-example.spec.ts) 强制执行该契约。 |
 
 ## 错误与生命周期场景
 
