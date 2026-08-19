@@ -29,7 +29,7 @@ Sponsorship is used for:
 - compatibility checks across vision models and service endpoints;
 - macOS, Linux, Windows, and Web/Headless profile verification;
 - reproducible image, OCR, SVG, browser, and pixel-diff fixtures;
-- DSH snapshot upgrades, upstream synchronization, security fixes, and maintenance;
+- DSH snapshot upgrades, security fixes, and maintenance;
 - documentation, examples, and reusable visual-engineering workflows.
 
 Financial support does not purchase roadmap control, private support, security exceptions, or priority over the public issue process. Bugs, feature proposals, and contributions continue to follow the same public workflow.

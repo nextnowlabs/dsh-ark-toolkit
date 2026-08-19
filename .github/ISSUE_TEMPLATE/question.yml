@@ -18,7 +18,7 @@ body:
     id: environment
     attributes:
       label: Operating system and runtime mode
-      placeholder: Ubuntu 24.04, Python 3.12, managed runtime
+      placeholder: Ubuntu 24.04, Node.js 24.4.0
     validations:
       required: true
   - type: textarea

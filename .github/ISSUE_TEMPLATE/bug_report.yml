@@ -35,14 +35,14 @@ body:
     id: environment
     attributes:
       label: Operating system and runtime versions
-      placeholder: macOS 15.6, Node.js 24.4.0, Python 3.11.9, managed runtime
+      placeholder: macOS 15.6, Node.js 24.4.0
     validations:
       required: true
   - type: input
     id: operation
     attributes:
       label: Tool or Settings action
-      placeholder: vision_pixel_diff or Test connection
+      placeholder: vision_glance or Test connection
     validations:
       required: true
   - type: textarea

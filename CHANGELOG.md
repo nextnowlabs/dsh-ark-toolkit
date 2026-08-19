@@ -6,6 +6,13 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ### Changed
 
+- **纯 TypeScript 精简版。** 移除 vendored Python 工具链（`agent-vision-toolkit` 适配层、托管/系统 Python 引导、Pillow/numpy/vtracer 运行时）与全部本地像素工具（`vision_ground`、`vision_detect`、`vision_crop`、`vision_trace`、`vision_pixel_diff`、`vision_long_screenshot_ocr`、`vision_extract_foreground`、`vision_dominant_colors`、`vision_html_screenshot`）。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪改用 Node 原生方案（sharp），不再需要 Python、Chrome 或任何隔离运行环境。仅保留 `vision_glance`（图片理解）、`vision_generate_image`（Seedream 文生图）、`vision_speak`（字节 TTS 语音合成）三个工具。
+- **配置精简。** 删除 `runtime` 配置项（`mode`/`agentVisionToolkitPath`/`python`）；健康检查仅保留 Credential、Artifact 目录、服务与模型四项；README 与安装指南同步更新，`docs/python-runtime.md` 删除。
+
+### BREAKING
+
+- `runtime` 配置项与 `VISION_SSL_VERIFY` 环境变量不再生效；`vision_ground`/`vision_detect`/`vision_crop`/`vision_trace`/`vision_pixel_diff`/`vision_long_screenshot_ocr`/`vision_extract_foreground`/`vision_dominant_colors`/`vision_html_screenshot` 工具不再可用。
+
 - **ByteDance-only backend.** The backend switched from the built-in free Gemini/Qwen service to ByteDance Volcengine Ark (`https://ark.cn-beijing.volces.com/api/v3`). Image understanding now uses the Doubao Seed Vision model (`doubao-seed-2-0-lite-260215`) over OpenAI-compatible `/chat/completions`; the Gemini/Qwen/Gemma/Moondream model aliases and the `ANIONEX_FREE_VISION` built-in credential were removed, and the obsolete `workers/moondream-openai-proxy` was deleted. The Ark API key is supplied by the user and stored as the `ARK_API_KEY` DSH Credential.
 
 ### Added

@@ -4,32 +4,24 @@ Focused fixes, tests, DSH integration improvements, visual workflows, and docume
 
 ## Before you start
 
-1. Read [README.md](README.md), the [requirements traceability reference](docs/requirements-traceability/README.md), and the checked-in [UI restoration example](examples/ui-restoration/README.md).
+1. Read [README.md](README.md) and the [requirements traceability reference](docs/requirements-traceability/README.md).
 2. Search existing issues and pull requests before opening duplicate work.
-3. Open an issue before changing tool schemas, the Skill lifecycle, the Artifact format, the runtime installation model, or the pinned upstream snapshot.
+3. Open an issue before changing tool schemas, the Skill lifecycle, the Artifact format, the configuration model, or the image-understanding/compression pipeline.
 4. Keep each change narrowly scoped. Do not mix a feature or fix with unrelated refactoring or generated-output churn.
 
 ## Architecture and scope
 
 DSH Vision Toolkit is an out-of-tree DeepSeek Harness Profile Bundle. Contributions must preserve these responsibilities:
 
-- The pinned `agent-vision-toolkit` snapshot owns visual algorithms. The DSH package owns validation, lifecycle, structured conversion, Credentials, Artifacts, Settings, and Web presentation.
-- Ten execution tools remain independent. Runtime readiness does not make every schema globally visible; the `vision-skills` Skill activates them for one Agent.
+- Image understanding is delegated to the configured vision model service over OpenAI-compatible `/chat/completions` (or Anthropic Messages); local image probing, cropping, and compression use the Node-native `sharp` pipeline. The DSH package owns validation, lifecycle, structured conversion, Credentials, Artifacts, Settings, and Web presentation.
+- The three execution tools (`vision_glance`, `vision_generate_image`, `vision_speak`) remain independent. Runtime readiness does not make every schema globally visible; the `vision-skills` Skill activates them for one Agent.
 - Health, connection testing, and version inspection remain administrative Settings actions rather than model tools.
-- Model-visible output stays text, numbers, coordinates, JSON, and file descriptors that can be reconstructed from the Session log.
+- Model-visible output stays text, numbers, JSON, and file descriptors that can be reconstructed from the Session log.
 - Credentials, image base64, authorization headers, and unbounded upstream responses never enter model output or logs.
 - Inputs and outputs remain fenced to the session workspace or explicit allowed directories, including realpath and symbolic-link checks.
 - P2 service stabilization requires a real independent consumer. Do not publish `ctx.visionToolkit` or a provider registry speculatively.
 
-Changes to vendored upstream files must use `npm run upstream:sync -- <checkout>`, preserve the upstream license, update `UPSTREAM_MANIFEST.json`, and include adapter compatibility coverage. Do not edit the snapshot as an untracked fork of the algorithm.
-
-Changes to the model-facing `vision-skills` Skill (the DSH adapter of the
-upstream `vision-tools` Skill) must start from the pinned upstream Skill
-commit. Update the reviewable adapter patch, then run
-`npm run upstream:skill:sync -- <checkout>` and
-`npm run upstream:skill:verify`. Preserve upstream methodology and playbooks;
-limit adapter changes to native tool invocation, DSH resources/Artifacts,
-progressive exposure, and runtime safety boundaries.
+The plugin is pure TypeScript: it must never depend on a Python runtime, vendored upstream toolchain, or a browser. Keep the `sharp` dependency pinned to the exact prebuilt-binary release.
 
 ## Development setup
 
@@ -43,7 +35,7 @@ deepseek-harness/
 └── dsh-vision-toolkit/   # this repository
 ```
 
-Use the Node.js range declared in `package.json`, Python 3.11 or newer, and the monorepo's `pnpm` installation. Never commit credentials, `.env` values, machine-local dependency paths, managed runtime caches, or generated browser profiles.
+Use the Node.js range declared in `package.json` and the monorepo's `pnpm` installation. Never commit credentials, `.env` values, machine-local dependency paths, managed caches, or generated profiles.
 
 ## Required verification
 
@@ -59,11 +51,10 @@ From the matching DeepSeek Harness source tree, run the checks that cover the ch
 ```sh
 pnpm run build
 pnpm test
-pnpm run example:ui-restoration
 pnpm pack --dry-run
 ```
 
-Use focused tests while iterating, but run the complete package suite before requesting review for runtime, lifecycle, schema, Web, Settings, or Artifact changes. A release or upstream update also requires clean temporary Web and Headless installation, `--dump-config`, tool/Skill activation, disable/re-enable, uninstall, and the real UI restoration acceptance path.
+Use focused tests while iterating, but run the complete package suite before requesting review for runtime, lifecycle, schema, Web, Settings, or Artifact changes. A release also requires clean temporary Web and Headless installation, `--dump-config`, tool/Skill activation, and disable/re-enable/uninstall paths.
 
 ## Documentation and visual evidence
 

@@ -34,14 +34,6 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: pnpm
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Python test dependencies
-        run: python -m pip install --requirement runtime/requirements.lock
-
       - name: Install project dependencies
         run: pnpm install --frozen-lockfile --trust-lockfile --registry=https://registry.npmjs.org
 
@@ -66,24 +58,6 @@ jobs:
       - name: Verify portable package surface
         run: npm run verify:portable
 
-      - name: Exercise vendored provider transports
-        run: PYTHONDONTWRITEBYTECODE=1 python vendor/agent-vision-toolkit/tests/test_vision_client.py
-
-      - name: Parse vendored Python sources without writing bytecode
-        run: |
-          python - <<'PY'
-          import ast
-          from pathlib import Path
-
-          root = Path("vendor/agent-vision-toolkit")
-          files = sorted(root.rglob("*.py"))
-          if not files:
-              raise SystemExit("no vendored Python sources found")
-          for path in files:
-              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-          print(f"parsed {len(files)} vendored Python files")
-          PY
-
   portable-package-windows:
     if: github.event.repository.visibility == 'public'
     name: Portable package (Windows, Node 24)
@@ -103,14 +77,6 @@ jobs:
         with:
           node-version: 24.x
           cache: pnpm
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-
-      - name: Install Python test dependencies
-        run: python -m pip install --requirement runtime/requirements.lock
 
       - name: Install project dependencies
         run: pnpm install --frozen-lockfile --trust-lockfile --registry=https://registry.npmjs.org
@@ -136,23 +102,3 @@ jobs:
 
       - name: Verify portable package surface
         run: npm run verify:portable
-
-      - name: Exercise vendored provider transports
-        shell: bash
-        run: PYTHONDONTWRITEBYTECODE=1 python vendor/agent-vision-toolkit/tests/test_vision_client.py
-
-      - name: Parse vendored Python sources without writing bytecode
-        shell: bash
-        run: |
-          python - <<'PY'
-          import ast
-          from pathlib import Path
-
-          root = Path("vendor/agent-vision-toolkit")
-          files = sorted(root.rglob("*.py"))
-          if not files:
-              raise SystemExit("no vendored Python sources found")
-          for path in files:
-              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-          print(f"parsed {len(files)} vendored Python files")
-          PY

@@ -24,15 +24,7 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit@latest --registry=https
 
 安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 视觉工具**。
 
-### 首次启动准备
-
-首次使用时插件会自动准备隔离运行环境：
-
-- 优先使用系统已有的 Python 3.11+；
-- 如果系统没有 Python 3.11+，会自动从固定发布源下载一个带完整性校验的托管 Python（约 35MB，仅首次需要网络）；
-- 普通安装**不需要**下载 `agent-vision-toolkit` 源码，也不需要设置本地路径。
-
-如果首次准备失败（无网络、磁盘权限不足等），可以先安装 Python 3.11+，或在配置里指定 `runtime.python` 后重试。
+插件是**纯 TypeScript** 实现，不需要 Python、Chrome 或任何隔离运行环境：图片理解直接调用视觉模型服务，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
 
 ---
 
@@ -47,7 +39,7 @@ Base URL: https://ark.cn-beijing.volces.com/api/v3
 API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 ```
 
-- 图片理解（看图问答、OCR、UI 还原、定位）走火山方舟 OpenAI 兼容的 `/chat/completions`，使用豆包 Seed Vision；
+- 图片理解（看图问答、OCR、多图对比）走火山方舟 OpenAI 兼容的 `/chat/completions`，使用豆包 Seed Vision；
 - `vision_generate_image` 工具走 `/images/generations`，使用字节 Seedream；
 - Seedream 别名：`seedream-5.0-pro`、`seedream-5.0-lite`（默认）、`seedream-4.5`、`seedream-4.0`。
 
@@ -69,7 +61,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ## 3. 配置 TTS 语音合成（vision_speak）
 
-`vision_speak` 工具走火山引擎语音技术的 TTS V3 接口（`openspeech.bytedance.com` 单向 SSE 流式），默认使用豆包语音合成模型2.0（资源 ID `seed-tts-2.0`）。
+`vision_speak` 工具走火山引擎语音技术的 TTS V3 接口（`openspeech.bytedance.com` 单向 SSE 流式），默认使用豆包语音合成模型 2.0（资源 ID `seed-tts-2.0`）。
 
 | 字段 | 默认值 |
 | --- | --- |
@@ -118,11 +110,6 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
     maxImagePixels: 20000000      # 2000 万像素
     # —— 会话内并发工具执行上限 ——
     concurrency: 4
-    # —— 运行环境 ——
-    runtime:
-      mode: managed               # managed | external
-      # agentVisionToolkitPath: 仅 external 模式需要
-      # python: 可指定 Python 3.11+ 解释器路径
     # —— 允许读取的工作区之外目录 ——
     allowedDirs: []
     # —— 图片输入变体（粘贴/历史图片/read_image）——
@@ -152,8 +139,6 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 | `maxImageBytes` | `4194304` | 输入图片最大字节数，超限自动无损压缩 |
 | `maxImagePixels` | `20000000` | 输入图片最大像素数，超限自动缩放 |
 | `concurrency` | `4` | 会话内并发工具执行上限 |
-| `runtime.mode` | `managed` | 使用打包快照与隔离 venv；`external` 使用外部固定 checkout |
-| `runtime.python` | 自动发现 | 指定 Python 3.11+ 解释器 |
 | `allowedDirs` | `[]` | 允许读取的工作区之外目录 |
 | `imageInputVariants.*` | 见上 | 图片输入变体行为 |
 
@@ -162,7 +147,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 ## 5. 验证配置
 
 - **Web：** 打开 **设置 → 视觉工具**，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
-- **命令行：** 检查 Profile 的运行时就绪状态与依赖版本，确认 `runtime` 为 `ok`；
+- **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务与模型检查为 `ok`；
 - **直接调用：** 在会话里粘贴一张图片并提问，或调用 `vision_generate_image` / `vision_speak` 验证生成能力。
 
 ---
@@ -174,6 +159,4 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 | `Vision API returned an incompatible response structure` | 通常是 API 地址少了路径前缀。LM Studio、Ollama 等本地 OpenAI 兼容服务需填写 `http://127.0.0.1:1234/v1`（带 `/v1`） |
 | 火山方舟返回 429/限流 | 按错误信息等待后重试，或在控制台查看配额并升级额度 |
 | 提示 Credential 缺失 | 在设置里填写 API Key，并确认 Credential 名称与配置一致（`ARK_API_KEY` / `VOLCENGINE_TTS_KEY`） |
-| 首次运行时准备失败 | 检查网络或磁盘权限，安装 Python 3.11+，或在配置里指定 `runtime.python` 后重试 |
-| 找不到 Chrome | 安装 Chrome、Chromium 或 Edge；只有 `vision_html_screenshot` 不可用 |
-| 需要信任自签证书/MITM 端点 | 启动 DSH 时设置 `VISION_SSL_VERIFY=0`（支持 `false`/`off`/`no`/`none`/`disabled`） |
+| 图片过大或像素超限 | 插件会自动压缩/缩放后再上传；超出压缩下限时会明确报字节或像素限制错误 |

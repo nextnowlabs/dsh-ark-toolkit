@@ -13,7 +13,7 @@ Email `davidyang042@gmail.com` with the subject `dsh-vision-toolkit security rep
 Include, when relevant:
 
 - the affected release or commit;
-- the DeepSeek Harness snapshot/profile, operating system, Node.js version, and Python version;
+- the DeepSeek Harness snapshot/profile, operating system, and Node.js version;
 - the impact and required preconditions;
 - minimal reproduction steps or a controlled proof of concept;
 - sanitized logs, paths, images, or generated files needed to reproduce the issue;
@@ -31,9 +31,8 @@ Reports are especially useful for issues involving:
 - Credential disclosure through logs, errors, model-visible results, Settings, or child-process environments;
 - image upload to an endpoint other than the explicitly configured vision service;
 - image bytes, prompts, or unbounded upstream output entering logs or Session events;
-- cancellation or timeout failures that leave requests, Python processes, or headless browsers running;
+- cancellation or timeout failures that leave in-flight requests running;
 - Artifact preview/download authorization, MIME confusion, or unsafe SVG rendering;
-- HTML screenshot access outside authorized local files, unexpected network access, Chrome profile reuse, or macOS keychain access;
 - prompt injection in OCR, labels, descriptions, or other content derived from an image;
 - client rendering that changes Headless tool semantics or exposes non-model metadata to the model.
 

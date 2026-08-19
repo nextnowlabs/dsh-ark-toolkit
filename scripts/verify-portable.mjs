@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
-import { access, cp, mkdtemp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
+import { access, readFile, readdir, stat } from 'node:fs/promises'
 import { spawnSync } from 'node:child_process'
-import { tmpdir } from 'node:os'
 import { dirname, extname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -27,7 +26,7 @@ async function filesBelow(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
   const files = []
   for (const entry of entries) {
-    if (entry.isDirectory() && ['.git', '.dsh-vision-toolkit', 'node_modules'].includes(entry.name)) continue
+    if (entry.isDirectory() && ['.git', '.dsh-vision-toolkit', 'node_modules', '.pnpm-store'].includes(entry.name)) continue
     const path = join(directory, entry.name)
     if (entry.isDirectory()) files.push(...await filesBelow(path))
     else if (entry.isFile()) files.push(path)
@@ -60,65 +59,6 @@ function pngDimensions(bytes) {
   }
 }
 
-function run(command, args, cwd) {
-  return spawnSync(command, args, { cwd, encoding: 'utf8' })
-}
-
-async function verifyWindowsCheckout() {
-  const temporaryRoot = await mkdtemp(join(tmpdir(), 'dsh-vision-autocrlf-'))
-  const seed = join(temporaryRoot, 'seed')
-  const checkout = join(temporaryRoot, 'checkout')
-  try {
-    await mkdir(join(seed, 'scripts'), { recursive: true })
-    await mkdir(join(seed, 'vendor'), { recursive: true })
-    await mkdir(join(seed, 'assets'), { recursive: true })
-    await mkdir(join(seed, 'patches'), { recursive: true })
-    await cp(join(root, '.gitattributes'), join(seed, '.gitattributes'))
-    await cp(join(root, 'package.json'), join(seed, 'package.json'))
-    await cp(join(root, 'scripts', 'upstream-manifest.mjs'), join(seed, 'scripts', 'upstream-manifest.mjs'))
-    await cp(join(root, 'scripts', 'verify-skill.mjs'), join(seed, 'scripts', 'verify-skill.mjs'))
-    await cp(join(root, 'vendor', 'agent-vision-toolkit'), join(seed, 'vendor', 'agent-vision-toolkit'), { recursive: true })
-    await cp(join(root, 'assets', 'skill'), join(seed, 'assets', 'skill'), { recursive: true })
-    await cp(join(root, 'patches', 'vision-tools-dsh.patch'), join(seed, 'patches', 'vision-tools-dsh.patch'))
-    await writeFile(join(seed, 'autocrlf-probe.txt'), 'line one\nline two\n')
-
-    const setupCommands = [
-      ['init', '--quiet'],
-      ['config', 'user.name', 'DSH portable verification'],
-      ['config', 'user.email', 'portable@example.invalid'],
-      ['config', 'core.autocrlf', 'false'],
-      ['add', '.'],
-      ['commit', '--quiet', '-m', 'checkout fixture'],
-    ]
-    for (const args of setupCommands) {
-      const result = run('git', args, seed)
-      if (result.status !== 0) {
-        failures.push(`could not prepare Windows checkout fixture: ${(result.stderr || result.stdout).trim()}`)
-        return
-      }
-    }
-
-    const clone = run('git', ['-c', 'core.autocrlf=true', 'clone', '--no-local', '--quiet', seed, checkout], temporaryRoot)
-    if (clone.status !== 0) {
-      failures.push(`core.autocrlf=true checkout failed: ${(clone.stderr || clone.stdout).trim()}`)
-      return
-    }
-    const probe = await readFile(join(checkout, 'autocrlf-probe.txt'))
-    check(probe.includes(Buffer.from('\r\n')), 'core.autocrlf=true checkout fixture did not exercise CRLF conversion')
-
-    const manifest = run(process.execPath, ['scripts/upstream-manifest.mjs'], checkout)
-    if (manifest.status !== 0) {
-      failures.push(`vendored upstream is not byte-stable under core.autocrlf=true: ${(manifest.stderr || manifest.stdout).trim()}`)
-    }
-    const skill = run(process.execPath, ['scripts/verify-skill.mjs'], checkout)
-    if (skill.status !== 0) {
-      failures.push(`adapted Skill is not byte-stable under core.autocrlf=true: ${(skill.stderr || skill.stdout).trim()}`)
-    }
-  } finally {
-    await rm(temporaryRoot, { recursive: true, force: true })
-  }
-}
-
 const packagePath = join(root, 'package.json')
 const pkg = JSON.parse(await readFile(packagePath, 'utf8'))
 const changelog = await readFile(join(root, 'CHANGELOG.md'), 'utf8')
@@ -136,7 +76,13 @@ check(pkg.dsh?.client?.platform === 'web', 'dsh.client.platform must publish the
 check(pkg.dshClient === undefined, 'legacy top-level dshClient metadata must remain absent')
 check(pkg.exports?.['./client']?.default === './lib/client.js', 'the Web client export must resolve to lib/client.js')
 check(Array.isArray(pkg.files) && pkg.files.includes('assets'), 'package files must include README visual assets')
-check(pkg.scripts?.['verify:portable'] === 'node scripts/python-bootstrap.mjs && node scripts/upstream-manifest.mjs && node scripts/verify-skill.mjs && node scripts/verify-portable.mjs', 'verify:portable script is missing or changed')
+check(pkg.files?.includes('docs') === true, 'package files must ship the Chinese documentation')
+check(pkg.files?.includes('runtime') === false, 'vendored runtime must stay out of the package')
+check(pkg.files?.includes('vendor') === false, 'vendored upstream must stay out of the package')
+check(pkg.files?.includes('patches') === false, 'upstream patches must stay out of the package')
+check(pkg.scripts?.['verify:portable'] === 'node scripts/verify-portable.mjs', 'verify:portable script is missing or changed')
+check(pkg.scripts?.build?.includes('node scripts/build-client.mjs') === true, 'build must bundle the Web client')
+check(pkg.dependencies?.sharp === '0.34.2', 'sharp must be pinned to the exact prebuilt-binary release')
 check(pkg.peerDependencies?.['@deepseek-ai/schemastery'] === '^3.18.1', '@deepseek-ai/schemastery must be a host-provided peer dependency')
 check(pkg.peerDependencies?.schemastery === undefined, 'unscoped schemastery peer dependency must remain absent')
 check(pkg.peerDependencies?.['@deepseek-ai/cordis'] === '^4.0.1', '@deepseek-ai/cordis must be a host-provided peer dependency')
@@ -175,17 +121,36 @@ const requiredFiles = [
   'lib/index.js',
   'lib/types/index.d.ts',
   'lib/client.js',
+  'lib/vision-api.js',
+  'lib/image-codec.js',
   'assets/hero-v2.png',
   'assets/social-preview.png',
+  'assets/vision-model-test.png',
   'assets/skill/SKILL.md',
-  'assets/skill/UPSTREAM.json',
-  'assets/skill/references/restore-ui.md',
-  'patches/vision-tools-dsh.patch',
-  'runtime/requirements.lock',
-  'vendor/agent-vision-toolkit/UPSTREAM_MANIFEST.json',
+  'docs/installation.md',
+  'docs/ark-doubao-vision.md',
+  'docs/requirements-traceability/README.md',
 ]
 for (const path of requiredFiles) {
   check(await exists(join(root, path)), `required file is missing: ${path}`)
+}
+
+const retiredPaths = [
+  'assets/skill/UPSTREAM.json',
+  'assets/skill/references',
+  'patches/vision-tools-dsh.patch',
+  'runtime/requirements.lock',
+  'vendor/agent-vision-toolkit/UPSTREAM_MANIFEST.json',
+  'scripts/python-bootstrap.mjs',
+  'scripts/upstream-manifest.mjs',
+  'scripts/verify-skill.mjs',
+  'scripts/sync-upstream.mjs',
+  'scripts/sync-skill.mjs',
+  'lib/upstream.js',
+  'lib/runtime-install.js',
+]
+for (const path of retiredPaths) {
+  check(!(await exists(join(root, path))), `retired path must stay absent: ${path}`)
 }
 
 const publicRepositoryFiles = [
@@ -203,8 +168,6 @@ for (const path of publicRepositoryFiles) {
     `${path} still links to the retired dsh-external repository`,
   )
 }
-
-await verifyWindowsCheckout()
 
 const declaredEntrypoints = [
   pkg.main,
@@ -254,9 +217,8 @@ for (const path of javascriptFiles) {
 
 const client = await readFile(join(root, 'lib/client.js'), 'utf8')
 check(client.includes('window.__ModuleLoader__.load'), 'lib/client.js is not a loader-compatible DSH Web bundle')
-const upstreamAdapter = await readFile(join(root, 'lib/upstream.js'), 'utf8')
-check(upstreamAdapter.includes('--use-mock-keychain'), 'HTML screenshot adapter is missing --use-mock-keychain')
-check(upstreamAdapter.includes('--user-data-dir='), 'HTML screenshot adapter is missing an isolated --user-data-dir')
+const visionApi = await readFile(join(root, 'lib/vision-api.js'), 'utf8')
+check(visionApi.includes('chat/completions'), 'lib/vision-api.js must target the OpenAI-compatible chat completions endpoint')
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const packArgs = ['pack', '--dry-run', '--ignore-scripts', '--json']
@@ -269,8 +231,12 @@ if (pack.status !== 0) {
   try {
     const result = JSON.parse(pack.stdout)
     const packedFiles = new Set((result[0]?.files ?? []).map(file => file.path))
-    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'cordis.patch.yml', 'assets/hero-v2.png', 'assets/social-preview.png', 'assets/skill/SKILL.md', 'assets/skill/UPSTREAM.json', 'assets/skill/references/restore-ui.md', 'patches/vision-tools-dsh.patch']) {
+    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'lib/vision-api.js', 'lib/image-codec.js', 'cordis.patch.yml', 'assets/hero-v2.png', 'assets/social-preview.png', 'assets/skill/SKILL.md', 'docs/installation.md']) {
       check(packedFiles.has(path), `dry-run tarball is missing ${path}`)
+    }
+    for (const prefix of ['runtime/', 'vendor/', 'patches/']) {
+      const found = [...packedFiles].some(file => file.startsWith(prefix))
+      check(found === false, `dry-run tarball must not contain ${prefix}`)
     }
   } catch (error) {
     failures.push(`could not parse npm pack --json output: ${error instanceof Error ? error.message : String(error)}`)

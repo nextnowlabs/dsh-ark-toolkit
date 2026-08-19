@@ -28,7 +28,7 @@ body:
       options:
         - Existing vision_* tool
         - New independent tool
-        - Runtime or upstream adapter
+        - Runtime or vision service integration
         - Artifact delivery or Web presentation
         - Settings, health, or lifecycle
         - Skill or documentation workflow

@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DSH Vision Toolkit — agent-vision-toolkit for DeepSeek Harness</title>
-    <meta name="description" content="The DeepSeek Harness-native integration for agent-vision-toolkit: intent-aware image Q&amp;A, OCR, grounding, UI restoration, pixel verification, Artifacts, and Web UI." />
-    <meta property="og:title" content="DSH Vision Toolkit — agent-vision-toolkit for DeepSeek Harness" />
-    <meta property="og:description" content="Give text-only DSH agents eyes, with vision mounted in the harness instead of built into the base model." />
+    <title>DSH Vision Toolkit — image understanding for DeepSeek Harness</title>
+    <meta name="description" content="A pure-TypeScript DeepSeek Harness plugin: image Q&amp;A, OCR, and multi-image comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS. No Python." />
+    <meta property="og:title" content="DSH Vision Toolkit — image understanding for DeepSeek Harness" />
+    <meta property="og:description" content="Give text-only DSH agents eyes: image understanding, Seedream image generation, and ByteDance TTS — pure TypeScript, no Python." />
     <meta property="og:image" content="https://github.com/Anionex/dsh-vision-toolkit/raw/main/assets/social-preview.png" />
     <meta name="theme-color" content="#5b4cf0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%235b4cf0'/%3E%3Cpath d='M13 46 25 34l11-16M25 34h20M45 34l7 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
@@ -234,7 +234,7 @@
         font-size: 18px;
       }
 
-      #upstream-use-cases {
+      #use-cases {
         border-top: 1px solid rgba(207, 211, 229, 0.78);
         border-bottom: 1px solid rgba(207, 211, 229, 0.78);
         background: rgba(255, 255, 255, 0.46);
@@ -526,11 +526,9 @@
           DSH Vision Toolkit
         </div>
         <div class="nav-links">
-          <a href="#upstream-use-cases">Use cases</a>
-          <a href="#proof">DSH proof</a>
+          <a href="#use-cases">Use cases</a>
           <a href="#capabilities">Capabilities</a>
           <a href="#install">Install</a>
-          <a href="https://agent-vision.anionex.me">Upstream</a>
           <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">中文</a>
           <a href="https://github.com/Anionex/dsh-vision-toolkit">GitHub</a>
         </div>
@@ -538,92 +536,62 @@
 
       <div class="hero">
         <div>
-          <div class="eyebrow"><span class="dot"></span> DeepSeek Harness &times; agent-vision-toolkit</div>
-          <h1>Bring agent-vision-toolkit into DSH.</h1>
-          <p class="lede">Give text-only DeepSeek Harness agents eyes—and keep vision in the harness. The native bundle preserves the upstream intent-aware method while adding structured schemas, progressive exposure, Credentials, Artifacts, dedicated Web cards, and Settings.</p>
+          <div class="eyebrow"><span class="dot"></span> Pure TypeScript &times; DeepSeek Harness</div>
+          <h1>Give text-only DSH agents eyes.</h1>
+          <p class="lede">Image understanding, OCR, and multi-image comparison through Volcengine Ark — plus Seedream image generation and ByteDance TTS. Pure TypeScript: no Python, no isolated runtime, install and go.</p>
           <div class="actions">
             <a class="button primary" href="#install">Install the bundle</a>
-            <a class="button" href="https://github.com/Anionex/agent-vision-toolkit">Upstream GitHub</a>
             <a class="button" href="https://agent-vision.anionex.me">Project website</a>
           </div>
         </div>
         <div class="hero-card">
-          <img src="assets/vision-settings.png" alt="DeepSeek Harness Vision Toolkit Settings showing version, runtime generation, visual service, Credential reference, output language, and limits." />
+          <img src="assets/hero-v2.png" alt="DSH Vision Toolkit: image understanding, Seedream image generation, and ByteDance TTS in DeepSeek Harness." />
         </div>
       </div>
     </header>
 
     <main>
-      <section id="upstream-use-cases">
+      <section id="use-cases">
         <div class="shell">
-          <div class="section-label">Official upstream reference runs</div>
-          <h2>Proven methods from agent-vision-toolkit.</h2>
-          <p class="section-copy">The first two panels are attributed upstream reference runs. The image Q&amp;A and screenshot-debugging panel is a live DeepSeek Harness Web session showing the same workflows through DSH.</p>
+          <div class="section-label">Capability-focused workflows</div>
+          <h2>Answer, transcribe, compare, generate.</h2>
+          <p class="section-copy">One Skill activates three structured tools for the current Agent. Paste an image, ask a question, OCR visible text, compare screenshots, generate a picture, or read text out loud.</p>
 
           <div class="use-cases">
             <article class="use-case">
               <div>
-                <span class="case-kicker">01 · Infographic restoration</span>
-                <h3>Screenshot to editable HTML/CSS</h3>
-                <p>Recover layout, typography, icons, and hierarchy as maintainable browser code instead of flattening the result into another image.</p>
-                <a href="https://github.com/Anionex/agent-vision-toolkit/blob/c27d1a300962b553c0884993c575cd3e819465ce/examples/infographic-restoration/how-is-the-model-trained.html">Open upstream source →</a>
+                <span class="case-kicker">01 · Understand</span>
+                <h3>Image Q&amp;A and OCR</h3>
+                <p>Pass one or more images to <code>vision_glance</code> with a question, ask for verbatim OCR, or zoom into a region so small text and icons become readable.</p>
+                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
-                <img src="assets/upstream/infographic-reference.webp" alt="Official upstream reference screenshot of a model-training infographic." />
-                <img src="assets/upstream/infographic-result.webp" alt="Official upstream editable HTML and CSS reconstruction of the infographic." />
+                <img src="assets/hero-v2.png" alt="DSH Vision Toolkit hero showing image understanding in a DeepSeek Harness session." />
               </div>
             </article>
 
             <article class="use-case">
               <div>
-                <span class="case-kicker">02 · UI restoration</span>
-                <h3>Sketch to working interface</h3>
-                <p>Read the visual hierarchy, reuse real components and assets, render the implementation, and iterate from observed differences.</p>
-                <a href="https://github.com/Anionex/agent-vision-toolkit/blob/c27d1a300962b553c0884993c575cd3e819465ce/skills/vision-tools/references/restore-ui.md">Read the upstream playbook →</a>
+                <span class="case-kicker">02 · Create</span>
+                <h3>Seedream image generation</h3>
+                <p><code>vision_generate_image</code> renders a prompt with ByteDance Seedream through Ark and delivers a PNG/JPEG Artifact that later tools can reuse.</p>
+                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
-                <img src="assets/upstream/ui-sketch.webp" alt="Official upstream hand-drawn JupyterLab workspace used as a UI restoration reference." />
-                <img src="assets/upstream/ui-result.webp" alt="Official upstream working JupyterLab-style interface reconstructed from the sketch." />
+                <img src="assets/hero-v2.png" alt="Seedream image generation delivered as a workspace Artifact." />
               </div>
             </article>
 
             <article class="use-case">
               <div>
-                <span class="case-kicker">03 · Intent-aware inspection</span>
-                <h3>Image Q&amp;A to code diagnosis</h3>
-                <p>Carry the current task into the visual request, answer the detail that matters, then use the screenshot as evidence for the next coding action.</p>
-                <a href="assets/dsh-conversation-image-qa.png">Open full DSH screenshot →</a>
+                <span class="case-kicker">03 · Speak</span>
+                <h3>ByteDance TTS voice synthesis</h3>
+                <p><code>vision_speak</code> turns text into MP3/OGG/PCM/WAV audio with the ByteDance Volcengine Speech TTS V3 service, delivered as a downloadable Artifact.</p>
+                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
-                <img src="assets/dsh-conversation-image-qa.png" alt="DeepSeek Harness Web session answering a focused question about a UI reference image." />
-                <img src="assets/dsh-conversation-screenshot-debugging.png" alt="DeepSeek Harness Web session using a screenshot comparison to diagnose mismatched UI fields and recommend vision_pixel_diff." />
+                <img src="assets/hero-v2.png" alt="ByteDance TTS synthesis delivered as an audio Artifact." />
               </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section id="proof">
-        <div class="shell">
-          <div class="section-label">DSH-native reproducible proof</div>
-          <h2>From a rough rebuild to exact pixels.</h2>
-          <p class="section-copy">The repository renders local HTML through the real runtime, compares it against a reference, ranks the changed regions, and records the final evidence. The checked-in example starts at a 6.04% pixel difference and ends at 0%.</p>
-
-          <div class="metrics" aria-label="Verified project metrics">
-            <div class="metric"><strong>10</strong><span>independent visual tools</span></div>
-            <div class="metric"><strong>134</strong><span>passing package tests</span></div>
-            <div class="metric"><strong>0%</strong><span>final example pixel difference</span></div>
-            <div class="metric"><strong>2</strong><span>verified profiles: Web + Headless</span></div>
-          </div>
-
-          <div class="proof-grid">
-            <article class="proof-card">
-              <img src="examples/ui-restoration/assets/initial.png" alt="Initial UI restoration candidate with measurable layout and styling differences." />
-              <div class="proof-caption"><strong>Initial candidate</strong><span class="pill warn">6.04% difference</span></div>
-            </article>
-            <article class="proof-card">
-              <img src="examples/ui-restoration/assets/implementation.png" alt="Final UI restoration output matching the checked-in reference exactly." />
-              <div class="proof-caption"><strong>Verified implementation</strong><span class="pill">0% difference</span></div>
             </article>
           </div>
         </div>
@@ -632,15 +600,15 @@
       <section id="capabilities">
         <div class="shell">
           <div class="section-label">One runtime, explicit tools</div>
-          <h2>Visual engineering without a universal action switch.</h2>
+          <h2>Structured tools without a universal action switch.</h2>
           <p class="section-copy">Each capability has its own schema and structured result. The versioned Skill activates them for one Agent, while health and version administration stay in Web Settings instead of model context.</p>
 
           <div class="features">
-            <article class="feature"><div class="feature-icon">01</div><h3>Understand and locate</h3><p>Glance, OCR, grounding, and detection return text plus original-image pixel boxes.</p></article>
-            <article class="feature"><div class="feature-icon">02</div><h3>Recover and extract</h3><p>Crop, SVG trace, foreground extraction, and dominant-color analysis produce reusable geometry and assets.</p></article>
-            <article class="feature"><div class="feature-icon">03</div><h3>Verify the pixels</h3><p>Local HTML rendering and ranked pixel diff close the reference-to-implementation loop.</p></article>
-            <article class="feature"><div class="feature-icon">04</div><h3>Ship real Artifacts</h3><p>Images, SVG, Markdown, and reports carry stable descriptors for preview, download, or local open.</p></article>
-            <article class="feature"><div class="feature-icon">05</div><h3>Protect credentials</h3><p>DSH Credentials, path fencing, hard deadlines, redacted errors, and explicit endpoints keep data handling visible.</p></article>
+            <article class="feature"><div class="feature-icon">01</div><h3>Understand images</h3><p>Ask questions, OCR visible text verbatim, and compare multiple images in one call through the configured vision model.</p></article>
+            <article class="feature"><div class="feature-icon">02</div><h3>Generate images</h3><p>Seedream image generation with size and aspect-ratio control, delivered as a workspace Artifact.</p></article>
+            <article class="feature"><div class="feature-icon">03</div><h3>Synthesize speech</h3><p>ByteDance TTS with voice, format, speed, pitch, and emotion controls, delivered as an audio Artifact.</p></article>
+            <article class="feature"><div class="feature-icon">04</div><h3>Ship real Artifacts</h3><p>Generated images and audio carry stable descriptors for preview, download, or local open.</p></article>
+            <article class="feature"><div class="feature-icon">05</div><h3>Protect credentials</h3><p>DSH Credentials, path fencing, hard deadlines, redacted errors, and untrusted-visual-evidence handling keep data handling visible.</p></article>
             <article class="feature"><div class="feature-icon">06</div><h3>Run Web or Headless</h3><p>Web adds cards and Settings; Headless receives the same complete tool semantics and structured results.</p></article>
           </div>
         </div>
@@ -651,7 +619,7 @@
           <div>
             <div class="section-label">Quick start</div>
             <h2>Install one checkout into the profiles you use.</h2>
-            <p>Requires DeepSeek Harness, Python 3.11+, and <code>pnpm</code> available to <code>dsh plugin</code>. Restart a running Web profile, then configure the visual endpoint and DSH Credential in Settings.</p>
+            <p>Requires DeepSeek Harness and a Volcengine Ark API key. No Python, no Chrome, no isolated runtime. Restart a running Web profile, then paste your key into Settings.</p>
             <a class="button" href="https://github.com/Anionex/dsh-vision-toolkit#quick-start">Full installation and security guide</a>
           </div>
           <pre><code>git clone https://github.com/Anionex/dsh-vision-toolkit.git
@@ -666,8 +634,8 @@ dsh --profile web --dump-config | grep vision-toolkit</code></pre>
     </main>
 
     <footer class="shell">
-      <span>DeepSeek Harness integration for agent-vision-toolkit · MIT · Anionex</span>
-      <span><a href="https://agent-vision.anionex.me">Website</a> · <a href="https://github.com/Anionex/agent-vision-toolkit">Upstream</a> · <a href="https://github.com/Anionex/dsh-vision-toolkit">DSH repository</a></span>
+      <span>DeepSeek Harness image understanding plugin · pure TypeScript · MIT · Anionex</span>
+      <span><a href="https://agent-vision.anionex.me">Website</a> · <a href="https://github.com/Anionex/dsh-vision-toolkit">DSH repository</a></span>
     </footer>
   </body>
 </html>

@@ -2,10 +2,10 @@
 
 DSH Vision Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
 
-- **图片理解**（看图问答、OCR、UI 还原、定位）：OpenAI 兼容 `/chat/completions`，模型 `doubao-seed-2-0-lite-260215`（豆包 Seed Vision）。
+- **图片理解**（看图问答、OCR、多图对比）：OpenAI 兼容 `/chat/completions`，模型 `doubao-seed-2-0-lite-260215`（豆包 Seed Vision）。
 - **文生图**（`vision_generate_image` 工具）：`/images/generations`，模型 `doubao-seedream-5-0-260128`（Seedream），也支持别名 `seedream-5.0-pro`、`seedream-4.5`、`seedream-4.0`。
 
-本教程说明如何申请火山方舟 API Key、在 Vision Toolkit 中配置，并给出可直接运行的 cURL 与 Python 示例。
+本教程说明如何申请火山方舟 API Key、在 Vision Toolkit 中配置，并给出可直接运行的 cURL 示例。
 
 ## 1. 注册火山引擎并开通方舟
 
@@ -75,55 +75,6 @@ curl https://ark.cn-beijing.volces.com/api/v3/images/generations \
     "n": 1,
     "watermark": false
   }'
-```
-
-### Python
-
-```bash
-python3 -c "import requests; print(requests.__version__)"
-```
-
-```python
-import base64
-import requests
-
-ARK_BASE = "https://ark.cn-beijing.volces.com/api/v3"
-API_KEY = "你的火山方舟 Key"  # 或从环境变量读取
-
-def encode_image(path: str) -> str:
-    mime = "image/png" if path.endswith(".png") else "image/jpeg"
-    with open(path, "rb") as f:
-        return f"data:{mime};base64,{base64.b64encode(f.read()).decode()}"
-
-# 图片理解
-resp = requests.post(
-    f"{ARK_BASE}/chat/completions",
-    headers={"Authorization": f"Bearer {API_KEY}"},
-    json={
-        "model": "doubao-seed-2-0-lite-260215",
-        "messages": [{"role": "user", "content": [
-            {"type": "image_url", "image_url": {"url": encode_image("shot.png")}},
-            {"type": "text", "text": "这张图里有什么？"},
-        ]}],
-    },
-    timeout=600,
-)
-print(resp.json()["choices"][0]["message"]["content"])
-
-# 文生图
-resp = requests.post(
-    f"{ARK_BASE}/images/generations",
-    headers={"Authorization": f"Bearer {API_KEY}"},
-    json={
-        "model": "doubao-seedream-5-0-260128",
-        "prompt": "一只在雪地里打滚的橘猫",
-        "size": "2K",
-        "n": 1,
-        "watermark": False,
-    },
-    timeout=600,
-)
-print(resp.json()["data"][0]["url"])
 ```
 
 ## 常见问题
