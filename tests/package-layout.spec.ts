@@ -58,7 +58,7 @@ describe('package layout contract', () => {
   })
 
   it('ships runtime, pinned upstream, adapted Skill resources, lib, src, patch, and docs in files', async () => {
-    for (const required of ['lib', 'src', 'runtime', 'vendor', 'assets', 'patches', 'cordis.patch.yml', 'README.zh.md', 'LICENSE']) {
+    for (const required of ['lib', 'src', 'runtime', 'vendor', 'assets', 'patches', 'cordis.patch.yml', 'README.md', 'LICENSE']) {
       expect(PACKAGE.files).toContain(required)
     }
     expect(PACKAGE.dsh?.visionToolkit?.upstreamSkillCommit).toMatch(/^[0-9a-f]{40}$/u)

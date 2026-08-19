@@ -11,11 +11,11 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 ### Added
 
 - **`vision_generate_image` tool.** Generates images with the ByteDance Seedream model through Ark `/images/generations` (aliases `seedream-5.0-pro`/`seedream-5.0-lite`/`seedream-4.5`/`seedream-4.0`), and delivers each result as a PNG/JPEG workspace Artifact.
-- Step-by-step Volcengine Ark tutorial (`docs/ark-doubao-vision.zh.md`) replaces the Groq/Qwen tutorial.
+- Step-by-step Volcengine Ark tutorial (`docs/ark-doubao-vision.md`) replaces the Groq/Qwen tutorial.
 
 ### Removed
 
-- **English documentation.** Removed the English side of the bilingual docs (`README.md`, `docs/ark-doubao-vision.md`, `docs/python-runtime.md`, `docs/requirements-traceability/README.md`, `examples/ui-restoration/README.md`) and the stale translation-pair records. The repository now keeps Chinese documentation only (`README.zh.md` and the `.zh.md` docs); `package.json` `files` and `verify:portable` were updated accordingly.
+- **English documentation.** Removed the English side of the bilingual docs and the stale translation-pair records. The repository now keeps Chinese documentation only, under canonical file names (`README.md` and the `docs/*.md`); `package.json` `files` and `verify:portable` were updated accordingly.
 
 ## [0.1.34] - 2026-08-19
 

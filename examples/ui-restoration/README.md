@@ -1,7 +1,5 @@
 # UI 还原示例
 
-中文
-
 本示例以确定性、无真实 Key 的方式证明 DSH Vision Toolkit 可以通过真实运行时闭环完成本地 UI 还原。它先用 `vision_html_screenshot` 渲染参考页面、故意不准确的初版实现和最终实现，再用 `vision_pixel_diff` 评估两个候选结果，并执行数值验收阈值。
 
 ## 流程

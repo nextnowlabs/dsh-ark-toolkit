@@ -55,7 +55,7 @@
     "runtime",
     "vendor",
     "cordis.patch.yml",
-    "README.zh.md",
+    "README.md",
     "LICENSE"
   ],
   "scripts": {

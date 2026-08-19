@@ -408,7 +408,7 @@ describe('Vision Toolkit client plugin', () => {
     }))
 
     const tutorial = await screen.findByRole('link', { name: 'arkTutorial' })
-    expect(tutorial.getAttribute('href')).toBe('https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.zh.md')
+    expect(tutorial.getAttribute('href')).toBe('https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.md')
 
     const command = 'dsh plugin --profile web add @anionex/dsh-vision-toolkit@latest --registry=https://registry.npmjs.org/'
     const code = screen.getByText(command)

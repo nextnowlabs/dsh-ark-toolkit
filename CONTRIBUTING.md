@@ -4,7 +4,7 @@ Focused fixes, tests, DSH integration improvements, visual workflows, and docume
 
 ## Before you start
 
-1. Read [README.zh.md](README.zh.md), the [requirements traceability reference](docs/requirements-traceability/README.zh.md), and the checked-in [UI restoration example](examples/ui-restoration/README.zh.md).
+1. Read [README.md](README.md), the [requirements traceability reference](docs/requirements-traceability/README.md), and the checked-in [UI restoration example](examples/ui-restoration/README.md).
 2. Search existing issues and pull requests before opening duplicate work.
 3. Open an issue before changing tool schemas, the Skill lifecycle, the Artifact format, the runtime installation model, or the pinned upstream snapshot.
 4. Keep each change narrowly scoped. Do not mix a feature or fix with unrelated refactoring or generated-output churn.
@@ -67,7 +67,7 @@ Use focused tests while iterating, but run the complete package suite before req
 
 ## Documentation and visual evidence
 
-- Keep `README.zh.md` current in commands, links, images, and claims; this repository keeps Chinese documentation only.
+- Keep `README.md` current in commands, links, images, and claims; this repository keeps Chinese documentation only.
 - Update JSDoc, troubleshooting, and requirements traceability with every user-visible behavior change.
 - Use repository-owned screenshots or deterministic outputs. Never fabricate a product state or include secrets, private conversations, or unrelated user data.
 - Refresh `assets/hero-v2.png` and `assets/social-preview.png` only when the public positioning or visible product state changes, then inspect the actual pixels.

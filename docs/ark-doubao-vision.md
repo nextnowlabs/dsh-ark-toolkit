@@ -1,7 +1,5 @@
 # 火山方舟接入教程：用豆包 Seed Vision 识图、Seedream 生图
 
-**中文**
-
 DSH Vision Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
 
 - **图片理解**（看图问答、OCR、UI 还原、定位）：OpenAI 兼容 `/chat/completions`，模型 `doubao-seed-2-0-lite-260215`（豆包 Seed Vision）。

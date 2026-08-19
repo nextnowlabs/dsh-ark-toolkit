@@ -2,9 +2,9 @@
 
 ## Start here
 
-- Read the [README](README.zh.md) for installation, configuration, usage, security, scope, and troubleshooting.
-- Check the [requirements traceability reference](docs/requirements-traceability/README.zh.md) when you need the implementation or verification home for a product requirement.
-- Reproduce visual-verification issues with the checked-in [UI restoration example](examples/ui-restoration/README.zh.md).
+- Read the [README](README.md) for installation, configuration, usage, security, scope, and troubleshooting.
+- Check the [requirements traceability reference](docs/requirements-traceability/README.md) when you need the implementation or verification home for a product requirement.
+- Reproduce visual-verification issues with the checked-in [UI restoration example](examples/ui-restoration/README.md).
 - Search existing [issues](https://github.com/Anionex/dsh-vision-toolkit/issues) and [pull requests](https://github.com/Anionex/dsh-vision-toolkit/pulls) before opening a duplicate.
 
 ## Where to ask
