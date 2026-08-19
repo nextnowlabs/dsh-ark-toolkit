@@ -8,6 +8,10 @@ import {
   resolveConfig,
   resolveSeedreamModel,
   SEEDREAM_MODEL_ALIASES,
+  VOLCENGINE_TTS_CREDENTIAL,
+  VOLCENGINE_TTS_RESOURCE,
+  VOLCENGINE_TTS_URL,
+  VOLCENGINE_TTS_VOICE,
 } from '../src/config.ts'
 
 describe('resolveConfig', () => {
@@ -31,6 +35,27 @@ describe('resolveConfig', () => {
     expect(config.runtime.python).toBeUndefined()
     expect(config.allowedDirs).toEqual([])
     expect(config.imageInputVariants).toEqual({ enabled: true, providers: [], autoSwitch: true, hidden: true })
+  })
+
+  it('applies the ByteDance Volcengine Speech TTS defaults for the speak tool', () => {
+    const config = resolveConfig({})
+    expect(config.provider.tts.baseUrl).toBe(VOLCENGINE_TTS_URL)
+    expect(config.provider.tts.credential).toBe(VOLCENGINE_TTS_CREDENTIAL)
+    expect(config.provider.tts.resource).toBe(VOLCENGINE_TTS_RESOURCE)
+    expect(config.provider.tts.voice).toBe(VOLCENGINE_TTS_VOICE)
+    expect(VOLCENGINE_TTS_URL).toBe('https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse')
+    expect(VOLCENGINE_TTS_CREDENTIAL).toBe('VOLCENGINE_TTS_KEY')
+    expect(VOLCENGINE_TTS_RESOURCE).toBe('seed-tts-2.0')
+    expect(VOLCENGINE_TTS_VOICE).toBe('zh_female_shuangkuaisisi_uranus_bigtts')
+    expect(resolveConfig({ provider: { tts: { resource: 'seed-tts-2.0', voice: 'zh_female_xiaohe_uranus_bigtts' } } }).provider.tts)
+      .toMatchObject({ resource: 'seed-tts-2.0', voice: 'zh_female_xiaohe_uranus_bigtts' })
+  })
+
+  it('rejects invalid Volcengine Speech TTS settings', () => {
+    expect(() => resolveConfig({ provider: { tts: { baseUrl: 'ftp://x' } } })).toThrowError(/tts\.baseUrl/)
+    expect(() => resolveConfig({ provider: { tts: { resource: '  ' } } })).toThrowError(/tts\.resource/)
+    expect(() => resolveConfig({ provider: { tts: { voice: '  ' } } })).toThrowError(/tts\.voice/)
+    expect(() => resolveConfig({ provider: { tts: { credential: 'not a ref!' } } })).toThrowError(/tts\.credential/)
   })
 
   it('keeps only ByteDance Seedream aliases in the alias table', () => {

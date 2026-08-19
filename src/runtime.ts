@@ -14,7 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ResolvedCredential } from '@deepseek-ai/dsh-credentials'
 import { SaxesParser } from 'saxes'
 import { describeArtifact, type ArtifactDescriptor } from './artifacts.ts'
-import { resolveSeedreamModel, type ResolvedVisionToolkitConfig } from './config.ts'
+import { resolveSeedreamModel, VOLCENGINE_TTS_VOICE, type ResolvedVisionToolkitConfig } from './config.ts'
 import { VisionToolkitError } from './errors.ts'
 import {
   assertDistinctOutput,
@@ -464,6 +464,52 @@ export interface GenerateImageResult {
     format: string
   }>
 }
+
+/** Structured input for the ByteDance speech-synthesis tool. */
+export interface SpeakRequest {
+  /** Text to synthesize. */
+  text: string
+  /** Voice id from the official 在线音色列表 (e.g. zh_female_shuangkuaisisi_uranus_bigtts). */
+  voiceType?: string
+  /** Audio format: mp3 (default), ogg_opus, pcm, or wav. */
+  encoding?: string
+  /** Sample rate (default 24000). */
+  rate?: number
+  /** Speed ratio 0.1-3.0 (default 1.0). */
+  speed?: number
+  /** Volume ratio 0.1-3.0 (default 1.0). */
+  volume?: number
+  /** Pitch shift in semitones -12 to 12 (default 0). */
+  pitch?: number
+  /** Emotion: happy, sad, or neutral. */
+  emotion?: string
+  /** Emotion intensity 1-5 (default 4). */
+  emotionScale?: number
+  /** Language: zh-cn, en, or ja. */
+  language?: string
+  /** Output artifact filename; .mp3/.ogg/.pcm/.wav. */
+  output?: string
+}
+
+/** One synthesized speech file delivered as an artifact. */
+export interface SpeakResult {
+  text: string
+  voiceType: string
+  format: string
+  artifact: ArtifactDescriptor
+}
+
+/** Audio payload family used by clients to select a safe renderer. */
+const SPEAK_MIME_TYPES: Record<string, string> = {
+  mp3: 'audio/mpeg',
+  ogg: 'audio/ogg',
+  ogg_opus: 'audio/ogg',
+  pcm: 'audio/pcm',
+  wav: 'audio/wav',
+}
+
+/** Maximum assembled TTS audio bytes accepted per call. */
+const MAX_SPEECH_BYTES = 64 * 1024 * 1024
 
 /** Optional preview controls shared by ground and detect. */
 export interface LocatePreviewRequest extends LocateRequest {
@@ -2138,6 +2184,167 @@ export class VisionToolkitRuntime {
         }
       }
       return { prompt, model, images: results }
+    })
+  }
+
+  /** speak: ByteDance TTS V3 speech synthesis through Volcengine Speech. */
+  async speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult> {
+    return this.runOperation('vision_speak', options, async (operation) => {
+      const text = request.text.trim()
+      if (text.length === 0) throw new VisionToolkitError('input', 'speak: text must not be empty')
+      if (text.length > 2000) throw new VisionToolkitError('input', 'speak: text must not exceed 2000 characters')
+      const voiceType = request.voiceType?.trim() || VOLCENGINE_TTS_VOICE
+      const encoding = request.encoding?.trim() || 'mp3'
+      if (!/^(mp3|ogg_opus|pcm|wav)$/.test(encoding)) {
+        throw new VisionToolkitError('input', 'speak: encoding must be mp3, ogg_opus, pcm, or wav')
+      }
+      const rate = request.rate ?? 24000
+      const speed = request.speed ?? 1.0
+      const volume = request.volume ?? 1.0
+      const pitch = request.pitch ?? 0
+      for (const [name, value, min, max] of [
+        ['rate', rate, 8000, 48000],
+        ['speed', speed, 0.1, 3.0],
+        ['volume', volume, 0.1, 3.0],
+        ['pitch', pitch, -12, 12],
+      ] as const) {
+        if (typeof value !== 'number' || Number.isNaN(value) || value < min || value > max) {
+          throw new VisionToolkitError('input', `speak: ${name} must be a number between ${min} and ${max}`)
+        }
+      }
+      const emotion = request.emotion?.trim()
+      if (emotion !== undefined && emotion.length > 0 && !/^(happy|sad|neutral)$/.test(emotion)) {
+        throw new VisionToolkitError('input', 'speak: emotion must be happy, sad, or neutral')
+      }
+      const emotionScale = request.emotionScale ?? 4
+      if (!Number.isInteger(emotionScale) || emotionScale < 1 || emotionScale > 5) {
+        throw new VisionToolkitError('input', 'speak: emotionScale must be an integer between 1 and 5')
+      }
+      const language = request.language?.trim()
+      const tts = this.config.provider.tts
+      const resolved = await this.ctx.credentials.resolve(tts.credential)
+      if (resolved === undefined) {
+        throw new VisionToolkitError(
+          'config',
+          `credential ${tts.credential} is not configured; set the Volcengine TTS key through DSH credentials`,
+        )
+      }
+      operation.metrics.usedVisionService = true
+      const audio: Record<string, unknown> = {
+        voice_type: voiceType,
+        encoding,
+        rate,
+        speed_ratio: speed,
+        volume_ratio: volume,
+        pitch_ratio: pitch,
+      }
+      if (emotion !== undefined && emotion.length > 0) {
+        audio.emotion = emotion
+        audio.emotion_scale = emotionScale
+      }
+      if (language !== undefined && language.length > 0) audio.language = language
+      const body: Record<string, unknown> = {
+        app: { appid: tts.resource, token: 'placeholder', cluster: 'volcano_tts' },
+        user: { uid: 'dsh-vision-toolkit-tts' },
+        audio,
+        request: {
+          reqid: randomUUID(),
+          text,
+          text_type: 'plain',
+          operation: 'query',
+        },
+      }
+      const started = Date.now()
+      let response: Response
+      try {
+        response = await fetch(tts.baseUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer; Bearer=${tts.resource},${resolved.value}`,
+            'User-Agent': this.config.provider.userAgent,
+          },
+          body: JSON.stringify(body),
+          signal: operation.signal,
+        })
+      } catch (error) {
+        if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_speak: cancelled')
+        throw new VisionToolkitError('runtime', `speak: Volcengine TTS request failed: ${error instanceof Error ? error.message : String(error)}`)
+      } finally {
+        operation.metrics.upstreamMs += Date.now() - started
+      }
+      if (!response.ok) {
+        throw new VisionToolkitError('runtime', `speak: Volcengine TTS HTTP ${response.status}`)
+      }
+      if (response.body === null) throw new VisionToolkitError('runtime', 'speak: Volcengine TTS returned no body')
+      const chunks: Buffer[] = []
+      let format = encoding
+      let sawAudio = false
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      try {
+        for (;;) {
+          if (operation.signal.aborted) throw new VisionToolkitError('cancelled', 'vision_speak: cancelled')
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          let newlineIndex: number
+          while ((newlineIndex = buffer.indexOf('\n')) !== -1) {
+            const line = buffer.slice(0, newlineIndex).replace(/\r$/, '')
+            buffer = buffer.slice(newlineIndex + 1)
+            const trimmed = line.trim()
+            if (trimmed.length === 0 || trimmed.startsWith('event:')) continue
+            if (!trimmed.startsWith('data:')) continue
+            const data = trimmed.slice(5).trim()
+            if (data.length === 0 || data === '[DONE]') continue
+            let event: Record<string, unknown>
+            try {
+              event = JSON.parse(data) as Record<string, unknown>
+            } catch {
+              continue
+            }
+            const code = typeof event.code === 'number' ? event.code : 0
+            if (code !== 0 && code !== 20000000) {
+              throw new VisionToolkitError('runtime', `speak: Volcengine TTS ${typeof event.message === 'string' ? event.message : `code ${code}`}`)
+            }
+            if (typeof event.audio === 'string') {
+              sawAudio = true
+              chunks.push(Buffer.from(event.audio, 'base64'))
+              let total = 0
+              for (const chunk of chunks) total += chunk.length
+              if (total > MAX_SPEECH_BYTES) throw new VisionToolkitError('capacity', 'speak: synthesized audio exceeds the 64 MiB limit')
+            }
+            if (typeof event.format === 'string') format = event.format
+          }
+        }
+      } finally {
+        reader.releaseLock()
+      }
+      if (!sawAudio) throw new VisionToolkitError('output', 'speak: Volcengine TTS returned no audio')
+      const extension = format === 'ogg_opus' ? 'ogg' : format
+      const policy = await this.pathPolicy(options.workspace)
+      const staged = createStagedOutput(policy, `.${extension}`)
+      try {
+        await writeFile(staged, Buffer.concat(chunks))
+        const finalPath = resolveOutputFile(
+          request.output,
+          policy,
+          `speech-${Date.now().toString(36)}.${extension}`,
+          ['.mp3', '.ogg', '.pcm', '.wav'],
+        )
+        await commitStagedOutput(staged, finalPath, policy)
+        const artifact = await describeArtifact(finalPath, policy, {
+          mimeType: SPEAK_MIME_TYPES[format] ?? 'application/octet-stream',
+          kind: 'audio',
+          description: 'ByteDance TTS speech',
+          sourceTool: 'vision_speak',
+          previewIntent: 'download',
+        })
+        return { text, voiceType, format, artifact }
+      } finally {
+        await rm(staged, { force: true }).catch(() => {})
+      }
     })
   }
 

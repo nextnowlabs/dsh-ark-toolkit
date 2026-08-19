@@ -321,6 +321,38 @@ export interface GenerateImageResult {
         format: string;
     }>;
 }
+/** Structured input for the ByteDance speech-synthesis tool. */
+export interface SpeakRequest {
+    /** Text to synthesize. */
+    text: string;
+    /** Voice id from the official 在线音色列表 (e.g. zh_female_shuangkuaisisi_uranus_bigtts). */
+    voiceType?: string;
+    /** Audio format: mp3 (default), ogg_opus, pcm, or wav. */
+    encoding?: string;
+    /** Sample rate (default 24000). */
+    rate?: number;
+    /** Speed ratio 0.1-3.0 (default 1.0). */
+    speed?: number;
+    /** Volume ratio 0.1-3.0 (default 1.0). */
+    volume?: number;
+    /** Pitch shift in semitones -12 to 12 (default 0). */
+    pitch?: number;
+    /** Emotion: happy, sad, or neutral. */
+    emotion?: string;
+    /** Emotion intensity 1-5 (default 4). */
+    emotionScale?: number;
+    /** Language: zh-cn, en, or ja. */
+    language?: string;
+    /** Output artifact filename; .mp3/.ogg/.pcm/.wav. */
+    output?: string;
+}
+/** One synthesized speech file delivered as an artifact. */
+export interface SpeakResult {
+    text: string;
+    voiceType: string;
+    format: string;
+    artifact: ArtifactDescriptor;
+}
 /** Optional preview controls shared by ground and detect. */
 export interface LocatePreviewRequest extends LocateRequest {
     preview?: boolean;
@@ -420,6 +452,8 @@ export declare class VisionToolkitRuntime {
     private writableDirectoryCheck;
     /** generateImage: ByteDance Seedream text-to-image through Volcengine Ark. */
     generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult>;
+    /** speak: ByteDance TTS V3 speech synthesis through Volcengine Speech. */
+    speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult>;
     /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
     health(testConnection: boolean, options: ToolCallOptions, testModel?: boolean): Promise<VisionToolkitHealthResult>;
     /** Report the packaged upstream snapshot version. */

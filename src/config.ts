@@ -17,6 +17,10 @@ import {
   ARK_SEEDREAM_MODEL,
   ARK_VISION_MODEL,
   SEEDREAM_MODEL_ALIASES,
+  VOLCENGINE_TTS_CREDENTIAL,
+  VOLCENGINE_TTS_RESOURCE,
+  VOLCENGINE_TTS_URL,
+  VOLCENGINE_TTS_VOICE,
 } from './defaults.ts'
 
 export {
@@ -25,6 +29,10 @@ export {
   ARK_SEEDREAM_MODEL,
   ARK_VISION_MODEL,
   SEEDREAM_MODEL_ALIASES,
+  VOLCENGINE_TTS_CREDENTIAL,
+  VOLCENGINE_TTS_RESOURCE,
+  VOLCENGINE_TTS_URL,
+  VOLCENGINE_TTS_VOICE,
 } from './defaults.ts'
 
 /** Settings document namespace owned by this plugin. */
@@ -57,6 +65,21 @@ export interface VisionToolkitConfig {
     anthropicThinking?: 'omit' | 'disabled' | 'adaptive'
     /** Outbound User-Agent for provider requests and connection tests. */
     userAgent?: string
+    /**
+     * Volcengine Speech TTS (ByteDance) settings for the `vision_speak` tool.
+     * This uses the standalone `openspeech.bytedance.com` TTS V3 service with
+     * its own appid + token credential, independent of the Ark vision key.
+     */
+    tts?: {
+      /** Volcengine Speech TTS V3 endpoint. */
+      baseUrl?: string
+      /** DSH Credential reference holding the TTS API key (an environment-style name). */
+      credential?: string
+      /** TTS resource/app id, e.g. `seed-tts-2.0`. */
+      resource?: string
+      /** Default voice id from the official 在线音色列表. */
+      voice?: string
+    }
   }
   /** Vision output language (`zh` or `en`). */
   language?: 'zh' | 'en'
@@ -119,6 +142,12 @@ export const Config: Schema<VisionToolkitConfig> = z.object({
     protocol: z.union(['openai', 'anthropic'] as const).default('openai'),
     anthropicThinking: z.union(['omit', 'disabled', 'adaptive'] as const).default('omit'),
     userAgent: z.string().default(DEFAULT_VISION_USER_AGENT),
+    tts: z.object({
+      baseUrl: z.string().default(VOLCENGINE_TTS_URL),
+      credential: z.string().default(VOLCENGINE_TTS_CREDENTIAL),
+      resource: z.string().default(VOLCENGINE_TTS_RESOURCE),
+      voice: z.string().default(VOLCENGINE_TTS_VOICE),
+    }),
   }),
   language: z.union(['zh', 'en'] as const).default('zh'),
   timeoutMs: z.number().default(30000),
@@ -148,6 +177,12 @@ export interface ResolvedVisionToolkitConfig {
     protocol: 'openai' | 'anthropic'
     anthropicThinking: 'omit' | 'disabled' | 'adaptive'
     userAgent: string
+    tts: {
+      baseUrl: string
+      credential: CredentialRef
+      resource: string
+      voice: string
+    }
   }
   language: 'zh' | 'en'
   timeoutMs: number
@@ -214,6 +249,29 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
   if (userAgent.length === 0) {
     throw new VisionToolkitError('config', 'provider.userAgent must not be empty')
   }
+  const tts = provider.tts ?? {}
+  const ttsBaseUrl = (tts.baseUrl ?? VOLCENGINE_TTS_URL).trim().replace(/\/+$/, '')
+  if (!/^https?:\/\//i.test(ttsBaseUrl) || ttsBaseUrl.length <= 'https://'.length) {
+    throw new VisionToolkitError('config', 'provider.tts.baseUrl must be an http(s) URL')
+  }
+  let ttsCredential: CredentialRef
+  try {
+    ttsCredential = credentialRef((tts.credential ?? VOLCENGINE_TTS_CREDENTIAL).trim())
+  } catch (error) {
+    throw new VisionToolkitError(
+      'config',
+      `provider.tts.credential "${tts.credential ?? VOLCENGINE_TTS_CREDENTIAL}" is not a valid credential reference`,
+      { cause: error },
+    )
+  }
+  const ttsResource = (tts.resource ?? VOLCENGINE_TTS_RESOURCE).trim()
+  if (ttsResource.length === 0) {
+    throw new VisionToolkitError('config', 'provider.tts.resource must not be empty')
+  }
+  const ttsVoice = (tts.voice ?? VOLCENGINE_TTS_VOICE).trim()
+  if (ttsVoice.length === 0) {
+    throw new VisionToolkitError('config', 'provider.tts.voice must not be empty')
+  }
   const language = config.language ?? 'zh'
   if (language !== 'zh' && language !== 'en') {
     throw new VisionToolkitError('config', 'language must be "zh" or "en"')
@@ -258,7 +316,15 @@ export function resolveConfig(config: VisionToolkitConfig = {}): ResolvedVisionT
     .map(provider => provider.trim())
     .filter(provider => provider.length > 0)
   return {
-    provider: { baseUrl, credential, model, protocol, anthropicThinking, userAgent },
+    provider: {
+      baseUrl,
+      credential,
+      model,
+      protocol,
+      anthropicThinking,
+      userAgent,
+      tts: { baseUrl: ttsBaseUrl, credential: ttsCredential, resource: ttsResource, voice: ttsVoice },
+    },
     language,
     timeoutMs,
     maxImageBytes,

@@ -165,7 +165,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 
 ## 工具一览
 
-插件提供 11 个可以单独调用、也可以组合使用的视觉工具：
+插件提供 12 个可以单独调用、也可以组合使用的工具：
 
 | 工具 | 最适合解决的问题 | 主要结果 |
 | --- | --- | --- |
@@ -180,6 +180,7 @@ dsh plugin --profile headless add @anionex/dsh-vision-toolkit
 | `vision_dominant_colors` | “这块区域用了哪些主要颜色？” | 主色板或候选色排序 |
 | `vision_html_screenshot` | “按精确视口渲染本地页面，或一次捕获整页” | PNG 和可选的 CSS `pageHeight` |
 | `vision_generate_image` | “用字节 Seedream 生成一张图” | PNG/JPEG Artifact、宽高与格式 |
+| `vision_speak` | “用字节 TTS 把文本变成语音” | MP3/OGG/PCM/WAV 音频 Artifact |
 
 坐标始终使用原图像素格式 `x1,y1,x2,y2`，因此定位结果可以直接交给裁剪、描摹或后续自动化。
 
@@ -254,6 +255,32 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
       model: doubao-seed-2-0-lite-260215
       protocol: openai
 ```
+
+### 配置 TTS 语音合成（vision_speak）
+
+`vision_speak` 工具走火山引擎语音技术的 TTS V3 接口（`openspeech.bytedance.com` 单向 SSE 流式），默认使用豆包语音合成模型2.0（资源 ID `seed-tts-2.0`）。它使用独立的 TTS Key（App Token），与上面的 Ark API Key 不同：
+
+| 字段 | 默认值 |
+| --- | --- |
+| TTS 端点 | `https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse` |
+| DSH Credential | `VOLCENGINE_TTS_KEY`（火山引擎控制台 → 语音技术 → 应用 → Token） |
+| 资源 ID（App ID） | `seed-tts-2.0` |
+| 默认音色 | `zh_female_shuangkuaisisi_uranus_bigtts`（爽快思思 2.0） |
+
+按上面的表把 TTS Token 保存为 `VOLCENGINE_TTS_KEY` 这个 DSH Credential 即可使用。想换端点/资源/默认音色，或改凭据名，可在 Profile patch 中配置：
+
+```yaml
+- id: vision-toolkit
+  config:
+    provider:
+      tts:
+        baseUrl: https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse
+        credential: VOLCENGINE_TTS_KEY
+        resource: seed-tts-2.0
+        voice: zh_female_shuangkuaisisi_uranus_bigtts
+```
+
+调用时还可以通过参数临时指定音色、格式（`mp3`/`ogg_opus`/`pcm`/`wav`）、采样率、语速、音量、音调、情感（`happy`/`sad`/`neutral`）和语言（`zh-cn`/`en`/`ja`）。完整音色列表见火山引擎官方《在线音色列表》（如 Vivi 2.0、小何 2.0、Tim 等）。
 
 支持 OpenAI Chat Completions 兼容端点和 Anthropic Messages。Web Settings 页面还可以调整超时、图片限制、并发、运行时和图片输入变体。
 

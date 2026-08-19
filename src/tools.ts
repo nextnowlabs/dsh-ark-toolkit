@@ -19,6 +19,7 @@ import {
   type LocatePreviewRequest,
   type LongScreenshotOcrRequest,
   type PixelDiffRequest,
+  type SpeakRequest,
   type ToolCallOptions,
   type TraceRequest,
 } from './runtime.ts'
@@ -49,6 +50,7 @@ export const VISION_TOOL_NAMES = {
   dominantColors: 'vision_dominant_colors',
   htmlScreenshot: 'vision_html_screenshot',
   generateImage: 'vision_generate_image',
+  speak: 'vision_speak',
 } as const
 
 /** Resolve the caller workspace exactly like first-party fs/bash tools. */
@@ -110,7 +112,7 @@ const artifactSchema = {
     path: { type: 'string', required: true },
     filename: { type: 'string', required: true },
     mimeType: { type: 'string', required: true },
-    kind: { type: 'string', enum: ['image', 'svg', 'markdown', 'json'], required: true },
+    kind: { type: 'string', enum: ['image', 'svg', 'markdown', 'json', 'audio'], required: true },
     description: { type: 'string', required: true },
     sourceTool: { type: 'string', required: true },
     previewIntent: { type: 'string', enum: ['image', 'svg', 'text', 'download'], required: true },
@@ -637,6 +639,56 @@ export function createVisionTools(
       isConcurrencySafe: () => true,
       presentCall: args => ({ card: 'generic', title: `Generate image: ${args.prompt.slice(0, 60)}`, kind: 'execute' }),
     }),
+    defineTool({
+      name: VISION_TOOL_NAMES.speak,
+      description: 'Synthesize speech from text with the ByteDance Volcengine Speech TTS service (豆包语音合成模型2.0). '
+        + 'Chinese and English text both work. Delivers the audio as a workspace artifact. '
+        + WORKSPACE_NOTE,
+      parameters: {
+        text: { type: 'string', required: true, description: 'Text to synthesize.' },
+        voiceType: { type: 'string', description: 'Voice id from the official 在线音色列表, e.g. zh_female_shuangkuaisisi_uranus_bigtts.' },
+        encoding: { type: 'string', description: 'Audio format: mp3 (default), ogg_opus, pcm, or wav.' },
+        rate: { type: 'integer', description: 'Sample rate (default 24000).' },
+        speed: { type: 'number', description: 'Speed ratio 0.1-3.0 (default 1.0).' },
+        volume: { type: 'number', description: 'Volume ratio 0.1-3.0 (default 1.0).' },
+        pitch: { type: 'number', description: 'Pitch shift in semitones -12 to 12 (default 0).' },
+        emotion: { type: 'string', description: 'Emotion: happy, sad, or neutral.' },
+        emotionScale: { type: 'integer', description: 'Emotion intensity 1-5 (default 4).' },
+        language: { type: 'string', description: 'Language: zh-cn, en, or ja.' },
+        output: { type: 'string', description: 'Artifact filename; .mp3/.ogg/.pcm/.wav.' },
+        timeoutMs: { type: 'integer', description: TIMEOUT_NOTE },
+      },
+      output: {
+        schema: {
+          type: 'object', additionalProperties: false, properties: {
+            text: { type: 'string', required: true },
+            voiceType: { type: 'string', required: true },
+            format: { type: 'string', required: true },
+            artifact: requiredArtifactSchema,
+          },
+        },
+        render: renderJson,
+        presentationMeta,
+      },
+      async execute(args: SpeakArgs, exec) {
+        const request: SpeakRequest = {
+          text: args.text,
+          ...(args.voiceType === undefined ? {} : { voiceType: args.voiceType }),
+          ...(args.encoding === undefined ? {} : { encoding: args.encoding }),
+          ...(args.rate === undefined ? {} : { rate: args.rate }),
+          ...(args.speed === undefined ? {} : { speed: args.speed }),
+          ...(args.volume === undefined ? {} : { volume: args.volume }),
+          ...(args.pitch === undefined ? {} : { pitch: args.pitch }),
+          ...(args.emotion === undefined ? {} : { emotion: args.emotion }),
+          ...(args.emotionScale === undefined ? {} : { emotionScale: args.emotionScale }),
+          ...(args.language === undefined ? {} : { language: args.language }),
+          ...(args.output === undefined ? {} : { output: args.output }),
+        }
+        return runtimeFrom(source).speak(request, callOptions(exec, args.timeoutMs, lifecycleSignal))
+      },
+      isConcurrencySafe: () => true,
+      presentCall: args => ({ card: 'generic', title: `Synthesize speech: ${args.text.slice(0, 60)}`, kind: 'execute' }),
+    }),
   ]
 }
 
@@ -745,6 +797,20 @@ interface GenerateImageArgs {
   size?: string
   aspectRatio?: string
   negativePrompt?: string
+  output?: string
+  timeoutMs?: number
+}
+interface SpeakArgs {
+  text: string
+  voiceType?: string
+  encoding?: string
+  rate?: number
+  speed?: number
+  volume?: number
+  pitch?: number
+  emotion?: string
+  emotionScale?: number
+  language?: string
   output?: string
   timeoutMs?: number
 }

@@ -147,6 +147,7 @@ declare const en: {
     readonly artifactOcrSidecar: "OCR sidecar for chunk {index}";
     readonly artifactForeground: "Extracted transparent foreground";
     readonly artifactHtmlScreenshot: "Headless browser screenshot of local HTML";
+    readonly artifactTtsSpeech: "ByteDance TTS synthesized speech";
     readonly label: "Label";
     readonly paths: "paths";
     readonly healthPython: "Python";

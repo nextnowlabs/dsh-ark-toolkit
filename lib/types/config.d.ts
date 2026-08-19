@@ -7,7 +7,7 @@
  */
 import type Schema from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
-export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, ARK_VISION_MODEL, SEEDREAM_MODEL_ALIASES, } from './defaults.ts';
+export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, ARK_VISION_MODEL, SEEDREAM_MODEL_ALIASES, VOLCENGINE_TTS_CREDENTIAL, VOLCENGINE_TTS_RESOURCE, VOLCENGINE_TTS_URL, VOLCENGINE_TTS_VOICE, } from './defaults.ts';
 /** Settings document namespace owned by this plugin. */
 export declare const VISION_TOOLKIT_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
 /** Browser-compatible default shared with the vendored Python client. */
@@ -32,6 +32,21 @@ export interface VisionToolkitConfig {
         anthropicThinking?: 'omit' | 'disabled' | 'adaptive';
         /** Outbound User-Agent for provider requests and connection tests. */
         userAgent?: string;
+        /**
+         * Volcengine Speech TTS (ByteDance) settings for the `vision_speak` tool.
+         * This uses the standalone `openspeech.bytedance.com` TTS V3 service with
+         * its own appid + token credential, independent of the Ark vision key.
+         */
+        tts?: {
+            /** Volcengine Speech TTS V3 endpoint. */
+            baseUrl?: string;
+            /** DSH Credential reference holding the TTS API key (an environment-style name). */
+            credential?: string;
+            /** TTS resource/app id, e.g. `seed-tts-2.0`. */
+            resource?: string;
+            /** Default voice id from the official 在线音色列表. */
+            voice?: string;
+        };
     };
     /** Vision output language (`zh` or `en`). */
     language?: 'zh' | 'en';
@@ -95,6 +110,12 @@ export interface ResolvedVisionToolkitConfig {
         protocol: 'openai' | 'anthropic';
         anthropicThinking: 'omit' | 'disabled' | 'adaptive';
         userAgent: string;
+        tts: {
+            baseUrl: string;
+            credential: CredentialRef;
+            resource: string;
+            voice: string;
+        };
     };
     language: 'zh' | 'en';
     timeoutMs: number;

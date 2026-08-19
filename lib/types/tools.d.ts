@@ -20,6 +20,7 @@ export declare const VISION_TOOL_NAMES: {
     readonly dominantColors: "vision_dominant_colors";
     readonly htmlScreenshot: "vision_html_screenshot";
     readonly generateImage: "vision_generate_image";
+    readonly speak: "vision_speak";
 };
 /** Runtime lookup accepted by tools so Settings can atomically swap generations. */
 export type VisionToolkitRuntimeSource = VisionToolkitRuntime | (() => VisionToolkitRuntime);

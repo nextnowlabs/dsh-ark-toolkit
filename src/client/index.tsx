@@ -178,6 +178,7 @@ const en = {
   artifactOcrSidecar: 'OCR sidecar for chunk {index}',
   artifactForeground: 'Extracted transparent foreground',
   artifactHtmlScreenshot: 'Headless browser screenshot of local HTML',
+  artifactTtsSpeech: 'ByteDance TTS synthesized speech',
   label: 'Label',
   paths: 'paths',
   healthPython: 'Python',
@@ -366,6 +367,7 @@ const zh: Record<LocaleKey, string> = {
   artifactOcrSidecar: '分块 {index} 的文字识别记录',
   artifactForeground: '提取后的透明背景前景图',
   artifactHtmlScreenshot: '本地网页截图',
+  artifactTtsSpeech: '字节 TTS 语音合成',
   label: '名称',
   paths: '条路径',
   healthPython: 'Python',
@@ -437,7 +439,7 @@ interface ArtifactDescriptor {
   path: string
   filename: string
   mimeType: string
-  kind: 'image' | 'svg' | 'markdown' | 'json'
+  kind: 'image' | 'svg' | 'markdown' | 'json' | 'audio'
   description: string
   sourceTool: string
   previewIntent: 'image' | 'svg' | 'text' | 'download'
@@ -603,7 +605,7 @@ function artifactFrom(value: unknown): ArtifactDescriptor | undefined {
     typeof value.path !== 'string'
     || typeof value.filename !== 'string'
     || typeof value.mimeType !== 'string'
-    || (value.kind !== 'image' && value.kind !== 'svg' && value.kind !== 'markdown' && value.kind !== 'json')
+    || (value.kind !== 'image' && value.kind !== 'svg' && value.kind !== 'markdown' && value.kind !== 'json' && value.kind !== 'audio')
     || typeof value.description !== 'string'
     || typeof value.sourceTool !== 'string'
     || (value.previewIntent !== 'image' && value.previewIntent !== 'svg' && value.previewIntent !== 'text' && value.previewIntent !== 'download')
@@ -754,6 +756,7 @@ const ARTIFACT_DESCRIPTION_KEYS: Record<string, LocaleKey> = {
   'Long-screenshot OCR boundary audit': 'artifactLongAudit',
   'Extracted transparent foreground': 'artifactForeground',
   'Headless browser screenshot of local HTML': 'artifactHtmlScreenshot',
+  'ByteDance TTS speech': 'artifactTtsSpeech',
 }
 
 function artifactDescription(description: string, t: Translate): string {

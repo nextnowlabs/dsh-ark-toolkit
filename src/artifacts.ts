@@ -12,7 +12,7 @@ import { VisionToolkitError } from './errors.ts'
 import { isWithin, type PathPolicy } from './paths.ts'
 
 /** Artifact payload family used by clients to select a safe renderer. */
-export type ArtifactKind = 'image' | 'svg' | 'markdown' | 'json'
+export type ArtifactKind = 'image' | 'svg' | 'markdown' | 'json' | 'audio'
 
 /** Intended default client action for one artifact. */
 export type ArtifactPreviewIntent = 'image' | 'svg' | 'text' | 'download'

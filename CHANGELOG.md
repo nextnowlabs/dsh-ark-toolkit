@@ -11,6 +11,7 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 ### Added
 
 - **`vision_generate_image` tool.** Generates images with the ByteDance Seedream model through Ark `/images/generations` (aliases `seedream-5.0-pro`/`seedream-5.0-lite`/`seedream-4.5`/`seedream-4.0`), and delivers each result as a PNG/JPEG workspace Artifact.
+- **`vision_speak` tool.** Synthesizes speech with the ByteDance Volcengine Speech TTS V3 service (豆包语音合成模型2.0, resource `seed-tts-2.0`) over the unidirectional SSE endpoint, and delivers MP3/OGG/PCM/WAV audio as a workspace Artifact. The TTS token is stored as the `VOLCENGINE_TTS_KEY` DSH Credential (configurable under `provider.tts`).
 - Step-by-step Volcengine Ark tutorial (`docs/ark-doubao-vision.md`) replaces the Groq/Qwen tutorial.
 
 ### Removed

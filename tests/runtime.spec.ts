@@ -342,6 +342,66 @@ describe('VisionToolkitRuntime', () => {
       .rejects.toMatchObject({ code: 'runtime', message: /model not found/ })
   })
 
+  it('synthesizes speech through Volcengine TTS and delivers an mp3 artifact', async () => {
+    const mp3 = Buffer.from('ID3\x03\x00\x00\x00\x00\x00\x00fake-mp3')
+    const sse = [
+      'event: message',
+      `data: ${JSON.stringify({ code: 0, message: 'success', format: 'mp3', audio: mp3.toString('base64') })}`,
+      '',
+      'event: done',
+      'data: [DONE]',
+      '',
+    ].join('\n')
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response(sse, {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    })))
+    const { runtime } = await setup()
+    const workspace = await tempWorkspace()
+    const result = await runtime.speak({ text: '你好', output: 'hi.mp3' }, { signal, workspace })
+
+    expect(result).toMatchObject({
+      text: '你好',
+      voiceType: 'zh_female_shuangkuaisisi_uranus_bigtts',
+      format: 'mp3',
+      artifact: {
+        filename: 'hi.mp3',
+        kind: 'audio',
+        mimeType: 'audio/mpeg',
+        sourceTool: 'vision_speak',
+        previewIntent: 'download',
+      },
+    })
+    const written = await readFile(result.artifact.path)
+    expect(written.equals(mp3)).toBe(true)
+  })
+
+  it('rejects invalid speak input before calling the TTS service', async () => {
+    const { runtime } = await setup()
+    const workspace = await tempWorkspace()
+    await expect(runtime.speak({ text: '   ' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /text must not be empty/ })
+    await expect(runtime.speak({ text: 'hi', encoding: 'flac' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /encoding must be mp3, ogg_opus, pcm, or wav/ })
+    await expect(runtime.speak({ text: 'hi', speed: 99 }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /speed must be a number between 0\.1 and 3/ })
+  })
+
+  it('reports an upstream failure when TTS returns a non-2xx response', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(new Response('forbidden', { status: 403 })))
+    const { runtime } = await setup()
+    const workspace = await tempWorkspace()
+    await expect(runtime.speak({ text: 'hi' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'runtime', message: /HTTP 403/ })
+  })
+
+  it('fails loud when the Volcengine TTS credential is not configured', async () => {
+    const { runtime } = await setup({}, null)
+    const workspace = await tempWorkspace()
+    await expect(runtime.speak({ text: 'hi' }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'config', message: /VOLCENGINE_TTS_KEY is not configured/ })
+  })
+
   it('accepts declarations, comments, and namespace-prefixed SVG elements', async () => {
     const { adapter, runtime } = await setup({}, null)
     const workspace = await tempWorkspace()
