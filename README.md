@@ -32,6 +32,7 @@
 - **粘贴图片，直接提问。** 在 DSH Web 里粘贴图片，文本模型会自动切换到看图模式变体，不需要手动复制路径或更换模型。图片保留原生缩略图、会话记录和工作区路径；Web 可以预览产物。
 - **一行命令安装即用。** 安装插件后默认接入字节火山方舟（Volcengine Ark），图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 视觉工具** 填入你自己的 Ark API Key 即可使用。
 - **字节 Seedream 文生图。** 除看图/OCR/UI 还原外，还内置 `vision_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
+- **字节 TTS 语音合成。** `vision_speak` 工具把文本变成语音（MP3/OGG/PCM/WAV），使用字节豆包语音合成模型2.0，交付为可下载的音频 Artifact。
 - **不只是看图描述，是获取图中真正需要关注的内容。** 模型不只是生成通用描述，而是围绕“报错在哪里”“按钮在哪”等当前任务提取证据。
 - **一套经过实战验证的视觉任务方法论**：项目提供的skill，会告诉 agent 面对不同视觉任务时应该看什么、选择哪个工具、按什么步骤推进，以及最后如何验证结果。
 
@@ -64,6 +65,7 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit
 
 ## 最近更新
 
+- **新增语音合成：** 内置 `vision_speak` 工具，用字节 TTS V3（豆包语音合成模型2.0）把文本变成语音并交付为音频 Artifact，Token 通过 DSH Credential `VOLCENGINE_TTS_KEY` 配置。
 - **仅保留字节一家：** 后端切换为字节火山方舟（Volcengine Ark），删除内置免费 Gemini/Qwen 等模型；默认用豆包 Seed Vision 做图片理解，并新增 `vision_generate_image` 用字节 Seedream 生成图片。API Key 由用户在 DSH Credential（`ARK_API_KEY`）中配置。
 - **2026-08-19 · 透明变体路由默认开启：** 模型选择器默认只显示每个模型一项并保留原模型名，粘贴图片、历史图片和内置 `read_image` 工具都能直接使用，不再需要手动切换到 `(Vision Toolkit)` 变体；如需恢复显式条目，可在 设置 → 高级设置 → 图片输入 关闭“透明变体路由”。
 - **2026-08-16 · Windows Python：** 支持 Microsoft Store Python，解决 Windows 用户首次创建隔离环境失败的问题。
@@ -133,6 +135,8 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit
 *左：原始页面；右：保留主要布局、内容和视觉层级的快速还原稿，允许颜色和图标库近似。快速模式的目标是约三分钟内产出首版截图。*
 
 ## 快速开始：三步完成
+
+> 详细的安装、火山方舟/TTS 配置与完整字段参考见 [安装与配置指南](docs/installation.md)。
 
 ### 1. 安装
 
@@ -224,6 +228,8 @@ flowchart LR
 对于明确标记为纯文本的模型，插件会注册 `<模型名> (Vision Toolkit)` 变体。默认情况下，在 DSH Web 粘贴图片时会自动切换到该变体，并把图片路径与带当前任务重点的视觉描述一起交给模型。
 
 ## 配置与限制
+
+> 完整配置字段速查、Profile patch 示例和常见配置问题见 [安装与配置指南](docs/installation.md)。
 
 ### 默认使用字节火山方舟
 
