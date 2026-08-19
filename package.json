@@ -1,5 +1,5 @@
 {
-  "name": "@anionex/dsh-vision-toolkit",
+  "name": "@nextnowlabs/dsh-ark-toolkit",
   "version": "0.1.34",
   "description": "DeepSeek Harness image understanding plugin: vision-model image Q&A, OCR, and comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS — pure TypeScript, no Python.",
   "keywords": [
@@ -17,13 +17,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Anionex/dsh-vision-toolkit.git"
+    "url": "git+https://github.com/nextnowlabs/dsh-ark-toolkit.git"
   },
   "bugs": {
-    "url": "https://github.com/Anionex/dsh-vision-toolkit/issues"
+    "url": "https://github.com/nextnowlabs/dsh-ark-toolkit/issues"
   },
-  "homepage": "https://agent-vision.anionex.me",
-  "funding": "https://ifdian.net/a/anionex",
   "type": "module",
   "packageManager": "pnpm@11.7.0",
   "engines": {

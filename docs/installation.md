@@ -8,19 +8,23 @@
 
 插件通过 `dsh` CLI 安装到指定 Profile。推荐先装到 Web Profile，Headless Profile 也可安装。
 
-```sh
-# Web Profile（推荐，可在图形界面里配置与测试）
-dsh plugin --profile web add @anionex/dsh-vision-toolkit
-
-# Headless Profile
-dsh plugin --profile headless add @anionex/dsh-vision-toolkit
-```
-
-如果默认 npm registry 访问不稳定，可以显式指定 registry：
+> **注意：插件尚未发布到 npmjs**，目前只能从 GitHub 克隆到本地后，用本地路径安装；发布到 npmjs 后才支持 `dsh plugin add <包名>` 一行安装。
 
 ```sh
-dsh plugin --profile web add @anionex/dsh-vision-toolkit@latest --registry=https://registry.npmjs.org/
+# 1) 克隆仓库（推荐放到固定位置，便于后续 git pull 更新）
+git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
+cd dsh-ark-toolkit
+
+# 2) 安装到 Web Profile（推荐，可在图形界面里配置与测试）
+dsh plugin --profile web add "$PWD"
+
+# 3) 安装到 Headless Profile（可选）
+dsh plugin --profile headless add "$PWD"
 ```
+
+> 插件**尚未发布到 npmjs**，所以上面的本地路径安装会使用仓库里的 `lib/` 构建产物（已随仓库提交），无需本地构建。升级时在仓库目录执行 `git pull` 后重启 Profile 即可。
+>
+> 未来发布到 npmjs 后，可直接一行安装：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit`（必要时追加 `--registry=https://registry.npmjs.org/`）。
 
 安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 视觉工具**。
 

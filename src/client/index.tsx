@@ -31,8 +31,8 @@ const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const ARK_CREDENTIAL = 'ARK_API_KEY'
 const ARK_VISION_MODEL = 'doubao-seed-2-0-lite-260215'
-const ARK_TUTORIAL_URL_EN = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.md'
-const ARK_TUTORIAL_URL_ZH = 'https://github.com/Anionex/dsh-vision-toolkit/blob/main/docs/ark-doubao-vision.md'
+const ARK_TUTORIAL_URL_EN = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
+const ARK_TUTORIAL_URL_ZH = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
 
 const en = {
   nav: 'Vision',
@@ -1217,7 +1217,7 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
   const updateCheckSupported = updateCapability.checkSupported ?? updateCapability.supported
   const updateHasUnsavedChanges = apiKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
   const manualUpdateProfile = updateCapability.profile ?? 'web'
-  const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @anionex/dsh-vision-toolkit@latest --registry=https://registry.npmjs.org/`
+  const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/`
   const tutorialUrl = draft?.language === 'en' ? ARK_TUTORIAL_URL_EN : ARK_TUTORIAL_URL_ZH
   const copyManualUpdate = (): void => {
     void navigator.clipboard?.writeText(manualUpdateCommand)
@@ -1336,11 +1336,11 @@ const CSS = `
 `
 
 function installStyles(): () => void {
-  const id = '@anionex/dsh-vision-toolkit/client'
+  const id = '@nextnowlabs/dsh-ark-toolkit/client'
   const existing = document.querySelector<HTMLStyleElement>(`style[data-plugin-css="${id}"]`)
   if (existing !== null) return () => {}
   const style = document.createElement('style')
-  style.dataset.plugin = '@anionex/dsh-vision-toolkit'
+  style.dataset.plugin = '@nextnowlabs/dsh-ark-toolkit'
   style.dataset.pluginCss = id
   style.textContent = CSS
   document.head.appendChild(style)

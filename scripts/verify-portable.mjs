@@ -64,12 +64,12 @@ const pkg = JSON.parse(await readFile(packagePath, 'utf8'))
 const changelog = await readFile(join(root, 'CHANGELOG.md'), 'utf8')
 const latestRelease = changelog.match(/^## \[(\d+\.\d+\.\d+)\]/mu)?.[1]
 
-check(pkg.name === '@anionex/dsh-vision-toolkit', 'package name must stay @anionex/dsh-vision-toolkit')
+check(pkg.name === '@nextnowlabs/dsh-ark-toolkit', 'package name must stay @nextnowlabs/dsh-ark-toolkit')
 check(pkg.version === latestRelease, 'package version and the latest release notes must stay aligned')
-check(pkg.repository?.url === 'git+https://github.com/Anionex/dsh-vision-toolkit.git', 'repository URL is missing or mismatched')
-check(pkg.bugs?.url === 'https://github.com/Anionex/dsh-vision-toolkit/issues', 'issue tracker URL is missing or mismatched')
-check(pkg.homepage === 'https://agent-vision.anionex.me', 'homepage URL is missing or mismatched')
-check(pkg.funding === 'https://ifdian.net/a/anionex', 'funding metadata is missing or mismatched')
+check(pkg.repository?.url === 'git+https://github.com/nextnowlabs/dsh-ark-toolkit.git', 'repository URL is missing or mismatched')
+check(pkg.bugs?.url === 'https://github.com/nextnowlabs/dsh-ark-toolkit/issues', 'issue tracker URL is missing or mismatched')
+check(pkg.homepage === undefined, 'homepage must be removed (fork does not own the upstream website)')
+check(pkg.funding === undefined, 'funding must be removed (fork does not own the upstream sponsor account)')
 check(pkg.engines?.node === '^22.19.0 || >=24.0.0', 'Node.js engine range must match DeepSeek Harness')
 check(pkg.dsh?.bundle?.patch === './cordis.patch.yml', 'dsh.bundle.patch must publish cordis.patch.yml')
 check(pkg.dsh?.client?.platform === 'web', 'dsh.client.platform must publish the Web client')
@@ -107,8 +107,6 @@ const requiredFiles = [
   'CONTRIBUTING.md',
   'SECURITY.md',
   'SUPPORT.md',
-  'FUNDING.md',
-  '.github/FUNDING.yml',
   '.github/PULL_REQUEST_TEMPLATE.md',
   '.github/ISSUE_TEMPLATE/bug_report.yml',
   '.github/ISSUE_TEMPLATE/feature_request.yml',
@@ -182,7 +180,7 @@ for (const entrypoint of new Set(declaredEntrypoints.filter(value => typeof valu
   check(await exists(resolve(root, entrypoint)), `declared package entrypoint is missing: ${entrypoint}`)
 }
 
-for (const markdownPath of ['README.md', 'CONTRIBUTING.md', 'SUPPORT.md', 'SECURITY.md', 'FUNDING.md', 'CHANGELOG.md', 'index.html']) {
+for (const markdownPath of ['README.md', 'CONTRIBUTING.md', 'SUPPORT.md', 'SECURITY.md', 'CHANGELOG.md', 'index.html']) {
   const absolute = join(root, markdownPath)
   const markdown = await readFile(absolute, 'utf8')
   for (const target of localTargets(markdown)) {

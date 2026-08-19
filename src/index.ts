@@ -1,12 +1,12 @@
 /**
- * @anionex/dsh-vision-toolkit — DSH Vision Toolkit profile bundle.
+ * @nextnowlabs/dsh-ark-toolkit — DSH Vision Toolkit profile bundle.
  *
  * Plugin lifecycle follows the documented readiness chain: publish the
  * vision-skills Skill and its one-shot bootstrap, then mount the execution
  * tools only in Agents that load that Skill or invoke the bootstrap. Any
  * failure leaves no model capability behind, and disposal unregisters every
  * global and Agent-scoped contribution the plugin mounted.
- * @module @anionex/dsh-vision-toolkit
+ * @module @nextnowlabs/dsh-ark-toolkit
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -29,7 +29,7 @@ import { PLUGIN_VERSION } from './version.ts'
 import { installVisionToolkitWeb, VisionToolkitWebBackend } from './web.ts'
 import { MAX_PASTE_IMAGE_BYTES, PastedImageBackend } from './paste-images.ts'
 
-export const name = '@anionex/dsh-vision-toolkit'
+export const name = '@nextnowlabs/dsh-ark-toolkit'
 
 export { Config }
 

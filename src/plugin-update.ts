@@ -18,7 +18,7 @@ import type { Context } from '@deepseek-ai/cordis'
 // Activates the subprocess Context declaration used by the update runner.
 import type {} from '@deepseek-ai/dsh-subprocess'
 
-export const VISION_TOOLKIT_PACKAGE = '@anionex/dsh-vision-toolkit'
+export const VISION_TOOLKIT_PACKAGE = '@nextnowlabs/dsh-ark-toolkit'
 
 const CHECK_TIMEOUT_MS = 20_000
 const UPDATE_TIMEOUT_MS = 180_000

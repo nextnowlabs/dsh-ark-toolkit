@@ -7,7 +7,7 @@
     <meta name="description" content="A pure-TypeScript DeepSeek Harness plugin: image Q&amp;A, OCR, and multi-image comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS. No Python." />
     <meta property="og:title" content="DSH Vision Toolkit — image understanding for DeepSeek Harness" />
     <meta property="og:description" content="Give text-only DSH agents eyes: image understanding, Seedream image generation, and ByteDance TTS — pure TypeScript, no Python." />
-    <meta property="og:image" content="https://github.com/Anionex/dsh-vision-toolkit/raw/main/assets/social-preview.png" />
+    <meta property="og:image" content="https://github.com/nextnowlabs/dsh-ark-toolkit/raw/main/assets/social-preview.png" />
     <meta name="theme-color" content="#5b4cf0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%235b4cf0'/%3E%3Cpath d='M13 46 25 34l11-16M25 34h20M45 34l7 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
     <style>
@@ -529,8 +529,8 @@
           <a href="#use-cases">Use cases</a>
           <a href="#capabilities">Capabilities</a>
           <a href="#install">Install</a>
-          <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">中文</a>
-          <a href="https://github.com/Anionex/dsh-vision-toolkit">GitHub</a>
+          <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">中文</a>
+          <a href="https://github.com/nextnowlabs/dsh-ark-toolkit">GitHub</a>
         </div>
       </nav>
 
@@ -541,7 +541,6 @@
           <p class="lede">Image understanding, OCR, and multi-image comparison through Volcengine Ark — plus Seedream image generation and ByteDance TTS. Pure TypeScript: no Python, no isolated runtime, install and go.</p>
           <div class="actions">
             <a class="button primary" href="#install">Install the bundle</a>
-            <a class="button" href="https://agent-vision.anionex.me">Project website</a>
           </div>
         </div>
         <div class="hero-card">
@@ -563,7 +562,7 @@
                 <span class="case-kicker">01 · Understand</span>
                 <h3>Image Q&amp;A and OCR</h3>
                 <p>Pass one or more images to <code>vision_glance</code> with a question, ask for verbatim OCR, or zoom into a region so small text and icons become readable.</p>
-                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
+                <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
                 <img src="assets/hero-v2.png" alt="DSH Vision Toolkit hero showing image understanding in a DeepSeek Harness session." />
@@ -575,7 +574,7 @@
                 <span class="case-kicker">02 · Create</span>
                 <h3>Seedream image generation</h3>
                 <p><code>vision_generate_image</code> renders a prompt with ByteDance Seedream through Ark and delivers a PNG/JPEG Artifact that later tools can reuse.</p>
-                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
+                <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
                 <img src="assets/hero-v2.png" alt="Seedream image generation delivered as a workspace Artifact." />
@@ -587,7 +586,7 @@
                 <span class="case-kicker">03 · Speak</span>
                 <h3>ByteDance TTS voice synthesis</h3>
                 <p><code>vision_speak</code> turns text into MP3/OGG/PCM/WAV audio with the ByteDance Volcengine Speech TTS V3 service, delivered as a downloadable Artifact.</p>
-                <a href="https://github.com/Anionex/dsh-vision-toolkit/blob/main/README.md">Read the guide →</a>
+                <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
               </div>
               <div class="use-case-images">
                 <img src="assets/hero-v2.png" alt="ByteDance TTS synthesis delivered as an audio Artifact." />
@@ -620,10 +619,10 @@
             <div class="section-label">Quick start</div>
             <h2>Install one checkout into the profiles you use.</h2>
             <p>Requires DeepSeek Harness and a Volcengine Ark API key. No Python, no Chrome, no isolated runtime. Restart a running Web profile, then paste your key into Settings.</p>
-            <a class="button" href="https://github.com/Anionex/dsh-vision-toolkit#quick-start">Full installation and security guide</a>
+            <a class="button" href="https://github.com/nextnowlabs/dsh-ark-toolkit#quick-start">Full installation and security guide</a>
           </div>
-          <pre><code>git clone https://github.com/Anionex/dsh-vision-toolkit.git
-PLUGIN="$PWD/dsh-vision-toolkit"
+          <pre><code>git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
+PLUGIN="$PWD/dsh-ark-toolkit"
 
 dsh plugin --profile web add "$PLUGIN"
 dsh plugin --profile headless add "$PLUGIN"
@@ -634,8 +633,8 @@ dsh --profile web --dump-config | grep vision-toolkit</code></pre>
     </main>
 
     <footer class="shell">
-      <span>DeepSeek Harness image understanding plugin · pure TypeScript · MIT · Anionex</span>
-      <span><a href="https://agent-vision.anionex.me">Website</a> · <a href="https://github.com/Anionex/dsh-vision-toolkit">DSH repository</a></span>
+      <span>DeepSeek Harness image understanding plugin · pure TypeScript · MIT</span>
+      <span><a href="https://github.com/nextnowlabs/dsh-ark-toolkit">DSH repository</a></span>
     </footer>
   </body>
 </html>

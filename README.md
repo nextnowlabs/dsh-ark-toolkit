@@ -6,11 +6,7 @@
 
 # DSH Vision Toolkit
 
-<a href="https://trendshift.io/repositories/149708?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-149708" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/149708/daily?language=TypeScript" alt="Anionex%2Fdsh-vision-toolkit | Trendshift" width="250" height="55"/></a>
-
-[![由 dshfind 推荐](https://img.shields.io/badge/%E7%94%B1%20dshfind-%E6%8E%A8%E8%8D%90-FFD700?style=flat-square)](https://dshfind.com/zh/plugins/Anionex/dsh-vision-toolkit)
-[![dshfind 评分：94——最高分插件](https://img.shields.io/badge/dshfind%20%E8%AF%84%E5%88%86-94%20%7C%20%E6%9C%80%E9%AB%98%E5%88%86%E6%8F%92%E4%BB%B6-5B4CF0?style=flat-square)](https://dshfind.com/zh/plugins/Anionex/dsh-vision-toolkit)
-[![npm](https://img.shields.io/npm/v/@anionex/dsh-vision-toolkit?style=flat-square&color=5B4CF0)](https://www.npmjs.com/package/@anionex/dsh-vision-toolkit)
+[![npm](https://img.shields.io/npm/v/@nextnowlabs/dsh-ark-toolkit?style=flat-square&color=5B4CF0)](https://www.npmjs.com/package/@nextnowlabs/dsh-ark-toolkit)
 
 [![MIT](https://img.shields.io/badge/license-MIT-0B7285?style=flat-square)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-Web%20%2B%20Headless-5B4CF0?style=flat-square)](cordis.patch.yml)
@@ -34,11 +30,13 @@
 
 > **安装即可使用。** 默认接入字节火山方舟（Volcengine Ark）豆包 Seed Vision 视觉模型，把火山方舟 API Key 保存为 `ARK_API_KEY` 这个 DSH Credential 即可。
 
-```sh
-dsh plugin --profile web add @anionex/dsh-vision-toolkit
-```
+> **未发布到 npmjs，请从 GitHub 克隆后本地安装**（发布后可直接 `dsh plugin add @nextnowlabs/dsh-ark-toolkit`）：
 
-**项目网站：** [agent-vision.anionex.me](https://agent-vision.anionex.me)
+```sh
+git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
+cd dsh-ark-toolkit
+dsh plugin --profile web add "$PWD"
+```
 
 **目录**
 
@@ -72,15 +70,21 @@ dsh plugin --profile web add @anionex/dsh-vision-toolkit
 
 ### 1. 安装
 
-```sh
-dsh plugin --profile web add @anionex/dsh-vision-toolkit
-```
-
-Headless Profile 也可以安装：
+插件**尚未发布到 npmjs**，请从 GitHub 克隆到本地后，用本地路径安装（Web Profile）：
 
 ```sh
-dsh plugin --profile headless add @anionex/dsh-vision-toolkit
+git clone https://github.com/nextnowlabs/dsh-ark-toolkit.git
+cd dsh-ark-toolkit
+dsh plugin --profile web add "$PWD"
 ```
+
+Headless Profile 同样从本地安装：
+
+```sh
+dsh plugin --profile headless add "$PWD"
+```
+
+> 已发布到 npmjs 后，将可以直接一行安装：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit`。
 
 ### 2. 重启并确认
 
@@ -216,9 +220,9 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 ## 开发与社区
 
 - 贡献前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
-- Bug、功能建议和使用问题请提交到 [GitHub Issues](https://github.com/Anionex/dsh-vision-toolkit/issues)；渠道说明见 [SUPPORT.md](SUPPORT.md)。
+- Bug、功能建议和使用问题请提交到 [GitHub Issues](https://github.com/nextnowlabs/dsh-ark-toolkit/issues)；渠道说明见 [SUPPORT.md](SUPPORT.md)。
 - 安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告。
-- 版本变化见 [CHANGELOG.md](CHANGELOG.md)，赞助说明见 [FUNDING.md](FUNDING.md)。
+- 版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
 <p align="center">
   <img src="assets/community-group-qr.png" alt="DSH Vision Toolkit 项目交流群二维码" width="240" />
