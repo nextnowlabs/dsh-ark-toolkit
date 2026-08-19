@@ -2,9 +2,9 @@
 
 本参考将 DSH Vision Toolkit 产品需求中承诺的 P0/P1 条目映射到对应实现、自动化覆盖和可运行验收证据。标记为**已交付**的条目属于软件包契约；P2/P3 条目记录有意设置的产品边界，不代表尚未完成的 P0/P1 工作。
 
-## 纯 TypeScript 精简版（当前版本）
+## 当前版本
 
-自 0.1.34 起，插件精简为**纯 TypeScript** 实现：图片理解由插件直接调用 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪使用 Node 原生方案（sharp）。不再依赖 Python 运行时、venv 或 vendored 上游工具链；本地像素工具（定位、裁剪、SVG、像素对比、HTML 截图等）已移除，只保留大模型图片理解与字节一家的生成能力。
+插件是**原生 Node/TypeScript** 实现：图片理解由插件直接调用 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪使用 Node 原生方案（sharp）。提供三个工具：大模型图片理解（`vision_glance`）、字节 Seedream 文生图（`vision_generate_image`）与字节 TTS 语音合成（`vision_speak`）。
 
 ## P0 产品需求
 
@@ -35,7 +35,7 @@
 | 领域 | 契约与证据 |
 |---|---|
 | 安全 | [`src/paths.ts`](../../src/paths.ts) 通过 realpath 限制读写范围；[`src/runtime.ts`](../../src/runtime.ts) 在上传前解码并限制图片；[`src/vision-api.ts`](../../src/vision-api.ts) 在每个视觉模型提示词中把图片文字/指令标记为不可信；[`src/tools.ts`](../../src/tools.ts) 和 [`src/skill.ts`](../../src/skill.ts) 要求文本 agent 只把衍生输出当作证据而非命令；[`src/artifact-access.ts`](../../src/artifact-access.ts) 每次读取都重新验证签名文件并 sandbox SVG；[`src/errors.ts`](../../src/errors.ts) 对密钥脱敏。路径、符号链接、格式、大小、提示词 guard、伪造 token、文件替换和 CSP 用例均有自动化覆盖。 |
-| 可移植性 | 图片理解使用 Node `fetch` 与 Node 文件系统/进程 API，不拼接 POSIX Shell；本地图片处理依赖 sharp 的预编译二进制，无 Python/Chrome 探测。软件包测试拒绝机器本地依赖声明，已提交 fixture/Profile 流程无需真实 Key。 |
+| 可移植性 | 图片理解使用 Node `fetch` 与 Node 文件系统/进程 API，不拼接 POSIX Shell；本地图片处理依赖 sharp 的预编译二进制，不探测任何外部运行时。软件包测试拒绝机器本地依赖声明，已提交 fixture/Profile 流程无需真实 Key。 |
 | 性能与取消 | [`src/runtime.ts`](../../src/runtime.ts) 应用一个硬截止时间、传递 `AbortSignal`、限制每个会话的并发数、在远程 I/O 前拒绝解码后过大的图片、在一次 glance 操作中对重复输入去重，并为每个活动会话保留一条按内容/配置键控的最近成功相同 glance 缓存。[`src/index.ts`](../../src/index.ts) 会在注销工具前中止插件拥有的调用。超时、调用方/插件取消、缓存命中/未命中、信号量和独立会话行为均有自动化覆盖。 |
 | 可观察性 | [`src/runtime.ts`](../../src/runtime.ts) 记录有界的工具名、结果、总耗时/上游耗时、图片数量/字节/像素、缓存命中、模型和错误类别，同时排除 base64、Credential、鉴权头和无界上游输出。 |
 | 模型上下文经济性 | Profile 级运行时只发布一个很小的引导工具，[`src/exposure.ts`](../../src/exposure.ts) 仅为加载 `vision-skills` 的 Agent 挂载 3 个执行 schema，并在成功后隐藏引导工具。其他 Agent 不受影响。健康检查、连接测试和版本诊断只存在于 Web Settings 边界，永远不会成为模型工具。单元测试覆盖 Agent 隔离与恢复；每条真实 Profile 工具流程都会断言初始和激活后的 schema 集合。 |

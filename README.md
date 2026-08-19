@@ -6,14 +6,12 @@
 
 # DSH Vision Toolkit
 
-[![npm](https://img.shields.io/npm/v/@nextnowlabs/dsh-ark-toolkit?style=flat-square&color=5B4CF0)](https://www.npmjs.com/package/@nextnowlabs/dsh-ark-toolkit)
-
 [![MIT](https://img.shields.io/badge/license-MIT-0B7285?style=flat-square)](LICENSE)
 [![DSH](https://img.shields.io/badge/DSH-Web%20%2B%20Headless-5B4CF0?style=flat-square)](cordis.patch.yml)
 
-**纯 TypeScript 的图片理解插件——给 DeepSeek Harness 里的纯文本模型装上眼睛：看图问答、OCR、多图对比，还有豆包 Seedream 文生图和字节 TTS 语音合成。**
+**给 DeepSeek Harness 里的纯文本模型装上眼睛：看图问答、OCR、多图对比，还有豆包 Seedream 文生图和字节 TTS 语音合成。**
 
-🚀 粘贴图片，直接提问 ｜ 一行命令安装即用 ｜ 字节火山方舟 ｜ 无需 Python
+🚀 粘贴图片，直接提问 ｜ 原生 TypeScript 实现 ｜ 字节火山方舟 ｜ 开箱即用
 
 [亮点](#亮点) ｜ [快速开始](#快速开始三步完成) ｜ [工具一览](#工具一览) ｜ [配置与限制](#配置与限制) ｜ [常见问题](#常见问题) ｜ [开发与社区](#开发与社区)
 
@@ -22,9 +20,9 @@
 ## 亮点
 
 - **粘贴图片，直接提问。** 在 DSH Web 里粘贴图片，文本模型会自动切换到看图模式变体，不需要手动复制路径或更换模型。图片保留原生缩略图、会话记录和工作区路径；Web 可以预览产物。
-- **纯 TypeScript，无 Python。** 图片理解由插件用 TS 直接调用 OpenAI 兼容 `/chat/completions` 接口，图片压缩等本地处理使用 Node 原生方案（sharp）。不再依赖任何 Python 运行时、虚拟环境或 vendored 工具链，安装即用。
-- **一行命令安装即用。** 安装插件后默认接入字节火山方舟（Volcengine Ark），图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 视觉工具** 填入你自己的 Ark API Key 即可使用。
-- **字节 Seedream 文生图。** 内置 `vision_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
+- **原生 TypeScript，开箱即用。** 图片理解由插件直接调用 OpenAI 兼容 `/chat/completions` 接口，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
+- **默认接入字节火山方舟。** 图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 视觉工具** 填入你自己的 Ark API Key 即可。
+- **豆包 Seedream 文生图。** 内置 `vision_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
 - **字节 TTS 语音合成。** `vision_speak` 工具把文本变成语音（MP3/OGG/PCM/WAV），使用字节豆包语音合成模型 2.0，交付为可下载的音频 Artifact。
 - **围绕任务理解图片。** 模型不只是生成通用描述，而是围绕"报错在哪里""按钮在哪"等当前任务提取证据。
 
@@ -41,21 +39,14 @@ dsh plugin --profile web add "$PWD"
 **目录**
 
 - [亮点](#亮点)
-- [最近更新](#最近更新)
 - [适合谁用](#适合谁用)
 - [快速开始：三步完成](#快速开始三步完成)
 - [工具一览](#工具一览)
+- [工作原理](#工作原理)
 - [配置与限制](#配置与限制)
 - [常见问题](#常见问题)
 - [开发与社区](#开发与社区)
-
-## 最近更新
-
-- **纯 TypeScript 重构：** 移除 vendored Python 工具链与本地像素工具（定位、裁剪、SVG、像素对比、HTML 截图等），只保留大模型图片理解 `vision_glance`、豆包 Seedream 文生图 `vision_generate_image` 与字节 TTS 语音合成 `vision_speak` 三个工具。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`，不再需要 Python。
-- **新增语音合成：** 内置 `vision_speak` 工具，用字节 TTS V3（豆包语音合成模型 2.0）把文本变成语音并交付为音频 Artifact，Token 通过 DSH Credential `VOLCENGINE_TTS_KEY` 配置。
-- **仅保留字节一家：** 后端切换为字节火山方舟（Volcengine Ark），删除内置免费 Gemini/Qwen 等模型；默认用豆包 Seed Vision 做图片理解，并新增 `vision_generate_image` 用字节 Seedream 生成图片。API Key 由用户在 DSH Credential（`ARK_API_KEY`）中配置。
-- **2026-08-19 · 透明变体路由默认开启：** 模型选择器默认只显示每个模型一项并保留原模型名，粘贴图片、历史图片和内置 `read_image` 工具都能直接使用，不再需要手动切换到 `(Vision Toolkit)` 变体；如需恢复显式条目，可在 设置 → 高级设置 → 图片输入 关闭"透明变体路由"。
-- **2026-08-16 · 真实模型测试：** Settings 新增完整图片请求测试，解决 `/models` 可访问却不能证明模型真的会看图的问题。
+- [许可证](#许可证)
 
 ## 适合谁用
 
@@ -135,7 +126,7 @@ flowchart LR
     Artifact --> Session
 ```
 
-对于明确标记为纯文本的模型，插件会注册 `<模型名> (Vision Toolkit)` 变体。默认情况下，在 DSH Web 粘贴图片时会自动切换到该变体，并把图片路径与带当前任务重点的视觉描述一起交给模型。
+对于明确标记为纯文本的模型，插件会注册 `<模型名> (Vision Toolkit)` 变体。在 DSH Web 粘贴图片时，会自动切换到该变体并把图片路径与带当前任务重点的视觉描述一起交给模型。
 
 ## 配置与限制
 
@@ -210,8 +201,6 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 | 图片过大或像素超限 | 插件会自动压缩/缩放后再上传；超出压缩下限时会明确报字节或像素限制错误 |
 | 自定义 Credential 缺失 | 在 **设置 → 视觉工具** 填写 API Key，并确认 Credential 名称与配置一致 |
 | 产物无法预览 | 使用"打开文件"或结果中的工作区路径；预览 URL 只在 Web 路由可用时存在 |
-
-## FAQ
 
 **接入视觉模型会显著增加成本吗？**
 

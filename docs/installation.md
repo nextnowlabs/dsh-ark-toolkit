@@ -28,7 +28,7 @@ dsh plugin --profile headless add "$PWD"
 
 安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 视觉工具**。
 
-插件是**纯 TypeScript** 实现，不需要 Python、Chrome 或任何隔离运行环境：图片理解直接调用视觉模型服务，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
+插件是**原生 Node/TypeScript** 实现：图片理解直接调用视觉模型服务，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
 
 ---
 
