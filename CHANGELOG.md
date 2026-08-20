@@ -6,6 +6,7 @@ All notable user-facing changes to DSH Vision Toolkit are documented in this fil
 
 ### Changed
 
+- **DSH rc 版本跟进。** 开发/CI 依赖与 Profile 验收从 `0.1.0-rc.6` 升级到当前 `0.1.0-rc.8`（devDependencies、pnpm-workspace allowBuilds、CI 安装的 DSH CLI、`profile-install.e2e` 的 `REQUIRED_DSH_VERSION`），peer 依赖保持 `^0.1.0-rc.6` 灵活范围以兼容频繁更新的 DSH rc 版本。
 - **纯 TypeScript 精简版。** 移除 vendored Python 工具链（`agent-vision-toolkit` 适配层、托管/系统 Python 引导、Pillow/numpy/vtracer 运行时）与全部本地像素工具（`vision_ground`、`vision_detect`、`vision_crop`、`vision_trace`、`vision_pixel_diff`、`vision_long_screenshot_ocr`、`vision_extract_foreground`、`vision_dominant_colors`、`vision_html_screenshot`）。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪改用 Node 原生方案（sharp），不再需要 Python、Chrome 或任何隔离运行环境。仅保留 `vision_glance`（图片理解）、`vision_generate_image`（Seedream 文生图）、`vision_speak`（字节 TTS 语音合成）三个工具。
 - **配置精简。** 删除 `runtime` 配置项（`mode`/`agentVisionToolkitPath`/`python`）；健康检查仅保留 Credential、Artifact 目录、服务与模型四项；README 与安装指南同步更新，`docs/python-runtime.md` 删除。
 - **修复 TTS 语音合成报错。** `vision_speak` 改用新版控制台 API Key 鉴权（`X-Api-Key`/`X-Api-Resource-Id` 请求头 + `req_params` 请求体），修复服务器返回 `resource id empty`（code 45000000）的问题；SSE 音频事件解析同步改为读取 `data` 字段。
