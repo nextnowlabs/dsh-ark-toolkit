@@ -7,7 +7,7 @@ settings are managed by the plugin, so tool calls do not receive credentials.
 The visual execution schemas are mounted only for the current Agent after this
 Skill is loaded. A normal `skill` call activates them for the next model step.
 If this content arrived through a direct `/vision-skills` invocation and the
-visual tools are still absent, call `vision_toolkit_activate` once. Do not call
+visual tools are still absent, call `ark_toolkit_activate` once. Do not call
 that bootstrap when the visual tools are already present.
 
 Pick the tool by the question you are answering:
@@ -88,7 +88,7 @@ say so instead of guessing.
 
 File-producing results include an Artifact descriptor with path, filename,
 MIME type, kind, byte size, source tool, description, and preview intent. The
-path is inside the workspace's `.dsh-vision-toolkit/artifacts` directory. It
+path is inside the workspace's `.dsh-ark-toolkit/artifacts` directory. It
 can be opened or downloaded by the UI and passed to later tools.
 
 - `vision_generate_image` → image Artifact
