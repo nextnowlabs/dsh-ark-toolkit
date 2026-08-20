@@ -9,6 +9,7 @@ import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
 import ToolRegistry, { defineTool } from '@deepseek-ai/dsh-tools'
 import SkillService from '@deepseek-ai/dsh-skill'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
+import LocalSubprocessService from '@deepseek-ai/dsh-subprocess-local'
 import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import * as ArkToolkit from '../src/index.ts'
@@ -156,6 +157,7 @@ async function setupContext() {
   await ctx.plugin(AgentRegistry)
   await ctx.plugin(SkillService)
   await ctx.plugin(ToolSkill)
+  await ctx.plugin(LocalSubprocessService)
   await ctx.plugin(MemorySettings)
   ctx.provide('credentials', fakeCredentials())
   const fiber = await ctx.plugin(ArkToolkit, {
@@ -401,6 +403,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     await ctx.plugin(AgentRegistry)
     await ctx.plugin(SkillService)
     await ctx.plugin(ToolSkill)
+    await ctx.plugin(LocalSubprocessService)
     await ctx.plugin(MemorySettings)
     ctx.provide('credentials', fakeCredentials())
     await expect(ctx.plugin(ArkToolkit, {

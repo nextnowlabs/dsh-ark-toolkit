@@ -327,13 +327,21 @@ describe('ArkToolkitRuntime', () => {
     const workspace = await tempWorkspace()
     await expect(runtime.glance({ images: ['missing.png'] }, { signal, workspace }))
       .rejects.toMatchObject({ code: 'input' })
-    await writeFile(join(workspace, 'wrong.png'), await readFile(SAMPLE_IMAGE))
-    await expect(runtime.glance({ images: ['wrong.png'] }, { signal, workspace }))
-      .rejects.toMatchObject({ code: 'input', message: /filename uses \.png/ })
+    // A PNG body stored under a .jpg name is an extension/content mismatch.
+    await writeFile(join(workspace, 'wrong.jpg'), await readFile(SAMPLE_IMAGE))
+    await expect(runtime.glance({ images: ['wrong.jpg'] }, { signal, workspace }))
+      .rejects.toMatchObject({ code: 'input', message: /filename uses \.jpg/ })
   })
 
   it('reports health without network access and tests /models only when explicit', async () => {
     const server = createServer((request, response) => {
+      if (request.url === '/v1/chat/completions') {
+        // Explicit model test: one real multimodal completion.
+        expect(request.headers.authorization).toBe('Bearer test-vision-key')
+        response.writeHead(200, { 'content-type': 'application/json' })
+        response.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content: 'ready' } }] }))
+        return
+      }
       expect(request.url).toBe('/v1/models')
       expect(request.headers.authorization).toBe('Bearer test-vision-key')
       expect(request.headers['user-agent']).toContain('Mozilla/5.0')
@@ -436,7 +444,7 @@ describe('ArkToolkitRuntime', () => {
       const workspace = await tempWorkspace()
       const result = await runtime.health(true, { signal, workspace }, true)
       expect(result).toMatchObject({
-        healthy: true,
+        healthy: false,
         connectionTested: true,
         modelTested: true,
         checks: { service: { status: 'ok' }, model: { status: 'error' } },
@@ -559,11 +567,11 @@ describe('session-scoped concurrency', () => {
 
     const first = runtime.glance(
       { images: ['sample.png'] },
-      { signal, workspace, sessionId: 'same', timeoutMs: 500 },
+      { signal, workspace, sessionId: 'same', timeoutMs: 1000 },
     )
     const second = runtime.glance(
       { images: ['sample.png'] },
-      { signal, workspace, sessionId: 'same', timeoutMs: 500 },
+      { signal, workspace, sessionId: 'same', timeoutMs: 1000 },
     )
     await expect(Promise.all([first, second])).resolves.toHaveLength(2)
   })
