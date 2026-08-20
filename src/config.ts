@@ -66,7 +66,7 @@ export interface ArkToolkitConfig {
     /**
      * Volcengine Speech TTS (ByteDance) settings for the `vision_speak` tool.
      * This uses the standalone `openspeech.bytedance.com` TTS V3 service with
-     * its own appid + token credential, independent of the Ark vision key.
+     * its own API key credential and resource id, independent of the Ark vision key.
      */
     tts?: {
       /** Volcengine Speech TTS V3 endpoint. */

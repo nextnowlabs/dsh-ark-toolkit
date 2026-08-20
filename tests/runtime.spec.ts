@@ -214,7 +214,7 @@ describe('ArkToolkitRuntime', () => {
     const mp3 = Buffer.from('ID3\x03\x00\x00\x00\x00\x00\x00fake-mp3')
     const sse = [
       'event: message',
-      `data: ${JSON.stringify({ code: 0, message: 'success', format: 'mp3', audio: mp3.toString('base64') })}`,
+      `data: ${JSON.stringify({ code: 0, message: 'success', format: 'mp3', data: mp3.toString('base64') })}`,
       '',
       'event: done',
       'data: [DONE]',

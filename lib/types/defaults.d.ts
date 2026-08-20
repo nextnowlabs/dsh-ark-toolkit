@@ -17,8 +17,8 @@ export declare const SEEDREAM_MODEL_ALIASES: Record<string, string>;
 /**
  * Volcengine Speech TTS V3 (ByteDance) endpoint used by the speak tool. This
  * is the standalone speech service (`openspeech.bytedance.com`), not the Ark
- * OpenAI-compatible route: it authenticates with a speech appid + token pair,
- * matching the bundled `volcengine_speech.py` reference.
+ * OpenAI-compatible route: it authenticates with the new console API Key via
+ * the `X-Api-Key` / `X-Api-Resource-Id` headers.
  */
 export declare const VOLCENGINE_TTS_URL = "https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse";
 /** DSH Credential reference that holds the user's Volcengine TTS API key (token). */

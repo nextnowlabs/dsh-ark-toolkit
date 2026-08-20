@@ -980,28 +980,31 @@ export class ArkToolkitRuntime {
         )
       }
       operation.metrics.usedVisionService = true
-      const audio: Record<string, unknown> = {
-        voice_type: voiceType,
-        encoding,
-        rate,
-        speed_ratio: speed,
-        volume_ratio: volume,
-        pitch_ratio: pitch,
+      // 新版控制台 API Key 方案：V3 请求使用 req_params body + X-Api-Resource-Id 头
+      const audioParams: Record<string, unknown> = {
+        format: encoding,
+        // V3 使用整数倍率：-50 = 0.5x，0 = 1x，100 = 2x
+        speech_rate: Math.max(-50, Math.min(100, Math.round((speed - 1) * 100))),
+        loudness_rate: Math.max(-50, Math.min(100, Math.round((volume - 1) * 100))),
+      }
+      if (encoding === 'mp3' || encoding === 'ogg_opus') audioParams.bit_rate = 64000
+      const additions: Record<string, unknown> = {
+        post_process: { pitch },
+        disable_markdown_filter: true,
       }
       if (emotion !== undefined && emotion.length > 0) {
-        audio.emotion = emotion
-        audio.emotion_scale = emotionScale
+        additions.emotion = emotion
+        additions.emotion_scale = emotionScale
       }
-      if (language !== undefined && language.length > 0) audio.language = language
+      if (language !== undefined && language.length > 0) additions.explicit_language = language
       const body: Record<string, unknown> = {
-        app: { appid: tts.resource, token: 'placeholder', cluster: 'volcano_tts' },
         user: { uid: 'dsh-ark-toolkit-tts' },
-        audio,
-        request: {
-          reqid: randomUUID(),
+        req_params: {
           text,
-          text_type: 'plain',
-          operation: 'query',
+          speaker: voiceType,
+          sample_rate: rate,
+          audio_params: audioParams,
+          additions: JSON.stringify(additions),
         },
       }
       const started = Date.now()
@@ -1011,7 +1014,9 @@ export class ArkToolkitRuntime {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer; Bearer=${tts.resource},${resolved.value}`,
+            'X-Api-Resource-Id': tts.resource,
+            'X-Api-Key': resolved.value,
+            'X-Api-Request-Id': randomUUID(),
             'User-Agent': this.config.provider.userAgent,
           },
           body: JSON.stringify(body),
@@ -1058,9 +1063,9 @@ export class ArkToolkitRuntime {
             if (code !== 0 && code !== 20000000) {
               throw new ArkToolkitError('runtime', `speak: Volcengine TTS ${typeof event.message === 'string' ? event.message : `code ${code}`}`)
             }
-            if (typeof event.audio === 'string') {
+            if (typeof event.data === 'string' && event.data.length > 0) {
               sawAudio = true
-              chunks.push(Buffer.from(event.audio, 'base64'))
+              chunks.push(Buffer.from(event.data, 'base64'))
               let total = 0
               for (const chunk of chunks) total += chunk.length
               if (total > MAX_SPEECH_BYTES) throw new ArkToolkitError('capacity', 'speak: synthesized audio exceeds the 64 MiB limit')
