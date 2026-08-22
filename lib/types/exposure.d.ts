@@ -9,10 +9,11 @@ import { type ToolDefinition } from '@deepseek-ai/dsh-tools';
 import type { Context } from '@deepseek-ai/cordis';
 /** Small bootstrap tool retained only until the current Agent gains visual tools. */
 export declare const ARK_TOOLKIT_ACTIVATE = "ark_toolkit_activate";
-/** Skill name used by releases before the rename to vision-skills. */
-export declare const LEGACY_VISION_TOOLS_SKILL_NAME = "vision-tools";
-/** Unique pre-rename line in bundled instructions, kept for Session restore. */
-export declare const LEGACY_VISION_TOOLS_SKILL_MARKER = "If this content arrived through a direct `/vision-tools` invocation and the";
+/** Skill names used by releases before the rename to ark-skills, kept for Session restore. */
+export declare const LEGACY_ARK_SKILLS: ReadonlyArray<{
+    name: string;
+    marker: string;
+}>;
 /** Result returned by the one-shot activation transport. */
 export interface ArkToolkitActivationResult {
     activated: boolean;
@@ -24,7 +25,7 @@ export interface ArkToolkitActivationResult {
  * in an Agent scope after the Skill load is durable, just succeeded, or the
  * model explicitly invokes the bootstrap fallback.
  */
-export declare class VisionToolExposure {
+export declare class ArkToolExposure {
     private readonly ctx;
     private readonly createTools;
     readonly activationTool: ToolDefinition;

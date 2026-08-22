@@ -11,17 +11,17 @@ import type { ContentBlock } from '@deepseek-ai/dsh-llm'
 import type { Session } from '@deepseek-ai/dsh-session'
 import { defineTool, type ToolDefinition } from '@deepseek-ai/dsh-tools'
 import type { Context } from '@deepseek-ai/cordis'
-import { VISION_SKILLS_CONTENT, VISION_SKILLS_NAME } from './skill.ts'
-import { VISION_TOOL_NAMES } from './tools.ts'
+import { ARK_SKILLS_CONTENT, ARK_SKILLS_NAME } from './skill.ts'
+import { ARK_TOOL_NAMES } from './tools.ts'
 
 /** Small bootstrap tool retained only until the current Agent gains visual tools. */
 export const ARK_TOOLKIT_ACTIVATE = 'ark_toolkit_activate'
 
-/** Skill name used by releases before the rename to vision-skills. */
-export const LEGACY_VISION_TOOLS_SKILL_NAME = 'vision-tools'
-
-/** Unique pre-rename line in bundled instructions, kept for Session restore. */
-export const LEGACY_VISION_TOOLS_SKILL_MARKER = 'If this content arrived through a direct `/vision-tools` invocation and the'
+/** Skill names used by releases before the rename to ark-skills, kept for Session restore. */
+export const LEGACY_ARK_SKILLS: ReadonlyArray<{ name: string; marker: string }> = [
+  { name: 'vision-tools', marker: 'If this content arrived through a direct `/vision-tools` invocation and the' },
+  { name: 'vision-skills', marker: 'If this content arrived through a direct `/vision-skills` invocation and the' },
+]
 
 interface AgentExposure {
   active: boolean
@@ -45,20 +45,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function isBundledSkillName(name: unknown): boolean {
-  return name === VISION_SKILLS_NAME || name === LEGACY_VISION_TOOLS_SKILL_NAME
+  return name === ARK_SKILLS_NAME || LEGACY_ARK_SKILLS.some(entry => entry.name === name)
 }
 
 function isBundledSkillContent(text: string): boolean {
-  return text.includes(VISION_SKILLS_CONTENT) || text.includes(LEGACY_VISION_TOOLS_SKILL_MARKER)
+  return text.includes(ARK_SKILLS_CONTENT) || LEGACY_ARK_SKILLS.some(entry => text.includes(entry.marker))
 }
 
-function isVisionSkillArguments(value: unknown): boolean {
+function isArkSkillArguments(value: unknown): boolean {
   return isRecord(value) && isBundledSkillName(value.name)
 }
 
 function nativeSkillCall(raw: string): boolean {
   try {
-    return isVisionSkillArguments(JSON.parse(raw))
+    return isArkSkillArguments(JSON.parse(raw))
   } catch {
     return false
   }
@@ -79,7 +79,7 @@ function isBundledSkillResult(value: unknown): boolean {
 }
 
 /** Whether durable history proves that this Session loaded the bundled Skill. */
-function hasLoadedVisionSkill(session: Session): boolean {
+function hasLoadedArkSkill(session: Session): boolean {
   const nativeCalls = new Set<string>()
   for (const event of session.events) {
     if (event.type === 'user/message') {
@@ -106,7 +106,7 @@ function hasLoadedVisionSkill(session: Session): boolean {
     if (event.type === 'tool/code-dispatch'
       && event.data.name === 'skill'
       && event.data.isError === false
-      && isVisionSkillArguments(event.data.arguments)
+      && isArkSkillArguments(event.data.arguments)
       && containsBundledSkillContent(event.data.content)) return true
   }
   return false
@@ -118,7 +118,7 @@ function hasLoadedVisionSkill(session: Session): boolean {
  * in an Agent scope after the Skill load is durable, just succeeded, or the
  * model explicitly invokes the bootstrap fallback.
  */
-export class VisionToolExposure {
+export class ArkToolExposure {
   readonly activationTool: ToolDefinition
   private readonly states = new Map<Agent, AgentExposure>()
   private installed = false
@@ -133,8 +133,8 @@ export class VisionToolExposure {
   ) {
     this.activationTool = defineTool({
       name: ARK_TOOLKIT_ACTIVATE,
-      description: `Activate the independent Ark Toolkit execution tools for this Agent: ${Object.values(VISION_TOOL_NAMES).join(', ')}. `
-        + `Loading the ${VISION_SKILLS_NAME} Skill normally activates them automatically; call this once when the visual tools are still absent, then use them for image understanding, OCR, UI detection, and related tasks. `
+      description: `Activate the independent Ark Toolkit execution tools for this Agent: ${Object.values(ARK_TOOL_NAMES).join(', ')}. `
+        + `Loading the ${ARK_SKILLS_NAME} Skill normally activates them automatically; call this once when the visual tools are still absent, then use them for image understanding, OCR, UI detection, and related tasks. `
         + 'It is safe to call before the Skill is loaded, and this activation tool disappears after success.',
       parameters: {},
       output: {
@@ -154,7 +154,7 @@ export class VisionToolExposure {
         }
         return Promise.resolve(this.activate(exec.agent))
       },
-      presentCall: () => ({ card: 'generic', title: 'Activate vision tools', kind: 'execute' }),
+      presentCall: () => ({ card: 'generic', title: 'Activate Ark Toolkit tools', kind: 'execute' }),
     })
   }
 
@@ -172,7 +172,7 @@ export class VisionToolExposure {
         if (result.isError === false
           && exec.name === 'skill'
           && exec.agent !== undefined
-          && isVisionSkillArguments(exec.arguments)
+          && isArkSkillArguments(exec.arguments)
           && isBundledSkillResult(result.value)) {
           this.activate(exec.agent)
         }
@@ -198,7 +198,7 @@ export class VisionToolExposure {
   private attach(agent: Agent): void {
     if (this.states.has(agent)) return
     this.states.set(agent, { active: false, toolDisposers: [], toolNames: [] })
-    if (hasLoadedVisionSkill(agent.session)) this.activate(agent)
+    if (hasLoadedArkSkill(agent.session)) this.activate(agent)
   }
 
   private activate(agent: Agent): ArkToolkitActivationResult {

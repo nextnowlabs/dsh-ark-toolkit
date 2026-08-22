@@ -35,8 +35,8 @@ function explicitMenuHtml(): string {
         <button role="menuitemradio" title="DeepSeek-V4-Flash"><span>DeepSeek-V4-Flash</span></button>
       </section>
       <section role="group" aria-labelledby=":r2:-ark-toolkit-deepseek-official">
-        <div id=":r2:-ark-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek (Vision Toolkit)</div>
-        <button role="menuitemradio" title="DeepSeek-V4-Flash (Vision Toolkit)"><span>DeepSeek-V4-Flash (Vision Toolkit)</span></button>
+        <div id=":r2:-ark-toolkit-deepseek-official" class="aTjPya_groupTitle">DeepSeek (Ark Toolkit)</div>
+        <button role="menuitemradio" title="DeepSeek-V4-Flash (Ark Toolkit)"><span>DeepSeek-V4-Flash (Ark Toolkit)</span></button>
       </section>
     </div>
   `
@@ -93,11 +93,11 @@ describe('tidyModelSelector', () => {
     // the variant twins keep the same DOM nodes but gain explicit suffixes.
     const variantGroup = document.querySelector('[aria-labelledby=":r2:-ark-toolkit-deepseek-official"]') as HTMLElement
     const variantTitle = variantGroup.querySelector(':scope > div') as HTMLElement
-    variantTitle.textContent = 'DeepSeek (Vision Toolkit)'
+    variantTitle.textContent = 'DeepSeek (Ark Toolkit)'
     for (const button of variantGroup.querySelectorAll<HTMLElement>('[role="menuitemradio"]')) {
       const span = button.querySelector('span')
-      if (span !== null) span.textContent = `${span.textContent}(Vision Toolkit)`
-      button.setAttribute('title', `${button.getAttribute('title')}(Vision Toolkit)`)
+      if (span !== null) span.textContent = `${span.textContent}(Ark Toolkit)`
+      button.setAttribute('title', `${button.getAttribute('title')}(Ark Toolkit)`)
     }
     tidyModelSelector()
 
@@ -136,7 +136,7 @@ describe('installModelVariantsHider', () => {
 
     const dispose = installModelVariantsHider()
     expect(buttons('DeepSeek-V4-Flash')[0]!.style.display).toBe('')
-    expect(buttons('DeepSeek-V4-Flash (Vision Toolkit)')[0]!.style.display).toBe('')
+    expect(buttons('DeepSeek-V4-Flash (Ark Toolkit)')[0]!.style.display).toBe('')
     dispose()
   })
 

@@ -64,7 +64,7 @@ export interface ArkToolkitConfig {
     /** Outbound User-Agent for provider requests and connection tests. */
     userAgent?: string
     /**
-     * Volcengine Speech TTS (ByteDance) settings for the `vision_speak` tool.
+     * Volcengine Speech TTS (ByteDance) settings for the `ark_speak` tool.
      * This uses the standalone `openspeech.bytedance.com` TTS V3 service with
      * its own API key credential and resource id, independent of the Ark vision key.
      */

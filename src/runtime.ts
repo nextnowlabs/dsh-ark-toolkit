@@ -10,13 +10,12 @@
 import { createHash, randomUUID } from 'node:crypto'
 import { lstat, mkdir, readFile, readdir, realpath, rename, rm, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ResolvedCredential } from '@deepseek-ai/dsh-credentials'
 import { describeArtifact, type ArtifactDescriptor } from './artifacts.ts'
 import { resolveSeedreamModel, VOLCENGINE_TTS_VOICE, type ResolvedArkToolkitConfig } from './config.ts'
 import { ArkToolkitError } from './errors.ts'
-import { compressImage, cropRegionToDataUrl, imageToDataUrl, probeImage } from './image-codec.ts'
+import { compressImage, createTestImageDataUrl, cropRegionToDataUrl, imageToDataUrl, probeImage } from './image-codec.ts'
 import {
   commitStagedOutput,
   createPathPolicy,
@@ -29,7 +28,6 @@ import {
 import { PLUGIN_VERSION } from './version.ts'
 import { describeImages, buildGlancePrompt, type VisionServiceOptions } from './vision-api.ts'
 
-const VISION_MODEL_TEST_IMAGE = fileURLToPath(new URL('../assets/vision-model-test.png', import.meta.url))
 const VISION_MODEL_TEST_PROMPT = 'This is an explicit service readiness test. Reply with one short sentence confirming that you received the image.'
 
 /** Bump when the compression ladder changes so stale cache entries are ignored. */
@@ -762,7 +760,7 @@ export class ArkToolkitRuntime {
 
   /** glance: describe, targeted QA, OCR, or multi-image comparison through the vision model. */
   async glance(request: GlanceRequest, options: ToolCallOptions): Promise<GlanceResult> {
-    return this.runOperation('vision_glance', options, async (operation) => {
+    return this.runOperation('ark_glance', options, async (operation) => {
       if (request.images.length === 0) throw new ArkToolkitError('input', 'glance requires at least one image')
       if (request.query !== undefined && request.ocr === true) {
         throw new ArkToolkitError('input', 'glance: query and ocr are mutually exclusive')
@@ -831,7 +829,7 @@ export class ArkToolkitRuntime {
 
   /** generateImage: ByteDance Seedream text-to-image through Volcengine Ark. */
   async generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult> {
-    return this.runOperation('vision_generate_image', options, async (operation) => {
+    return this.runOperation('ark_generate_image', options, async (operation) => {
       const prompt = request.prompt.trim()
       if (prompt.length === 0) throw new ArkToolkitError('input', 'generate_image: prompt must not be empty')
       const model = resolveSeedreamModel(request.model ?? '')
@@ -876,7 +874,7 @@ export class ArkToolkitRuntime {
           signal: operation.signal,
         })
       } catch (error) {
-        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_generate_image: cancelled')
+        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'ark_generate_image: cancelled')
         throw new ArkToolkitError('runtime', `generate_image: Ark request failed: ${error instanceof Error ? error.message : String(error)}`)
       } finally {
         operation.metrics.upstreamMs += Date.now() - started
@@ -925,7 +923,7 @@ export class ArkToolkitRuntime {
             mimeType: probed.format === 'jpeg' ? 'image/jpeg' : 'image/png',
             kind: 'image',
             description: index === 0 ? 'Seedream generated image' : `Seedream generated image ${index + 1}`,
-            sourceTool: 'vision_generate_image',
+            sourceTool: 'ark_generate_image',
             previewIntent: 'image',
           })
           results.push({ artifact, width: probed.width, height: probed.height, format: probed.format })
@@ -939,7 +937,7 @@ export class ArkToolkitRuntime {
 
   /** speak: ByteDance TTS V3 speech synthesis through Volcengine Speech. */
   async speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult> {
-    return this.runOperation('vision_speak', options, async (operation) => {
+    return this.runOperation('ark_speak', options, async (operation) => {
       const text = request.text.trim()
       if (text.length === 0) throw new ArkToolkitError('input', 'speak: text must not be empty')
       if (text.length > 2000) throw new ArkToolkitError('input', 'speak: text must not exceed 2000 characters')
@@ -1023,7 +1021,7 @@ export class ArkToolkitRuntime {
           signal: operation.signal,
         })
       } catch (error) {
-        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_speak: cancelled')
+        if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'ark_speak: cancelled')
         throw new ArkToolkitError('runtime', `speak: Volcengine TTS request failed: ${error instanceof Error ? error.message : String(error)}`)
       } finally {
         operation.metrics.upstreamMs += Date.now() - started
@@ -1040,7 +1038,7 @@ export class ArkToolkitRuntime {
       let buffer = ''
       try {
         for (;;) {
-          if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'vision_speak: cancelled')
+          if (operation.signal.aborted) throw new ArkToolkitError('cancelled', 'ark_speak: cancelled')
           const { done, value } = await reader.read()
           if (done) break
           buffer += decoder.decode(value, { stream: true })
@@ -1093,7 +1091,7 @@ export class ArkToolkitRuntime {
           mimeType: SPEAK_MIME_TYPES[format] ?? 'application/octet-stream',
           kind: 'audio',
           description: 'ByteDance TTS speech',
-          sourceTool: 'vision_speak',
+          sourceTool: 'ark_speak',
           previewIntent: 'download',
         })
         return { text, voiceType, format, artifact }
@@ -1182,7 +1180,7 @@ export class ArkToolkitRuntime {
         } else {
           try {
             const service = await this.serviceOptions(operation.signal)
-            const dataUrl = await imageToDataUrl(VISION_MODEL_TEST_IMAGE)
+            const dataUrl = await createTestImageDataUrl()
             const answer = await describeImages([dataUrl], VISION_MODEL_TEST_PROMPT, service)
             if (answer.text.trim().length === 0) {
               throw new ArkToolkitError('output', 'glance: vision API returned an empty description')

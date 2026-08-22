@@ -1,4 +1,4 @@
-# Contributing to DSH Vision Toolkit
+# Contributing to DSH Ark Toolkit
 
 Focused fixes, tests, DSH integration improvements, visual workflows, and documentation changes are welcome. By participating, you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
@@ -11,15 +11,15 @@ Focused fixes, tests, DSH integration improvements, visual workflows, and docume
 
 ## Architecture and scope
 
-DSH Vision Toolkit is an out-of-tree DeepSeek Harness Profile Bundle. Contributions must preserve these responsibilities:
+DSH Ark Toolkit is an out-of-tree DeepSeek Harness Profile Bundle. Contributions must preserve these responsibilities:
 
 - Image understanding is delegated to the configured vision model service over OpenAI-compatible `/chat/completions` (or Anthropic Messages); local image probing, cropping, and compression use the Node-native `sharp` pipeline. The DSH package owns validation, lifecycle, structured conversion, Credentials, Artifacts, Settings, and Web presentation.
-- The three execution tools (`vision_glance`, `vision_generate_image`, `vision_speak`) remain independent. Runtime readiness does not make every schema globally visible; the `vision-skills` Skill activates them for one Agent.
+- The three execution tools (`ark_glance`, `ark_generate_image`, `ark_speak`) remain independent. Runtime readiness does not make every schema globally visible; the `ark-skills` Skill activates them for one Agent.
 - Health, connection testing, and version inspection remain administrative Settings actions rather than model tools.
 - Model-visible output stays text, numbers, JSON, and file descriptors that can be reconstructed from the Session log.
 - Credentials, image base64, authorization headers, and unbounded upstream responses never enter model output or logs.
 - Inputs and outputs remain fenced to the session workspace or explicit allowed directories, including realpath and symbolic-link checks.
-- P2 service stabilization requires a real independent consumer. Do not publish `ctx.visionToolkit` or a provider registry speculatively.
+- P2 service stabilization requires a real independent consumer. Do not publish `ctx.arkToolkit` or a provider registry speculatively.
 
 The plugin is pure TypeScript: it must never depend on a Python runtime, vendored upstream toolchain, or a browser. Keep the `sharp` dependency pinned to the exact prebuilt-binary release.
 
@@ -32,7 +32,7 @@ deepseek-harness/
 ├── packages/
 ├── vendor/
 ├── tsconfig.base.json
-└── dsh-vision-toolkit/   # this repository
+└── dsh-ark-toolkit/   # this repository
 ```
 
 Use the Node.js range declared in `package.json` and the monorepo's `pnpm` installation. Never commit credentials, `.env` values, machine-local dependency paths, managed caches, or generated profiles.
@@ -61,7 +61,6 @@ Use focused tests while iterating, but run the complete package suite before req
 - Keep `README.md` current in commands, links, images, and claims; this repository keeps Chinese documentation only.
 - Update JSDoc, troubleshooting, and requirements traceability with every user-visible behavior change.
 - Use repository-owned screenshots or deterministic outputs. Never fabricate a product state or include secrets, private conversations, or unrelated user data.
-- Refresh `assets/hero-v2.png` and `assets/social-preview.png` only when the public positioning or visible product state changes, then inspect the actual pixels.
 - Update `CHANGELOG.md` under **Unreleased** for notable user-facing changes.
 
 ## Pull requests

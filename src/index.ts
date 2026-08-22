@@ -2,7 +2,7 @@
  * @nextnowlabs/dsh-ark-toolkit — DSH Ark Toolkit profile bundle.
  *
  * Plugin lifecycle follows the documented readiness chain: publish the
- * vision-skills Skill and its one-shot bootstrap, then mount the execution
+ * ark-skills Skill and its one-shot bootstrap, then mount the execution
  * tools only in Agents that load that Skill or invoke the bootstrap. Any
  * failure leaves no model capability behind, and disposal unregisters every
  * global and Agent-scoped contribution the plugin mounted.
@@ -20,11 +20,11 @@ import {
   resolveConfig,
   type ArkToolkitConfig,
 } from './config.ts'
-import { VisionToolExposure } from './exposure.ts'
+import { ArkToolExposure } from './exposure.ts'
 import { createPasteTakeoverResolver, installImageInputVariants } from './image-input-variants.ts'
 import { ArkToolkitRuntimeManager } from './runtime-manager.ts'
-import { VISION_SKILLS_SKILL } from './skill.ts'
-import { createVisionTools } from './tools.ts'
+import { ARK_SKILLS_SKILL } from './skill.ts'
+import { createArkTools } from './tools.ts'
 import { PLUGIN_VERSION } from './version.ts'
 import { installArkToolkitWeb, ArkToolkitWebBackend } from './web.ts'
 import { MAX_PASTE_IMAGE_BYTES, PastedImageBackend } from './paste-images.ts'
@@ -54,7 +54,7 @@ export async function apply(ctx: Context, config: ArkToolkitConfig = {}): Promis
 
   const ensureOperational = (): void => {
     if (!manager.ready || operationalDisposers !== undefined) return
-    const exposure = new VisionToolExposure(ctx, () => createVisionTools(
+    const exposure = new ArkToolExposure(ctx, () => createArkTools(
       () => manager.current(),
       value => artifacts.presentationMeta(value),
       lifecycle.signal,
@@ -64,7 +64,7 @@ export async function apply(ctx: Context, config: ArkToolkitConfig = {}): Promis
     let skill: (() => void) | undefined
     try {
       activationTool = ctx.tools.register(exposure.activationTool)
-      skill = ctx.skills.register(VISION_SKILLS_SKILL)
+      skill = ctx.skills.register(ARK_SKILLS_SKILL)
       exposureDisposer = exposure.install()
       operationalDisposers = { activationTool, exposure: exposureDisposer, skill }
       ctx.logger.info('dsh-ark-toolkit %s ready (pure-node runtime)', PLUGIN_VERSION)
@@ -82,7 +82,7 @@ export async function apply(ctx: Context, config: ArkToolkitConfig = {}): Promis
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     ctx.logger.error(
-      'dsh-ark-toolkit %s: runtime not ready; the vision-skills skill, activation bootstrap, and Agent-scoped visual tools are NOT registered. Settings remain available for repair. %s',
+      'dsh-ark-toolkit %s: runtime not ready; the ark-skills skill, activation bootstrap, and Agent-scoped visual tools are NOT registered. Settings remain available for repair. %s',
       PLUGIN_VERSION,
       message,
     )

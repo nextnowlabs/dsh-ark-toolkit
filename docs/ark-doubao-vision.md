@@ -3,7 +3,7 @@
 DSH Ark Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一视觉后端：
 
 - **图片理解**（看图问答、OCR、多图对比）：OpenAI 兼容 `/chat/completions`，模型 `doubao-seed-2-0-lite-260215`（豆包 Seed Vision）。
-- **文生图**（`vision_generate_image` 工具）：`/images/generations`，模型 `doubao-seedream-5-0-260128`（Seedream），也支持别名 `seedream-5.0-pro`、`seedream-4.5`、`seedream-4.0`。
+- **文生图**（`ark_generate_image` 工具）：`/images/generations`，模型 `doubao-seedream-5-0-260128`（Seedream），也支持别名 `seedream-5.0-pro`、`seedream-4.5`、`seedream-4.0`。
 
 本教程说明如何申请火山方舟 API Key、在 Ark Toolkit 中配置，并给出可直接运行的 cURL 示例。
 
@@ -28,7 +28,7 @@ DSH Ark Toolkit 默认使用字节火山方舟（Volcengine Ark）作为唯一�
 
 在 **API 密钥** 里粘贴刚才创建的 Key，点击 **保存设置**。插件会把 Key 保存为 DSH Credential（默认名 `ARK_API_KEY`），随后可以运行 **测试视觉模型** 确认连接。
 
-Seedream 文生图无需额外配置：`vision_generate_image` 工具会使用同一个 Base URL 和同一个 `ARK_API_KEY` 凭据，默认模型为 `doubao-seedream-5-0-260128`。
+Seedream 文生图无需额外配置：`ark_generate_image` 工具会使用同一个 Base URL 和同一个 `ARK_API_KEY` 凭据，默认模型为 `doubao-seedream-5-0-260128`。
 
 也可以在 Profile patch 中配置：
 

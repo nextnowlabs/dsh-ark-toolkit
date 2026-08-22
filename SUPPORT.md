@@ -18,6 +18,6 @@ Open the repository's [issue chooser](https://github.com/nextnowlabs/dsh-ark-too
 
 ## Information to include
 
-Provide the DSH snapshot and profile, plugin commit or release, operating system, Node.js version, affected `vision_*` tool or Settings action, minimal reproduction steps, expected behavior, and sanitized output. For visual defects, attach the smallest non-private input and generated Artifact that reproduce the result.
+Provide the DSH snapshot and profile, plugin commit or release, operating system, Node.js version, affected `ark_*` tool or Settings action, minimal reproduction steps, expected behavior, and sanitized output. For visual defects, attach the smallest non-private input and generated Artifact that reproduce the result.
 
 Remove API keys, authorization headers, complete prompts or conversations, private image content, and unrelated workspace paths. A support issue is public unless GitHub explicitly marks the channel private.

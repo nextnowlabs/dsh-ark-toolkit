@@ -3,6 +3,7 @@ node_modules/
 *.tgz
 .DS_Store
 .dsh-vision-toolkit/
+.dsh-ark-toolkit/
 .venv/
 __pycache__/
 *.pyc

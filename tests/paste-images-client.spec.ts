@@ -622,7 +622,7 @@ describe('clipboard image client', () => {
     const bench = fakeClient('')
     const policy = vi.fn(async (url: string) => {
       const label = new URL(String(url), 'http://localhost').searchParams.get('model') ?? ''
-      return policyResponse(!label.includes('(Vision Toolkit)'))
+      return policyResponse(!label.includes('(Ark Toolkit)'))
     })
     vi.stubGlobal('fetch', policy)
     const selector = document.createElement('button')
@@ -638,14 +638,14 @@ describe('clipboard image client', () => {
     expect(nativePaste).not.toHaveBeenCalled()
     // Switching to the image-input variant: the host vetoes the takeover and
     // the paste goes native — no reference, no prevented default.
-    selector.setAttribute('aria-label', 'Select model, current DeepSeek V4 Flash (Vision Toolkit)')
+    selector.setAttribute('aria-label', 'Select model, current DeepSeek V4 Flash (Ark Toolkit)')
     document.dispatchEvent(new Event('focusin'))
     // The switch is asked at least once under the new label (the takeover's
     // focus() may prefetch once more; only the ask under the variant label
     // matters).
     await vi.waitFor(() => {
       expect(policy.mock.calls.some(([url]) =>
-        new URL(String(url), 'http://localhost').searchParams.get('model')?.includes('(Vision Toolkit)') === true)).toBe(true)
+        new URL(String(url), 'http://localhost').searchParams.get('model')?.includes('(Ark Toolkit)') === true)).toBe(true)
     })
     // Let the veto response land before pasting, so the native path is the
     // host's verdict, not the unconfirmed default.
@@ -677,7 +677,7 @@ describe('clipboard image client', () => {
     const policy = vi.fn(async () => policyResponse(false, {
       provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
-      label: 'DeepSeek V4 Flash (Vision Toolkit)',
+      label: 'DeepSeek V4 Flash (Ark Toolkit)',
     }))
     vi.stubGlobal('fetch', policy)
     // A clipboard payload the synthetic replay can carry (jsdom constructs
@@ -759,7 +759,7 @@ describe('clipboard image client', () => {
       return policyResponse(false, {
         provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
-        label: 'DeepSeek V4 Flash (Vision Toolkit)',
+        label: 'DeepSeek V4 Flash (Ark Toolkit)',
         reasoningEffort: 'high',
       })
     })
@@ -791,7 +791,7 @@ describe('clipboard image client', () => {
     const policy = vi.fn(async () => policyResponse(false, {
       provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
-      label: 'DeepSeek V4 Flash (Vision Toolkit)',
+      label: 'DeepSeek V4 Flash (Ark Toolkit)',
     }))
     vi.stubGlobal('fetch', policy)
     document.dispatchEvent(new Event('focusin'))
@@ -816,7 +816,7 @@ describe('clipboard image client', () => {
     const policy = vi.fn(async () => policyResponse(false, {
       provider: 'ark-toolkit-deepseek-official',
       model: 'deepseek-v4-flash',
-      label: 'DeepSeek V4 Flash (Vision Toolkit)',
+      label: 'DeepSeek V4 Flash (Ark Toolkit)',
     }))
     vi.stubGlobal('fetch', policy)
     vi.stubGlobal('DataTransfer', class { constructor() { throw new Error('no clipboard construction') } })

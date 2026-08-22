@@ -38,7 +38,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 ```
 
 - 图片理解（看图问答、OCR、多图对比）走火山方舟 OpenAI 兼容的 `/chat/completions`，使用豆包 Seed Vision；
-- `vision_generate_image` 工具走 `/images/generations`，使用字节 Seedream；
+- `ark_generate_image` 工具走 `/images/generations`，使用字节 Seedream；
 - Seedream 别名：`seedream-5.0-pro`、`seedream-5.0-lite`（默认）、`seedream-4.5`、`seedream-4.0`。
 
 ### 2.1 获取火山方舟 API Key
@@ -57,9 +57,9 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ---
 
-## 3. 配置 TTS 语音合成（vision_speak）
+## 3. 配置 TTS 语音合成（ark_speak）
 
-`vision_speak` 工具走火山引擎语音技术的 TTS V3 接口（`openspeech.bytedance.com` 单向 SSE 流式），默认使用豆包语音合成模型 2.0（资源 ID `seed-tts-2.0`）。
+`ark_speak` 工具走火山引擎语音技术的 TTS V3 接口（`openspeech.bytedance.com` 单向 SSE 流式），默认使用豆包语音合成模型 2.0（资源 ID `seed-tts-2.0`）。
 
 | 字段 | 默认值 |
 | --- | --- |
@@ -74,7 +74,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 2. 在应用详情里找到 **App ID**（资源 ID，默认已是 `seed-tts-2.0`）和 **Token**；
 3. 把 Token 保存为 DSH Credential `VOLCENGINE_TTS_KEY`。
 
-调用 `vision_speak` 时还可以通过参数临时指定音色、格式（`mp3`/`ogg_opus`/`pcm`/`wav`）、采样率、语速、音量、音调、情感（`happy`/`sad`/`neutral`）和语言（`zh-cn`/`en`/`ja`）。完整音色列表见火山引擎官方《在线音色列表》（如 Vivi 2.0 `zh_female_vv_uranus_bigtts`、小何 2.0 等）。
+调用 `ark_speak` 时还可以通过参数临时指定音色、格式（`mp3`/`ogg_opus`/`pcm`/`wav`）、采样率、语速、音量、音调、情感（`happy`/`sad`/`neutral`）和语言（`zh-cn`/`en`/`ja`）。完整音色列表见火山引擎官方《在线音色列表》（如 Vivi 2.0 `zh_female_vv_uranus_bigtts`、小何 2.0 等）。
 
 ---
 
@@ -92,7 +92,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
       model: doubao-seed-2-0-lite-260215
       protocol: openai            # openai | anthropic
       # userAgent: 可覆盖出站 User-Agent
-      # —— TTS 语音合成（vision_speak）——
+      # —— TTS 语音合成（ark_speak）——
       tts:
         baseUrl: https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse
         credential: VOLCENGINE_TTS_KEY
@@ -144,7 +144,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 
 - **Web：** 打开 **设置 → 火山视觉工具**，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
 - **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务与模型检查为 `ok`；
-- **直接调用：** 在会话里粘贴一张图片并提问，或调用 `vision_generate_image` / `vision_speak` 验证生成能力。
+- **直接调用：** 在会话里粘贴一张图片并提问，或调用 `ark_generate_image` / `ark_speak` 验证生成能力。
 
 ---
 

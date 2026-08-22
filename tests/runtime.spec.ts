@@ -184,7 +184,7 @@ describe('ArkToolkitRuntime', () => {
       width: 256,
       height: 256,
       format: 'png',
-      artifact: { filename: 'cat.png', kind: 'image', sourceTool: 'vision_generate_image' },
+      artifact: { filename: 'cat.png', kind: 'image', sourceTool: 'ark_generate_image' },
     })
     const written = await readFile(result.images[0]?.artifact.path as string)
     expect(written.equals(png)).toBe(true)
@@ -236,7 +236,7 @@ describe('ArkToolkitRuntime', () => {
         filename: 'hi.mp3',
         kind: 'audio',
         mimeType: 'audio/mpeg',
-        sourceTool: 'vision_speak',
+        sourceTool: 'ark_speak',
         previewIntent: 'download',
       },
     })

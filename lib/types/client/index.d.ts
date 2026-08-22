@@ -4,10 +4,10 @@
  */
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
 declare const en: {
-    readonly nav: "Volcengine Vision";
+    readonly nav: "Volcengine Ark";
     readonly settingsTitle: "Volcengine Ark Toolkit";
     readonly settingsIntro: "Configure the model and API key used by online vision features.";
-    readonly externalNotice: "Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
+    readonly externalNotice: "Image understanding (ark_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
     readonly provider: "Vision service";
     readonly providerHint: "Provide the model and API key used by online vision features.";
     readonly arkTutorial: "Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →";
@@ -24,7 +24,7 @@ declare const en: {
     readonly model: "Model";
     readonly userAgent: "User-Agent";
     readonly tts: "Speech (TTS)";
-    readonly ttsHint: "Separate ByteDance Volcengine Speech service used by the vision_speak tool, with its own app token independent of the Ark vision key.";
+    readonly ttsHint: "Separate ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark vision key.";
     readonly ttsBaseUrl: "TTS base URL";
     readonly ttsCredential: "TTS credential name";
     readonly ttsResource: "TTS resource / App ID";
@@ -137,7 +137,7 @@ declare const en: {
     readonly longOcrTitle: "Long OCR";
     readonly extractForegroundTitle: "Extract Foreground";
     readonly htmlScreenshotTitle: "HTML Screenshot";
-    readonly artifactTitle: "Vision Artifact";
+    readonly artifactTitle: "Ark Artifact";
     readonly generateImageTitle: "Generated image";
     readonly speakTitle: "Synthesized speech";
     readonly dominantColorsTitle: "Dominant Colors";
@@ -335,7 +335,7 @@ interface SettingsSnapshot {
     artifactRouteAvailable: boolean;
 }
 /** Decode canonical presentation metadata with a JSON-text fallback. */
-export declare function decodeVisionResult(block: ToolCallBlock): Record<string, unknown> | undefined;
+export declare function decodeArkResult(block: ToolCallBlock): Record<string, unknown> | undefined;
 interface SettingsState {
     status: 'idle' | 'loading' | 'ready' | 'error';
     snapshot?: SettingsSnapshot | undefined;
@@ -347,7 +347,7 @@ interface SettingsState {
     error?: string | undefined;
 }
 /** Small external store shared by the Settings route and pushed invalidations. */
-export declare class VisionSettingsController {
+export declare class ArkSettingsController {
     private state;
     private listeners;
     private generation;
@@ -364,7 +364,7 @@ export declare class VisionSettingsController {
 }
 /** Required client services. The pasted-image codec attaches to either trigger-service generation after load. */
 export declare const inject: string[];
-/** Register dedicated Tool views and the Vision Settings section. */
+/** Register dedicated Tool views and the Ark Toolkit Settings section. */
 export declare function apply(ctx: ClientContext): void;
 export {};
 //# sourceMappingURL=index.d.ts.map

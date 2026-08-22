@@ -3,11 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DSH Vision Toolkit — image understanding for DeepSeek Harness</title>
+    <title>DSH Ark Toolkit — image understanding for DeepSeek Harness</title>
     <meta name="description" content="A pure-TypeScript DeepSeek Harness plugin: image Q&amp;A, OCR, and multi-image comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS." />
-    <meta property="og:title" content="DSH Vision Toolkit — image understanding for DeepSeek Harness" />
+    <meta property="og:title" content="DSH Ark Toolkit — image understanding for DeepSeek Harness" />
     <meta property="og:description" content="Give text-only DSH agents eyes: image understanding, Seedream image generation, and ByteDance TTS — pure TypeScript." />
-    <meta property="og:image" content="https://github.com/nextnowlabs/dsh-ark-toolkit/raw/main/assets/social-preview.png" />
     <meta name="theme-color" content="#5b4cf0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%235b4cf0'/%3E%3Cpath d='M13 46 25 34l11-16M25 34h20M45 34l7 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
     <style>
@@ -102,7 +101,7 @@
 
       .hero {
         display: grid;
-        grid-template-columns: 0.92fr 1.08fr;
+        grid-template-columns: 1fr;
         align-items: center;
         gap: 54px;
         padding: 68px 0 88px;
@@ -185,28 +184,6 @@
         background: var(--violet-dark);
       }
 
-      .hero-card {
-        position: relative;
-      }
-
-      .hero-card::before {
-        position: absolute;
-        inset: 12% -5% -5% 10%;
-        z-index: -1;
-        border-radius: 50%;
-        background: rgba(91, 76, 240, 0.22);
-        filter: blur(52px);
-        content: "";
-      }
-
-      .hero-card img {
-        display: block;
-        width: 100%;
-        border: 1px solid rgba(194, 199, 218, 0.86);
-        border-radius: 24px;
-        box-shadow: var(--shadow);
-      }
-
       section {
         padding: 78px 0;
       }
@@ -247,7 +224,7 @@
 
       .use-case {
         display: grid;
-        grid-template-columns: 0.62fr 1.38fr;
+        grid-template-columns: 1fr;
         align-items: center;
         gap: 28px;
         padding: 26px;
@@ -285,22 +262,6 @@
         font-size: 14px;
         font-weight: 800;
         text-decoration: none;
-      }
-
-      .use-case-images {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 12px;
-      }
-
-      .use-case-images img {
-        display: block;
-        width: 100%;
-        aspect-ratio: 16 / 10;
-        object-fit: contain;
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        background: #f7f8fc;
       }
 
       .metrics {
@@ -505,8 +466,7 @@
 
         .metrics,
         .proof-grid,
-        .features,
-        .use-case-images {
+        .features {
           grid-template-columns: 1fr;
         }
 
@@ -523,7 +483,7 @@
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none"><path d="M5 17.5 9.5 13M9.5 13l4-6M9.5 13h7M16.5 13l2.5 4.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="5" cy="17.5" r="2" fill="currentColor"/><circle cx="9.5" cy="13" r="2" fill="currentColor"/><circle cx="13.5" cy="7" r="2" fill="currentColor"/><circle cx="16.5" cy="13" r="2" fill="currentColor"/><circle cx="19" cy="17.5" r="2" fill="currentColor"/></svg>
           </span>
-          DSH Vision Toolkit
+          DSH Ark Toolkit
         </div>
         <div class="nav-links">
           <a href="#use-cases">Use cases</a>
@@ -543,9 +503,6 @@
             <a class="button primary" href="#install">Install the bundle</a>
           </div>
         </div>
-        <div class="hero-card">
-          <img src="assets/hero-v2.png" alt="DSH Vision Toolkit: image understanding, Seedream image generation, and ByteDance TTS in DeepSeek Harness." />
-        </div>
       </div>
     </header>
 
@@ -561,11 +518,8 @@
               <div>
                 <span class="case-kicker">01 · Understand</span>
                 <h3>Image Q&amp;A and OCR</h3>
-                <p>Pass one or more images to <code>vision_glance</code> with a question, ask for verbatim OCR, or zoom into a region so small text and icons become readable.</p>
+                <p>Pass one or more images to <code>ark_glance</code> with a question, ask for verbatim OCR, or zoom into a region so small text and icons become readable.</p>
                 <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
-              </div>
-              <div class="use-case-images">
-                <img src="assets/hero-v2.png" alt="DSH Vision Toolkit hero showing image understanding in a DeepSeek Harness session." />
               </div>
             </article>
 
@@ -573,11 +527,8 @@
               <div>
                 <span class="case-kicker">02 · Create</span>
                 <h3>Seedream image generation</h3>
-                <p><code>vision_generate_image</code> renders a prompt with ByteDance Seedream through Ark and delivers a PNG/JPEG Artifact that later tools can reuse.</p>
+                <p><code>ark_generate_image</code> renders a prompt with ByteDance Seedream through Ark and delivers a PNG/JPEG Artifact that later tools can reuse.</p>
                 <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
-              </div>
-              <div class="use-case-images">
-                <img src="assets/hero-v2.png" alt="Seedream image generation delivered as a workspace Artifact." />
               </div>
             </article>
 
@@ -585,11 +536,8 @@
               <div>
                 <span class="case-kicker">03 · Speak</span>
                 <h3>ByteDance TTS voice synthesis</h3>
-                <p><code>vision_speak</code> turns text into MP3/OGG/PCM/WAV audio with the ByteDance Volcengine Speech TTS V3 service, delivered as a downloadable Artifact.</p>
+                <p><code>ark_speak</code> turns text into MP3/OGG/PCM/WAV audio with the ByteDance Volcengine Speech TTS V3 service, delivered as a downloadable Artifact.</p>
                 <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
-              </div>
-              <div class="use-case-images">
-                <img src="assets/hero-v2.png" alt="ByteDance TTS synthesis delivered as an audio Artifact." />
               </div>
             </article>
           </div>
@@ -627,7 +575,7 @@ PLUGIN="$PWD/dsh-ark-toolkit"
 dsh plugin --profile web add "$PLUGIN"
 dsh plugin --profile headless add "$PLUGIN"
 
-dsh --profile web --dump-config | grep vision-toolkit</code></pre>
+dsh --profile web --dump-config | grep ark-toolkit</code></pre>
         </div>
       </section>
     </main>

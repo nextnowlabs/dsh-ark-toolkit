@@ -4,7 +4,7 @@ import { createElement, type ComponentType } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
-import { apply, decodeVisionResult, inject, VisionSettingsController } from '../src/client/index.tsx'
+import { apply, decodeArkResult, inject, ArkSettingsController } from '../src/client/index.tsx'
 import { readDisplayConfig, resetDisplayConfigCache } from '../src/client/display-config.ts'
 
 afterEach(() => {
@@ -138,7 +138,7 @@ function artifact(
   }
 }
 
-describe('Vision Toolkit client plugin', () => {
+describe('Ark Toolkit client plugin', () => {
   it('registers every dedicated Tool view and the Settings section', () => {
     expect(inject).toEqual(['slots', 'locale', 'remote', 'conversation', 'sessions'])
     const { ctx, registrations } = fakeClientContext()
@@ -151,8 +151,8 @@ describe('Vision Toolkit client plugin', () => {
       .filter(entry => entry.options.name === 'tool.call.toolview')
       .map(entry => entry.options.key)
     expect(toolKeys).toEqual([
-      'vision_generate_image',
-      'vision_speak',
+      'ark_generate_image',
+      'ark_speak',
     ])
     expect(registrations.find(entry => entry.options.name === 'settings.section')?.options).toMatchObject({
       id: 'ark-toolkit', order: 30,
@@ -189,10 +189,10 @@ describe('Vision Toolkit client plugin', () => {
 
   it('prefers canonical presentation metadata and falls back to JSON result text', () => {
     const canonical = { target: 'Send', matches: [] }
-    expect(decodeVisionResult(settled(canonical))).toBe(canonical)
+    expect(decodeArkResult(settled(canonical))).toBe(canonical)
     const noMeta = { ...settled(undefined), content: [{ type: 'text', text: '{}' }] } as unknown as ToolCallBlock
-    expect(decodeVisionResult(noMeta)).toEqual({})
-    expect(decodeVisionResult(settled(canonical, true))).toBeUndefined()
+    expect(decodeArkResult(noMeta)).toEqual({})
+    expect(decodeArkResult(settled(canonical, true))).toBeUndefined()
   })
 
   it('renders generated Seedream images with safe previews and actions', () => {
@@ -221,10 +221,10 @@ describe('Vision Toolkit client plugin', () => {
         schemaVersion: 1,
         artifacts: [{ path: image.path, previewUrl: '/preview-token', downloadUrl: '/download-token' }],
       },
-    }, false, 'vision_generate_image')
+    }, false, 'ark_generate_image')
     const openFile = vi.fn()
-    render(createElement(component('vision_generate_image'), {
-      callId: 'call-1', toolName: 'vision_generate_image', block, openFile,
+    render(createElement(component('ark_generate_image'), {
+      callId: 'call-1', toolName: 'ark_generate_image', block, openFile,
       t: (key: string) => key,
     }))
 
@@ -258,10 +258,10 @@ describe('Vision Toolkit client plugin', () => {
         schemaVersion: 1,
         artifacts: [{ path: audio.path, previewUrl: '/audio-preview', downloadUrl: '/audio-download' }],
       },
-    }, false, 'vision_speak')
+    }, false, 'ark_speak')
     const openFile = vi.fn()
-    render(createElement(component('vision_speak'), {
-      callId: 'call-speak', toolName: 'vision_speak', block, openFile,
+    render(createElement(component('ark_speak'), {
+      callId: 'call-speak', toolName: 'ark_speak', block, openFile,
       t: (key: string) => key,
     }))
 
@@ -278,7 +278,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     const view = render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -325,7 +325,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -352,7 +352,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -396,7 +396,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -428,7 +428,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -454,7 +454,7 @@ describe('Vision Toolkit client plugin', () => {
       return jsonResponse({ ok: true, value: settingsSnapshot() })
     })
     vi.stubGlobal('fetch', fetchMock)
-    const controller = new VisionSettingsController()
+    const controller = new ArkSettingsController()
 
     expect((await readDisplayConfig()).hidden).toBe(true)
     expect(displayConfig).toHaveBeenCalledTimes(1)
@@ -481,7 +481,7 @@ describe('Vision Toolkit client plugin', () => {
       return jsonResponse({ ok: true, value: settingsSnapshot() })
     })
     vi.stubGlobal('fetch', fetchMock)
-    const controller = new VisionSettingsController()
+    const controller = new ArkSettingsController()
 
     const firstRead = readDisplayConfig()
     await new Promise(resolve => setTimeout(resolve, 0))
@@ -514,7 +514,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -543,7 +543,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -581,7 +581,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -612,7 +612,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -639,7 +639,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 
@@ -672,7 +672,7 @@ describe('Vision Toolkit client plugin', () => {
     const settings = registrations.find(entry => entry.options.name === 'settings.section')
     if (settings === undefined) throw new Error('Settings component was not registered')
     render(createElement(settings.component, {
-      controller: new VisionSettingsController(),
+      controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
 

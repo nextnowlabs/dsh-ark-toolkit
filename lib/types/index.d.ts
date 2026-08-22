@@ -2,7 +2,7 @@
  * @nextnowlabs/dsh-ark-toolkit — DSH Ark Toolkit profile bundle.
  *
  * Plugin lifecycle follows the documented readiness chain: publish the
- * vision-skills Skill and its one-shot bootstrap, then mount the execution
+ * ark-skills Skill and its one-shot bootstrap, then mount the execution
  * tools only in Agents that load that Skill or invoke the bootstrap. Any
  * failure leaves no model capability behind, and disposal unregisters every
  * global and Agent-scoped contribution the plugin mounted.

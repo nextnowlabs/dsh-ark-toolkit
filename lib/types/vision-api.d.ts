@@ -1,5 +1,5 @@
 /**
- * Pure-TypeScript vision service client. Image understanding (vision_glance)
+ * Pure-TypeScript vision service client. Image understanding (ark_glance)
  * sends prepared data-URL image parts to the configured OpenAI-compatible
  * `/chat/completions` (or Anthropic `/v1/messages`) endpoint directly from
  * Node — no Python runtime is involved. Credentials never leave the plugin.

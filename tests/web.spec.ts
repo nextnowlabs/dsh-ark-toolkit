@@ -384,7 +384,7 @@ describe('paste policy route', () => {
       autoSwitch: {
         provider: 'ark-toolkit-deepseek-official',
         model: 'deepseek-v4-flash',
-        label: 'DeepSeek V4 Flash (Vision Toolkit)',
+        label: 'DeepSeek V4 Flash (Ark Toolkit)',
         reasoningEffort: 'medium',
       },
     }))
@@ -415,7 +415,7 @@ describe('paste policy route', () => {
         autoSwitch: {
           provider: 'ark-toolkit-deepseek-official',
           model: 'deepseek-v4-flash',
-          label: 'DeepSeek V4 Flash (Vision Toolkit)',
+          label: 'DeepSeek V4 Flash (Ark Toolkit)',
           reasoningEffort: 'medium',
         },
       },

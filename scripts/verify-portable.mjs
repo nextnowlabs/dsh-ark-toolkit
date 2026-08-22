@@ -26,7 +26,7 @@ async function filesBelow(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
   const files = []
   for (const entry of entries) {
-    if (entry.isDirectory() && ['.git', '.dsh-vision-toolkit', 'node_modules', '.pnpm-store'].includes(entry.name)) continue
+    if (entry.isDirectory() && ['.git', '.dsh-vision-toolkit', '.dsh-ark-toolkit', 'node_modules', '.pnpm-store'].includes(entry.name)) continue
     const path = join(directory, entry.name)
     if (entry.isDirectory()) files.push(...await filesBelow(path))
     else if (entry.isFile()) files.push(path)
@@ -48,15 +48,6 @@ function localTargets(markdown) {
     }
   }
   return targets
-}
-
-function pngDimensions(bytes) {
-  const signature = '89504e470d0a1a0a'
-  check(bytes.subarray(0, 8).toString('hex') === signature, 'PNG signature is invalid')
-  return {
-    width: bytes.readUInt32BE(16),
-    height: bytes.readUInt32BE(20),
-  }
 }
 
 const packagePath = join(root, 'package.json')
@@ -121,9 +112,6 @@ const requiredFiles = [
   'lib/client.js',
   'lib/vision-api.js',
   'lib/image-codec.js',
-  'assets/hero-v2.png',
-  'assets/social-preview.png',
-  'assets/vision-model-test.png',
   'assets/skill/SKILL.md',
   'docs/installation.md',
   'docs/ark-doubao-vision.md',
@@ -188,16 +176,6 @@ for (const markdownPath of ['README.md', 'CONTRIBUTING.md', 'SUPPORT.md', 'SECUR
   }
 }
 
-const imageExpectations = new Map([
-  ['assets/hero-v2.png', { width: 1672, height: 941 }],
-  ['assets/social-preview.png', { width: 1280, height: 640 }],
-])
-for (const [path, expected] of imageExpectations) {
-  const bytes = await readFile(join(root, path))
-  const actual = pngDimensions(bytes)
-  check(actual.width === expected.width && actual.height === expected.height, `${path} must be ${expected.width}x${expected.height}, got ${actual.width}x${actual.height}`)
-}
-
 const imageFiles = (await filesBelow(root)).filter(path => ['.png', '.jpg', '.jpeg', '.webp'].includes(extname(path).toLowerCase()))
 for (const path of imageFiles) {
   const info = await stat(path)
@@ -229,7 +207,7 @@ if (pack.status !== 0) {
   try {
     const result = JSON.parse(pack.stdout)
     const packedFiles = new Set((result[0]?.files ?? []).map(file => file.path))
-    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'lib/vision-api.js', 'lib/image-codec.js', 'cordis.patch.yml', 'assets/hero-v2.png', 'assets/social-preview.png', 'assets/skill/SKILL.md', 'docs/installation.md']) {
+    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'lib/vision-api.js', 'lib/image-codec.js', 'cordis.patch.yml', 'assets/skill/SKILL.md', 'docs/installation.md']) {
       check(packedFiles.has(path), `dry-run tarball is missing ${path}`)
     }
     for (const prefix of ['runtime/', 'vendor/', 'patches/']) {

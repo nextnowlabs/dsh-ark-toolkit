@@ -30,6 +30,8 @@ export declare function cropRegionToDataUrl(path: string, region: {
 }): Promise<string>;
 /** Read a whole image and return it as a base64 data URL. */
 export declare function imageToDataUrl(path: string): Promise<string>;
+/** Build a tiny solid-color PNG data URL used by the vision-model readiness test. */
+export declare function createTestImageDataUrl(): Promise<string>;
 /**
  * Lossless-first compression ladder: try PNG then WebP-lossless re-encodes,
  * then WebP/JPEG quality reduction, and only downscale when none fit the

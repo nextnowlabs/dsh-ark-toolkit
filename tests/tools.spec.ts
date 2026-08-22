@@ -14,16 +14,15 @@ import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import * as ArkToolkit from '../src/index.ts'
 import {
-  LEGACY_VISION_TOOLS_SKILL_MARKER,
-  LEGACY_VISION_TOOLS_SKILL_NAME,
   ARK_TOOLKIT_ACTIVATE,
+  LEGACY_ARK_SKILLS,
 } from '../src/exposure.ts'
-import { VISION_SKILLS_CONTENT, VISION_SKILLS_NAME, VISION_SKILLS_RESOURCE_BASE } from '../src/skill.ts'
-import { VISION_TOOL_NAMES } from '../src/tools.ts'
+import { ARK_SKILLS_CONTENT, ARK_SKILLS_NAME, ARK_SKILLS_RESOURCE_BASE } from '../src/skill.ts'
+import { ARK_TOOL_NAMES } from '../src/tools.ts'
 
 const SAMPLE_IMAGE = fileURLToPath(new URL('./fixtures/sample.png', import.meta.url))
 
-const TOOL_NAMES: readonly string[] = Object.values(VISION_TOOL_NAMES)
+const TOOL_NAMES: readonly string[] = Object.values(ARK_TOOL_NAMES)
 
 function fakeCredentials(): Credentials {
   return {
@@ -59,8 +58,8 @@ afterEach(async () => {
 function recordDirectSkillInvocation(
   session: Session,
   turn = 1,
-  content = VISION_SKILLS_CONTENT,
-  name = VISION_SKILLS_NAME,
+  content = ARK_SKILLS_CONTENT,
+  name = ARK_SKILLS_NAME,
 ): void {
   session.append('turn/start', { turn })
   session.append('step/start', { turn, step: 1 })
@@ -75,8 +74,8 @@ function recordDirectSkillInvocation(
 function recordNativeSkillInvocation(
   session: Session,
   turn = 1,
-  content = VISION_SKILLS_CONTENT,
-  name = VISION_SKILLS_NAME,
+  content = ARK_SKILLS_CONTENT,
+  name = ARK_SKILLS_NAME,
 ): void {
   const callId = CallId(`restored-skill-${turn}`)
   session.append('turn/start', { turn })
@@ -104,8 +103,8 @@ function recordNativeSkillInvocation(
 function recordCodeSkillInvocation(
   session: Session,
   turn = 1,
-  content = VISION_SKILLS_CONTENT,
-  name = VISION_SKILLS_NAME,
+  content = ARK_SKILLS_CONTENT,
+  name = ARK_SKILLS_NAME,
 ): void {
   session.append('turn/start', { turn })
   session.append('tool/code-dispatch', {
@@ -142,7 +141,7 @@ async function loadVisionSkill(ctx: Context, agent: Agent): Promise<void> {
     signal: new AbortController().signal,
     callId: CallId(`skill-${String(agent.id)}`),
     name: 'skill',
-    arguments: { name: VISION_SKILLS_NAME },
+    arguments: { name: ARK_SKILLS_NAME },
     agent,
   })
   expect(result.isError, JSON.stringify(result)).toBe(false)
@@ -176,21 +175,21 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(ctx.tools.schemas().map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas().some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
     const skills = await ctx.skills.list()
-    const skill = skills.find(entry => entry.name === VISION_SKILLS_NAME)
+    const skill = skills.find(entry => entry.name === ARK_SKILLS_NAME)
     expect(skill).toBeDefined()
     expect(skill?.description).toContain('图片理解')
     expect(skill?.provider).toBe('runtime')
-    const definition = await ctx.skills.get(VISION_SKILLS_NAME)
+    const definition = await ctx.skills.get(ARK_SKILLS_NAME)
     expect(definition?.content).toContain('untrusted visual evidence')
     expect(definition?.content).toContain('ark_toolkit_activate')
-    expect(definition?.content).toContain('immediately repeated `vision_glance`')
+    expect(definition?.content).toContain('immediately repeated `ark_glance`')
     expect(definition?.content).toContain('Disabling or unloading the plugin cancels')
     expect(definition?.content).toContain('platform temporary directory automatically')
     expect(definition?.content).toContain('`/tmp/...`')
     expect(definition?.content).toContain('%TEMP%')
     expect(definition?.resourceBase).toEqual({
       kind: 'directory',
-      path: VISION_SKILLS_RESOURCE_BASE,
+      path: ARK_SKILLS_RESOURCE_BASE,
     })
 
     const activated = await registerAgent(ctx, 'activated')
@@ -203,7 +202,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     const activatedNames = ctx.tools.schemas(activated).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(activatedNames).toContain(name)
     expect(activatedNames).not.toContain(ARK_TOOLKIT_ACTIVATE)
-    const glance = ctx.tools.schemas(activated).find(tool => tool.name === 'vision_glance')
+    const glance = ctx.tools.schemas(activated).find(tool => tool.name === 'ark_glance')
     expect(glance?.description).toContain('platform temporary directory')
     expect(glance?.description).toContain('/tmp/')
     expect(ctx.tools.schemas(untouched).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
@@ -232,17 +231,19 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
-  it('restores activation from legacy vision-tools Skill history after the rename', async () => {
+  it('restores activation from legacy skill history after the rename to ark-skills', async () => {
     const { ctx } = await setupContext()
-    const session = Session.create(SessionId('legacy-vision-tools-skill'))
+    const session = Session.create(SessionId('legacy-ark-skill'))
+    const legacy = LEGACY_ARK_SKILLS[1] ?? LEGACY_ARK_SKILLS[0]
+    expect(legacy).toBeDefined()
     recordDirectSkillInvocation(
       session,
       1,
-      LEGACY_VISION_TOOLS_SKILL_MARKER,
-      LEGACY_VISION_TOOLS_SKILL_NAME,
+      legacy.marker,
+      legacy.name,
     )
 
-    const agent = await registerAgent(ctx, 'legacy-vision-tools-skill', session)
+    const agent = await registerAgent(ctx, 'legacy-ark-skill', session)
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
     expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
@@ -257,7 +258,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
     expect(ctx.tools.get(ARK_TOOLKIT_ACTIVATE)).toBeUndefined()
     const skills = await ctx.skills.list()
-    expect(skills.find(entry => entry.name === VISION_SKILLS_NAME)).toBeUndefined()
+    expect(skills.find(entry => entry.name === ARK_SKILLS_NAME)).toBeUndefined()
   })
 
   it('supports the one-shot activation fallback after direct Skill invocation', async () => {
@@ -299,14 +300,14 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
         },
         render: (_args, value) => [{ type: 'text', text: JSON.stringify(value) }],
       },
-      execute: () => Promise.resolve({ name: VISION_SKILLS_NAME, content: 'unrelated instructions' }),
+      execute: () => Promise.resolve({ name: ARK_SKILLS_NAME, content: 'unrelated instructions' }),
     }))
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('shadowed-skill-call'),
       name: 'skill',
-      arguments: { name: VISION_SKILLS_NAME },
+      arguments: { name: ARK_SKILLS_NAME },
       agent,
     })
     expect(result.isError, JSON.stringify(result)).toBe(false)
@@ -317,7 +318,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
   it('does not restore activation from same-name direct Skill evidence with non-bundled content', async () => {
     const { ctx } = await setupContext()
     const session = Session.create(SessionId('foreign-direct-skill'))
-    recordDirectSkillInvocation(session, 1, '# unrelated instructions', LEGACY_VISION_TOOLS_SKILL_NAME)
+    recordDirectSkillInvocation(session, 1, '# unrelated instructions', LEGACY_ARK_SKILLS[0]?.name)
     const agent = await registerAgent(ctx, 'foreign-direct-skill', session)
 
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
@@ -354,7 +355,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
       signal,
       callId: CallId('skill-call'),
       name: 'skill',
-      arguments: { name: VISION_SKILLS_NAME },
+      arguments: { name: ARK_SKILLS_NAME },
       agent,
     })
     expect(skillResult.isError, JSON.stringify(skillResult)).toBe(false)
@@ -366,7 +367,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
       agent,
     })
     expect(activationResult.isError, JSON.stringify(activationResult)).toBe(false)
-    expect(JSON.stringify(activationResult.content)).toContain('vision_glance')
+    expect(JSON.stringify(activationResult.content)).toContain('ark_glance')
 
     session.append('step/start', { turn: 1, step: 1 })
     session.append('step/end', { turn: 1, step: 1 })
@@ -383,7 +384,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     const pending = ctx.tools.execute({
       signal: new AbortController().signal,
       callId: CallId('dispose-active-vision-tool'),
-      name: 'vision_glance',
+      name: 'ark_glance',
       arguments: { images: [SAMPLE_IMAGE] },
       agent,
     })
@@ -419,7 +420,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
       const definition = ctx.tools.get(name, agent)
       expect(definition, name).toBeDefined()
       expect(definition?.description?.length, `${name} description`).toBeGreaterThan(0)
-      if (name === 'vision_glance' || name === 'vision_generate_image') {
+      if (name === 'ark_glance' || name === 'ark_generate_image') {
         expect(definition?.description, `${name} trust boundary`).toContain('untrusted visual evidence')
       }
       const output = definition?.output as { schema?: { type?: string } } | undefined
@@ -427,7 +428,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
       const blocks = definition?.output.render({}, { kind: 'ok' })
       expect(blocks?.[0]).toMatchObject({ type: 'text' })
     }
-    const glance = ctx.tools.get('vision_glance', agent)
+    const glance = ctx.tools.get('ark_glance', agent)
     expect(glance?.parameters).toMatchObject({
       properties: { ocr: { type: 'boolean' }, images: { type: 'array' } },
     })
@@ -441,14 +442,14 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     const { ctx } = await setupContext()
     const agent = await registerAgent(ctx, 'presentation')
     await loadVisionSkill(ctx, agent)
-    const glance = ctx.tools.get('vision_glance', agent)
+    const glance = ctx.tools.get('ark_glance', agent)
     expect(glance?.presentCall?.({ images: ['shot.png', 'shot2.png'] })).toMatchObject({
       card: 'generic',
       locations: [{ path: 'shot.png' }, { path: 'shot2.png' }],
     })
-    const generate = ctx.tools.get('vision_generate_image', agent)
+    const generate = ctx.tools.get('ark_generate_image', agent)
     expect(typeof generate?.output.presentationMeta).toBe('function')
-    const speak = ctx.tools.get('vision_speak', agent)
+    const speak = ctx.tools.get('ark_speak', agent)
     expect(typeof speak?.output.presentationMeta).toBe('function')
   })
 })

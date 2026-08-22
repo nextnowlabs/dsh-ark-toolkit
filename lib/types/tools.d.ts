@@ -7,10 +7,10 @@
 import { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools';
 import { ArkToolkitRuntime } from './runtime.ts';
 /** Canonical names shared by registration, bootstrap guidance, and tests. */
-export declare const VISION_TOOL_NAMES: {
-    readonly glance: "vision_glance";
-    readonly generateImage: "vision_generate_image";
-    readonly speak: "vision_speak";
+export declare const ARK_TOOL_NAMES: {
+    readonly glance: "ark_glance";
+    readonly generateImage: "ark_generate_image";
+    readonly speak: "ark_speak";
 };
 /** Runtime lookup accepted by tools so Settings can atomically swap generations. */
 export type ArkToolkitRuntimeSource = ArkToolkitRuntime | (() => ArkToolkitRuntime);
@@ -23,5 +23,5 @@ export type ArkToolkitPresentationProjector = (value: JsonValue) => JsonValue;
  * @param lifecycleSignal - Plugin lifetime; aborting it cancels every active tool call.
  * @returns Native tool definitions registered as one lifecycle generation.
  */
-export declare function createVisionTools(source: ArkToolkitRuntimeSource, projectPresentation?: ArkToolkitPresentationProjector, lifecycleSignal?: AbortSignal): ReturnType<typeof defineTool>[];
+export declare function createArkTools(source: ArkToolkitRuntimeSource, projectPresentation?: ArkToolkitPresentationProjector, lifecycleSignal?: AbortSignal): ReturnType<typeof defineTool>[];
 //# sourceMappingURL=tools.d.ts.map

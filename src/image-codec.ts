@@ -82,6 +82,21 @@ export async function imageToDataUrl(path: string): Promise<string> {
   return `data:${mime};base64,${bytes.toString('base64')}`
 }
 
+/** Build a tiny solid-color PNG data URL used by the vision-model readiness test. */
+export async function createTestImageDataUrl(): Promise<string> {
+  const buffer = await sharp({
+    create: {
+      width: 64,
+      height: 64,
+      channels: 3,
+      background: { r: 244, g: 114, b: 182 },
+    },
+  })
+    .png()
+    .toBuffer()
+  return `data:image/png;base64,${buffer.toString('base64')}`
+}
+
 /**
  * Lossless-first compression ladder: try PNG then WebP-lossless re-encodes,
  * then WebP/JPEG quality reduction, and only downscale when none fit the

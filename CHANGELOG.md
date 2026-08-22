@@ -1,26 +1,28 @@
 # Changelog
 
-All notable user-facing changes to DSH Vision Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
+All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
 ## [Unreleased]
 
 ### Changed
 
+- **工具与技能统一命名为 `ark_*`。** 模型可见的三个工具从 `vision_glance` / `vision_generate_image` / `vision_speak` 重命名为 `ark_glance` / `ark_generate_image` / `ark_speak`，随附技能从 `vision-skills` 重命名为 `ark-skills`，以与软件包名 `dsh-ark-toolkit` 保持一致。旧技能名（`vision-skills`、`vision-tools`）仍会被识别，用于恢复旧 Session 的激活状态；客户端文案、文档与示例同步更新。
 - **DSH rc 版本跟进。** 开发/CI 依赖与 Profile 验收从 `0.1.0-rc.6` 升级到当前 `0.1.0-rc.8`（devDependencies、pnpm-workspace allowBuilds、CI 安装的 DSH CLI、`profile-install.e2e` 的 `REQUIRED_DSH_VERSION`），peer 依赖保持 `^0.1.0-rc.6` 灵活范围以兼容频繁更新的 DSH rc 版本。
-- **纯 TypeScript 精简版。** 移除 vendored Python 工具链（`agent-vision-toolkit` 适配层、托管/系统 Python 引导、Pillow/numpy/vtracer 运行时）与全部本地像素工具（`vision_ground`、`vision_detect`、`vision_crop`、`vision_trace`、`vision_pixel_diff`、`vision_long_screenshot_ocr`、`vision_extract_foreground`、`vision_dominant_colors`、`vision_html_screenshot`）。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪改用 Node 原生方案（sharp），不再需要 Python、Chrome 或任何隔离运行环境。仅保留 `vision_glance`（图片理解）、`vision_generate_image`（Seedream 文生图）、`vision_speak`（字节 TTS 语音合成）三个工具。
+- **纯 TypeScript 精简版。** 移除 vendored Python 工具链（`agent-vision-toolkit` 适配层、托管/系统 Python 引导、Pillow/numpy/vtracer 运行时）与全部本地像素工具（`vision_ground`、`vision_detect`、`vision_crop`、`vision_trace`、`vision_pixel_diff`、`vision_long_screenshot_ocr`、`vision_extract_foreground`、`vision_dominant_colors`、`vision_html_screenshot`）。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪改用 Node 原生方案（sharp），不再需要 Python、Chrome 或任何隔离运行环境。仅保留 `ark_glance`（图片理解）、`ark_generate_image`（Seedream 文生图）、`ark_speak`（字节 TTS 语音合成）三个工具。
 - **配置精简。** 删除 `runtime` 配置项（`mode`/`agentVisionToolkitPath`/`python`）；健康检查仅保留 Credential、Artifact 目录、服务与模型四项；README 与安装指南同步更新，`docs/python-runtime.md` 删除。
-- **修复 TTS 语音合成报错。** `vision_speak` 改用新版控制台 API Key 鉴权（`X-Api-Key`/`X-Api-Resource-Id` 请求头 + `req_params` 请求体），修复服务器返回 `resource id empty`（code 45000000）的问题；SSE 音频事件解析同步改为读取 `data` 字段。
+- **修复 TTS 语音合成报错。** `ark_speak` 改用新版控制台 API Key 鉴权（`X-Api-Key`/`X-Api-Resource-Id` 请求头 + `req_params` 请求体），修复服务器返回 `resource id empty`（code 45000000）的问题；SSE 音频事件解析同步改为读取 `data` 字段。
 
 ### BREAKING
 
 - `runtime` 配置项与 `VISION_SSL_VERIFY` 环境变量不再生效；`vision_ground`/`vision_detect`/`vision_crop`/`vision_trace`/`vision_pixel_diff`/`vision_long_screenshot_ocr`/`vision_extract_foreground`/`vision_dominant_colors`/`vision_html_screenshot` 工具不再可用。
+- **工具与技能重命名。** `vision_glance` → `ark_glance`、`vision_generate_image` → `ark_generate_image`、`vision_speak` → `ark_speak`、`vision-skills` → `ark-skills`；现有 Agent 提示词与脚本中的旧工具名需同步更新。
 
 - **ByteDance-only backend.** The backend switched from the built-in free Gemini/Qwen service to ByteDance Volcengine Ark (`https://ark.cn-beijing.volces.com/api/v3`). Image understanding now uses the Doubao Seed Vision model (`doubao-seed-2-0-lite-260215`) over OpenAI-compatible `/chat/completions`; the Gemini/Qwen/Gemma/Moondream model aliases and the `ANIONEX_FREE_VISION` built-in credential were removed, and the obsolete `workers/moondream-openai-proxy` was deleted. The Ark API key is supplied by the user and stored as the `ARK_API_KEY` DSH Credential.
 
 ### Added
 
-- **`vision_generate_image` tool.** Generates images with the ByteDance Seedream model through Ark `/images/generations` (aliases `seedream-5.0-pro`/`seedream-5.0-lite`/`seedream-4.5`/`seedream-4.0`), and delivers each result as a PNG/JPEG workspace Artifact.
-- **`vision_speak` tool.** Synthesizes speech with the ByteDance Volcengine Speech TTS V3 service (豆包语音合成模型2.0, resource `seed-tts-2.0`) over the unidirectional SSE endpoint, and delivers MP3/OGG/PCM/WAV audio as a workspace Artifact. The TTS token is stored as the `VOLCENGINE_TTS_KEY` DSH Credential (configurable under `provider.tts`).
+- **`ark_generate_image` tool.** Generates images with the ByteDance Seedream model through Ark `/images/generations` (aliases `seedream-5.0-pro`/`seedream-5.0-lite`/`seedream-4.5`/`seedream-4.0`), and delivers each result as a PNG/JPEG workspace Artifact.
+- **`ark_speak` tool.** Synthesizes speech with the ByteDance Volcengine Speech TTS V3 service (豆包语音合成模型2.0, resource `seed-tts-2.0`) over the unidirectional SSE endpoint, and delivers MP3/OGG/PCM/WAV audio as a workspace Artifact. The TTS token is stored as the `VOLCENGINE_TTS_KEY` DSH Credential (configurable under `provider.tts`).
 - Step-by-step Volcengine Ark tutorial (`docs/ark-doubao-vision.md`) replaces the Groq/Qwen tutorial.
 
 ### Removed

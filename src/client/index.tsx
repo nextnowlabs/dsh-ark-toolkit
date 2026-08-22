@@ -39,10 +39,10 @@ const ARK_TUTORIAL_URL_EN = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob
 const ARK_TUTORIAL_URL_ZH = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
 
 const en = {
-  nav: 'Volcengine Vision',
+  nav: 'Volcengine Ark',
   settingsTitle: 'Volcengine Ark Toolkit',
   settingsIntro: 'Configure the model and API key used by online vision features.',
-  externalNotice: 'Image understanding (vision_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.',
+  externalNotice: 'Image understanding (ark_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.',
   provider: 'Vision service',
   providerHint: 'Provide the model and API key used by online vision features.',
   arkTutorial: 'Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →',
@@ -59,7 +59,7 @@ const en = {
   model: 'Model',
   userAgent: 'User-Agent',
   tts: 'Speech (TTS)',
-  ttsHint: 'Separate ByteDance Volcengine Speech service used by the vision_speak tool, with its own app token independent of the Ark vision key.',
+  ttsHint: 'Separate ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark vision key.',
   ttsBaseUrl: 'TTS base URL',
   ttsCredential: 'TTS credential name',
   ttsResource: 'TTS resource / App ID',
@@ -172,7 +172,7 @@ const en = {
   longOcrTitle: 'Long OCR',
   extractForegroundTitle: 'Extract Foreground',
   htmlScreenshotTitle: 'HTML Screenshot',
-  artifactTitle: 'Vision Artifact',
+  artifactTitle: 'Ark Artifact',
   generateImageTitle: 'Generated image',
   speakTitle: 'Synthesized speech',
   dominantColorsTitle: 'Dominant Colors',
@@ -240,7 +240,7 @@ const zh: Record<LocaleKey, string> = {
   nav: '火山引擎',
   settingsTitle: '火山引擎',
   settingsIntro: '配置在线视觉功能使用的模型与 API 密钥。',
-  externalNotice: '图片理解（vision_glance）、文生图和语音合成会把数据发送到下方配置的远程服务；发送前如需压缩，会在本机完成。',
+  externalNotice: '图片理解（ark_glance）、文生图和语音合成会把数据发送到下方配置的远程服务；发送前如需压缩，会在本机完成。',
   provider: '在线视觉服务',
   providerHint: '填写在线视觉功能使用的模型名称和 API 密钥。',
   arkTutorial: '用字节火山方舟做图片理解？看这篇图文教程 →',
@@ -257,7 +257,7 @@ const zh: Record<LocaleKey, string> = {
   model: '模型名称',
   userAgent: 'User-Agent',
   tts: '语音合成（TTS）',
-  ttsHint: 'vision_speak 工具使用独立的字节火山语音服务，App Token 与火山方舟视觉密钥相互独立。',
+  ttsHint: 'ark_speak 工具使用独立的字节火山语音服务，App Token 与火山方舟视觉密钥相互独立。',
   ttsBaseUrl: 'TTS 接口地址',
   ttsCredential: 'TTS 凭据名称',
   ttsResource: 'TTS 资源 ID（App ID）',
@@ -601,7 +601,7 @@ function textOfContent(block: ToolCallBlock): string {
 }
 
 /** Decode canonical presentation metadata with a JSON-text fallback. */
-export function decodeVisionResult(block: ToolCallBlock): Record<string, unknown> | undefined {
+export function decodeArkResult(block: ToolCallBlock): Record<string, unknown> | undefined {
   if (!('kind' in block) || block.isError) return undefined
   if (isRecord(block.meta)) return block.meta
   const text = textOfContent(block).trim()
@@ -668,7 +668,7 @@ function statusText(block: ToolCallBlock, t: Translate): string | undefined {
   return undefined
 }
 
-function VisionIcon({ kind = 'scan' }: { kind?: 'scan' | 'target' | 'layers' | 'shape' | 'diff' | 'palette' }) {
+function ArkIcon({ kind = 'scan' }: { kind?: 'scan' | 'target' | 'layers' | 'shape' | 'diff' | 'palette' }) {
   const path = kind === 'target'
     ? 'M8 2v2m0 8v2M2 8h2m8 0h2M5 5h6v6H5z'
     : kind === 'layers'
@@ -774,14 +774,14 @@ function artifactDescription(description: string, t: Translate): string {
 type ViewProps = ToolCallViewProps & { t?: Translate }
 
 function ArtifactView({ block, openFile, toolName, t = key => en[key] }: ViewProps) {
-  const value = decodeVisionResult(block)
+  const value = decodeArkResult(block)
   const artifacts = collectArtifacts(value)
   const grants = accessMap(value)
-  const title = toolName === 'vision_generate_image' ? t('generateImageTitle')
-    : toolName === 'vision_speak' ? t('speakTitle')
+  const title = toolName === 'ark_generate_image' ? t('generateImageTitle')
+    : toolName === 'ark_speak' ? t('speakTitle')
       : t('artifactTitle')
   return (
-    <ToolShell block={block} title={title} summary={artifacts.length > 0 ? `${artifacts.length} ${t('artifacts')}` : undefined} icon={<VisionIcon />} t={t}>
+    <ToolShell block={block} title={title} summary={artifacts.length > 0 ? `${artifacts.length} ${t('artifacts')}` : undefined} icon={<ArkIcon />} t={t}>
       {artifacts.length === 0 ? <p className="dvt-muted">{t('noResult')}</p> : <div className="dvt-stack">{artifacts.map(artifact => <ArtifactPreview key={artifact.path} artifact={artifact} grant={grants.get(artifact.path)} openFile={openFile} t={t} />)}</div>}
     </ToolShell>
   )
@@ -809,7 +809,7 @@ interface SettingsState {
 }
 
 /** Small external store shared by the Settings route and pushed invalidations. */
-export class VisionSettingsController {
+export class ArkSettingsController {
   private state: SettingsState = { status: 'idle' }
   private listeners = new Set<() => void>()
   private generation = 0
@@ -1089,7 +1089,7 @@ function settingsDraftChanged(draft: Draft, saved: SettingsValue, t: Translate):
 }
 
 interface SettingsInjected {
-  controller: VisionSettingsController
+  controller: ArkSettingsController
   t: Translate
 }
 
@@ -1419,7 +1419,7 @@ function installStyles(): () => void {
 /** Required client services. The pasted-image codec attaches to either trigger-service generation after load. */
 export const inject = ['slots', 'locale', 'remote', 'conversation', 'sessions']
 
-/** Register dedicated Tool views and the Vision Settings section. */
+/** Register dedicated Tool views and the Ark Toolkit Settings section. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(installStyles, 'dsh-ark-toolkit: styles')
   ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-ark-toolkit: locale')
@@ -1428,8 +1428,8 @@ export function apply(ctx: ClientContext): void {
   const t = ctx.locale.bind(NS)
   const injected = () => ({ t })
   const entries: Array<[string, (props: ViewProps) => ReactNode]> = [
-    ['vision_generate_image', ArtifactView],
-    ['vision_speak', ArtifactView],
+    ['ark_generate_image', ArtifactView],
+    ['ark_speak', ArtifactView],
   ]
   ctx.slots.inject('tool.call.toolview', function* () {
     for (const [key, component] of entries) {
@@ -1437,7 +1437,7 @@ export function apply(ctx: ClientContext): void {
     }
   })
 
-  const controller = new VisionSettingsController()
+  const controller = new ArkSettingsController()
   ctx.effect(() => {
     const refreshSettings = (namespace: string): void => {
       if (namespace === 'ark-toolkit') {
