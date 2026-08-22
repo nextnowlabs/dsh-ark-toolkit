@@ -1,12 +1,14 @@
 /**
- * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the Settings,
- * health, connection-test, and safe Artifact preview experience.
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the
+ * plugin-configuration card (设置 → 插件 → 插件配置) with health checks,
+ * connection tests, and safe Artifact previews.
  */
 import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
 declare const en: {
-    readonly nav: "Volcengine Ark";
     readonly settingsTitle: "Volcengine Ark Toolkit";
     readonly settingsIntro: "Configure the model and API key used by online vision features.";
+    readonly collapse: "Collapse";
+    readonly expand: "Expand";
     readonly externalNotice: "Image understanding (ark_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
     readonly provider: "Vision service";
     readonly providerHint: "Provide the model and API key used by online vision features.";
@@ -104,7 +106,6 @@ declare const en: {
     readonly updateSaveFirst: "Save or discard the current Settings and API key changes before updating the plugin.";
     readonly restartTimedOut: "DSH Web did not return with the target plugin version. Check the restart log and restart the Web profile through its original process manager.";
     readonly restartRolledBack: "The new plugin did not become ready, so the previous version was restored. Check the restart log before trying again.";
-    readonly pluginKind: "DSH native plugin";
     readonly runtimeUnavailable: "Runtime unavailable";
     readonly runtimeCandidateRejected: "Last runtime candidate was rejected; the active generation remains available.";
     readonly runtimeReady: "Ready";
@@ -215,6 +216,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
             scope: 'session';
             owner: ToolCallOwnerProps;
         };
+        /**
+         * One plugin-configuration card inside 设置 → 插件 → 插件配置, keyed by the
+         * settings namespace the card edits. The Host serves the namespace and the
+         * tab dispatches cards only for served namespaces.
+         */
+        'settings.plugin.item': {
+            kind: 'keyed';
+            scope: 'root';
+            owner: SettingsPluginItemOwnerProps;
+        };
+    }
+    /** Owner share of a plugin card; the section supplies nothing. */
+    interface SettingsPluginItemOwnerProps {
+        children?: never;
     }
     interface LocaleNamespaceMap {
         /** DSH Ark Toolkit Tool cards and Settings copy. */
@@ -364,7 +379,7 @@ export declare class ArkSettingsController {
 }
 /** Required client services. The pasted-image codec attaches to either trigger-service generation after load. */
 export declare const inject: string[];
-/** Register dedicated Tool views and the Ark Toolkit Settings section. */
+/** Register dedicated Tool views and the Ark Toolkit plugin-configuration card. */
 export declare function apply(ctx: ClientContext): void;
 export {};
 //# sourceMappingURL=index.d.ts.map

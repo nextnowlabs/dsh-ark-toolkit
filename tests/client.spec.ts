@@ -139,7 +139,7 @@ function artifact(
 }
 
 describe('Ark Toolkit client plugin', () => {
-  it('registers every dedicated Tool view and the Settings section', () => {
+  it('registers every dedicated Tool view and the Settings card', () => {
     expect(inject).toEqual(['slots', 'locale', 'remote', 'conversation', 'sessions'])
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
@@ -154,8 +154,8 @@ describe('Ark Toolkit client plugin', () => {
       'ark_generate_image',
       'ark_speak',
     ])
-    expect(registrations.find(entry => entry.options.name === 'settings.section')?.options).toMatchObject({
-      id: 'ark-toolkit', order: 30,
+    expect(registrations.find(entry => entry.options.name === 'settings.plugin.item')?.options).toMatchObject({
+      key: 'ark-toolkit',
     })
   })
 
@@ -178,7 +178,9 @@ describe('Ark Toolkit client plugin', () => {
     expect(css).toContain('.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}')
     expect(css).toContain('.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-label)}')
     expect(css).toContain('.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}')
-    expect(css).toContain('.dvt-settings{display:grid;grid-template-columns:minmax(0,1fr);width:100%;max-width:900px;min-width:0;box-sizing:border-box')
+    expect(css).toContain('.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden')
+    expect(css).toContain('.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent')
+    expect(css).toContain('.dvt-settings{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;box-sizing:border-box')
     expect(css).toContain('.dvt-panel{display:grid;grid-template-columns:minmax(0,1fr)')
     expect(css).toContain('.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap')
     expect(css).toContain('.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr)')
@@ -275,12 +277,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     const view = render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     await screen.findAllByText('0.1.0')
     expect(screen.getByLabelText('apiKey')).toBeTruthy()
@@ -293,7 +297,37 @@ describe('Ark Toolkit client plugin', () => {
     expect(root?.lastElementChild).toBe(footer)
     expect(advanced).not.toBeNull()
     expect(advanced?.contains(screen.getByLabelText('credential'))).toBe(true)
-    expect(view.container.querySelector('.dvt-settings-header')).toBeNull()
+    expect(view.container.querySelector('.dvt-plugin-card')?.tagName).toBe('LI')
+    expect(view.container.querySelector('.dvt-card-head')).not.toBeNull()
+  })
+
+  it('renders the Settings card collapsed with the credential state in the header', async () => {
+    const initial = settingsSnapshot()
+    initial.credential = { ref: 'VISION_API_KEY', configured: true, source: 'file', writable: false }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: initial })))
+
+    const { ctx, registrations } = fakeClientContext()
+    apply(ctx as never)
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
+    const view = render(createElement(settings.component, {
+      controller: new ArkSettingsController(),
+      t: (key: string) => key,
+    }))
+
+    const head = await screen.findByRole('button', { name: 'expand: settingsTitle' })
+    expect(head.getAttribute('aria-expanded')).toBe('false')
+    const body = view.container.querySelector('.dvt-card-body')
+    expect(body?.hasAttribute('hidden')).toBe(true)
+    const pill = view.container.querySelector('.dvt-card-pill')
+    expect(pill?.textContent).toBe('configured')
+    expect(pill?.getAttribute('data-status')).toBe('ok')
+
+    fireEvent.click(head)
+    expect(head.getAttribute('aria-expanded')).toBe('true')
+    expect(body?.hasAttribute('hidden')).toBe(false)
+    await screen.findByLabelText('apiKey')
+    expect(screen.getByRole('button', { name: 'collapse: settingsTitle' })).toBeTruthy()
   })
 
   it('checks for a plugin release and requires confirmation before update and restart', async () => {
@@ -322,12 +356,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     await screen.findByText('updateAvailableDetail')
@@ -349,12 +385,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const tutorial = await screen.findByRole('link', { name: 'arkTutorial' })
     expect(tutorial.getAttribute('href')).toBe('https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md')
@@ -393,12 +431,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'updateNow' }))
@@ -425,12 +465,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     const updateButton = await screen.findByRole('button', { name: 'updateNow' }) as HTMLButtonElement
@@ -511,12 +553,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
     expect(keyInput.disabled).toBe(true)
@@ -540,12 +584,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     await screen.findByRole('button', { name: 'testModel' })
     expect(screen.getByRole('button', { name: 'testConnection' })).toBeTruthy()
@@ -578,12 +624,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'testConnection' }))
     await screen.findByText('healthModelNotTested')
@@ -609,12 +657,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
     fireEvent.change(keyInput, { target: { value: 'sk-browser-entry' } })
@@ -636,12 +686,14 @@ describe('Ark Toolkit client plugin', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const keyInput = await screen.findByLabelText('apiKey')
     fireEvent.change(keyInput, { target: { value: '   ' } })
@@ -669,12 +721,14 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.section')
-    if (settings === undefined) throw new Error('Settings component was not registered')
+    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
       t: (key: string) => key,
     }))
+
+    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const model = await screen.findByLabelText('model')
     fireEvent.change(model, { target: { value: 'next-model' } })

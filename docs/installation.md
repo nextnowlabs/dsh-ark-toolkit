@@ -20,7 +20,7 @@ dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 >
 > 源码贡献者如需本地开发/修改插件，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`（此时使用仓库 `lib/` 构建产物，升级时 `git pull` 后重启 Profile 即可）。
 
-安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 火山视觉工具**。
+安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 插件 → 插件配置**，展开 Ark Toolkit 卡片。
 
 插件是**原生 Node/TypeScript** 实现：图片理解直接调用视觉模型服务，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
 
@@ -51,7 +51,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 2.2 填写 API Key
 
-在 **设置 → 火山视觉工具** 的 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
 
 保存后运行 **测试视觉模型**，确认连接成功。
 
@@ -142,7 +142,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 
 ## 5. 验证配置
 
-- **Web：** 打开 **设置 → 火山视觉工具**，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
+- **Web：** 打开 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片，运行 **测试视觉模型**，会发起一次真实的图片请求来确认端到端可用；
 - **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务与模型检查为 `ok`；
 - **直接调用：** 在会话里粘贴一张图片并提问，或调用 `ark_generate_image` / `ark_speak` 验证生成能力。
 

@@ -6,6 +6,7 @@ All notable user-facing changes to DSH Ark Toolkit are documented in this file. 
 
 ### Changed
 
+- **设置界面迁移为插件配置卡片。** 配置入口从独立设置页（`settings.section` 导航项）迁移到 **设置 → 插件 → 插件配置** 标签页的 `settings.plugin.item` 卡片，按 `ark-toolkit` 设置命名空间键控、仅在该命名空间被 Host 服务时渲染：卡片默认折叠、头部展示凭据状态，保存/健康检查/连接与模型测试/插件更新等能力保持不变。
 - **工具与技能统一命名为 `ark_*`。** 模型可见的三个工具从 `vision_glance` / `vision_generate_image` / `vision_speak` 重命名为 `ark_glance` / `ark_generate_image` / `ark_speak`，随附技能从 `vision-skills` 重命名为 `ark-skills`，以与软件包名 `dsh-ark-toolkit` 保持一致。旧技能名（`vision-skills`、`vision-tools`）仍会被识别，用于恢复旧 Session 的激活状态；客户端文案、文档与示例同步更新。
 - **DSH rc 版本跟进。** 开发/CI 依赖与 Profile 验收从 `0.1.0-rc.6` 升级到当前 `0.1.0-rc.8`（devDependencies、pnpm-workspace allowBuilds、CI 安装的 DSH CLI、`profile-install.e2e` 的 `REQUIRED_DSH_VERSION`），peer 依赖保持 `^0.1.0-rc.6` 灵活范围以兼容频繁更新的 DSH rc 版本。
 - **纯 TypeScript 精简版。** 移除 vendored Python 工具链（`agent-vision-toolkit` 适配层、托管/系统 Python 引导、Pillow/numpy/vtracer 运行时）与全部本地像素工具（`vision_ground`、`vision_detect`、`vision_crop`、`vision_trace`、`vision_pixel_diff`、`vision_long_screenshot_ocr`、`vision_extract_foreground`、`vision_dominant_colors`、`vision_html_screenshot`）。图片理解改为 TS 直连 OpenAI 兼容 `/chat/completions`（或 Anthropic Messages），图片压缩/裁剪改用 Node 原生方案（sharp），不再需要 Python、Chrome 或任何隔离运行环境。仅保留 `ark_glance`（图片理解）、`ark_generate_image`（Seedream 文生图）、`ark_speak`（字节 TTS 语音合成）三个工具。

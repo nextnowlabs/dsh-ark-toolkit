@@ -17,7 +17,7 @@
 
 - **粘贴图片，直接提问。** 在 DSH Web 里粘贴图片，文本模型会自动切换到看图模式变体，不需要手动复制路径或更换模型。图片保留原生缩略图、会话记录和工作区路径；Web 可以预览产物。
 - **原生 TypeScript，开箱即用。** 图片理解由插件直接调用 OpenAI 兼容 `/chat/completions` 接口，图片压缩等本地处理使用 Node 原生方案（sharp），安装后即可使用。
-- **默认接入字节火山方舟。** 图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 火山视觉工具** 填入你自己的 Ark API Key 即可。
+- **默认接入字节火山方舟。** 图片理解使用豆包 Seed Vision 视觉模型；在 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片里填入你自己的 Ark API Key 即可。
 - **豆包 Seedream 文生图。** 内置 `ark_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact。
 - **字节 TTS 语音合成。** `ark_speak` 工具把文本变成语音（MP3/OGG/PCM/WAV），使用字节豆包语音合成模型 2.0，交付为可下载的音频 Artifact。
 - **围绕任务理解图片。** 模型不只是生成通用描述，而是围绕"报错在哪里""按钮在哪"等当前任务提取证据。
@@ -72,7 +72,7 @@ dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 
 ### 2. 重启并确认
 
-重启正在运行的 Web Profile，打开 **设置 → 火山视觉工具**。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行**测试视觉模型**确认连接。
+重启正在运行的 Web Profile，打开 **设置 → 插件 → 插件配置** 并展开 Ark Toolkit 卡片。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行**测试视觉模型**确认连接。
 
 ### 3. 粘贴图片，直接说你要做什么
 
@@ -140,7 +140,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 配置自己的火山方舟 API Key
 
-在 **设置 → 火山视觉工具** 中填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片中填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
 
 **火山方舟图文教程：** [申请火山方舟 API Key，并用豆包 Seed Vision / Seedream 做图片理解与生成](docs/ark-doubao-vision.md)。教程包含账号与 Key 获取截图、Ark Toolkit 的准确配置，以及可直接使用的 cURL 示例。
 
@@ -182,7 +182,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 调用时还可以通过参数临时指定音色、格式（`mp3`/`ogg_opus`/`pcm`/`wav`）、采样率、语速、音量、音调、情感（`happy`/`sad`/`neutral`）和语言（`zh-cn`/`en`/`ja`）。完整音色列表见火山引擎官方《在线音色列表》（如 Vivi 2.0、小何 2.0、Tim 等）。
 
-支持 OpenAI Chat Completions 兼容端点和 Anthropic Messages。Web Settings 页面还可以调整超时、图片限制、并发和图片输入变体。
+支持 OpenAI Chat Completions 兼容端点和 Anthropic Messages。插件配置卡片里还可以调整超时、图片限制、并发和图片输入变体。
 
 ## 常见问题
 
@@ -192,7 +192,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 | 粘贴图片后仍提示模型不支持图片 | 重启 Web Profile 并刷新页面，确认当前模型已切换到带 `(Ark Toolkit)` 的变体；也可以把图片先放进会话工作区，再调用 `/ark-skills` |
 | 火山方舟返回 429/限流 | 按错误信息等待后重试；或在火山引擎控制台查看配额并升级额度 |
 | 图片过大或像素超限 | 插件会自动压缩/缩放后再上传；超出压缩下限时会明确报字节或像素限制错误 |
-| 自定义 Credential 缺失 | 在 **设置 → 火山视觉工具** 填写 API Key，并确认 Credential 名称与配置一致 |
+| 自定义 Credential 缺失 | 在 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片填写 API Key，并确认 Credential 名称与配置一致 |
 | 产物无法预览 | 使用"打开文件"或结果中的工作区路径；预览 URL 只在 Web 路由可用时存在 |
 
 **接入视觉模型会显著增加成本吗？**
