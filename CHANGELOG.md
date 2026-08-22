@@ -2,7 +2,7 @@
 
 All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
-## [Unreleased]
+## [0.0.5] - 2026-08-22
 
 ### Changed
 
