@@ -206,6 +206,26 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 - 安全漏洞请按 [SECURITY.md](SECURITY.md) 私下报告。
 - 版本变化见 [CHANGELOG.md](CHANGELOG.md)。
 
+## 发布
+
+`scripts/publish.mjs` 负责发布到 npmjs 官方 registry（脚本自动使用官方 registry 与仓库本地 `.npm-cache/` 缓存，规避镜像源与 `~/.npm` 只读导致的 EROFS）：
+
+```bash
+npm run release                       # 发布到 npmjs（默认 patch 升版）
+npm run publish:dry                   # dry-run：构建 + 预览 tarball，不发布
+npm run release -- --bump minor       # 升级 minor 版并发布
+npm run release -- --bump 0.1.0       # 指定精确版本
+npm run release -- --tag beta         # 发布为 beta dist-tag（预发布版本默认 beta，正式版本默认 latest）
+npm run release -- --otp 123456       # 二步验证一次性密码（也支持 NPM_OTP 环境变量）
+```
+
+> 注意：不要直接运行裸 `npm publish`。`publish` 是 npm 的生命周期脚本名，
+> npm 在上传完成后会再次执行它，导致发布脚本递归重入并报"版本已存在"
+> （0.0.5 发布事故：包实际已上传成功，`npm publish` 却以失败退出且未创建
+> git tag）。统一使用 `npm run release`。
+
+发布前会自动检查：位于 `main` 分支、工作区干净（CI 用 `--skip-checks` 跳过）、已登录 npmjs、版本号未被占用（`--force` 可跳过）。首次发布先执行 `npm login --registry https://registry.npmjs.org/`。
+
 ## 许可证
 
 插件采用 [MIT License](LICENSE)。
