@@ -1,6 +1,6 @@
 {
   "name": "@nextnowlabs/dsh-ark-toolkit",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "DSH Ark Toolkit：为 DeepSeek Harness 纯文本模型接入视觉能力的插件。基于火山方舟视觉模型实现看图问答、OCR 文字识别与多图对比，内置豆包 Seedream 文生图和字节 TTS 语音合成。",
   "keywords": [
     "deepseek",
