@@ -9,7 +9,7 @@
  * @module dsh-ark-toolkit/image-input-variants
  */
 import type { Context } from '@deepseek-ai/cordis';
-import LlmService, { LlmAdapter } from '@deepseek-ai/dsh-llm';
+import LlmRuntime, { LlmAdapter } from '@deepseek-ai/dsh-llm';
 import type { ContentBlock, GenerateOptions, LlmModelInfo, LlmProviderInfo, LlmResolvedModelInfo, Message, StreamChunk } from '@deepseek-ai/dsh-llm';
 import type { ResolvedArkToolkitConfig } from './config.ts';
 import { type PasteSelectionQuery, type PasteVerdict } from './paste-images.ts';
@@ -87,7 +87,7 @@ export declare class ImageInputVariantAdapter extends LlmAdapter {
     private readonly cache;
     private readonly hidden;
     private lastRuntime;
-    constructor(ctx: Context, llm: LlmService, upstream: string, upstreamName: string, runtime: () => ArkToolkitRuntime | undefined, cache: EvidenceCache, hidden?: () => boolean);
+    constructor(ctx: Context, llm: LlmRuntime, upstream: string, upstreamName: string, runtime: () => ArkToolkitRuntime | undefined, cache: EvidenceCache, hidden?: () => boolean);
     providerInfo(provider: string): LlmProviderInfo;
     listModels(provider: string): Promise<readonly LlmModelInfo[]>;
     resolveModel(provider: string, model: string, signal?: AbortSignal): Promise<LlmResolvedModelInfo>;

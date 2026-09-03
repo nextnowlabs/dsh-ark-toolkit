@@ -2,6 +2,15 @@
 
 All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
+## [0.0.7] - 2026-09-03
+
+### Changed
+
+- **跟进 DSH `0.1.2-rc.1`。** 依赖与代码全面适配新版本 DeepSeek Harness：`@deepseek-ai/dsh-client-runtime`（npm 已停更）从 `dsh.client.inject`、peerDependencies 与客户端代码中移除，`ClientContext` 改用 `@deepseek-ai/cordis` 的 `Context`，`ctx.slots` 类型声明迁移到 `@deepseek-ai/dsh-client-ui-renderer/client`，`ToolCallBlock` 改从 `@deepseek-ai/dsh-client-ui-chat/client` 引入；所有 `@deepseek-ai/dsh-*` peer 依赖与开发依赖升级到 `0.1.2-rc.1`，`@deepseek-ai/cordis` 提升到 `^4.0.2`。
+- **设置命名空间改为字符串字面量。** `settingsNamespace('ark-toolkit')` 构造函数已删除，`ARK_TOOLKIT_SETTINGS_NAMESPACE` 直接使用 `'ark-toolkit'` 字符串；Host 侧 `ctx.settings.register` / `replace` 与 `SettingsConflictError` 调用同步适配。
+- **`ctx.slash` 遗留服务移除。** 粘贴图片的引用编解码器统一通过 `inputTriggers` 服务注册（旧 `slash` 兼容层与跨服务去重逻辑删除）；`dsh-llm` 默认导出从 `LlmService` 更名为 `LlmRuntime`，`Session.events` 改为 `session.snapshotEvents()`。
+- **Profile 验收测试适配 pnpm 11。** `profile-install.e2e` 在初始化 headless Profile 时预置 `pnpm-workspace.yaml` 的 `allowBuilds.sharp`（pnpm 11 对原生构建脚本按工作区门控），并把测试工具清单更新为当前 `ark_glance` / `ark_generate_image` / `ark_speak` 三个工具，移除了已删除的 `vision_*` 本地工具用例。
+
 ## [0.0.5] - 2026-08-22
 
 ### Changed

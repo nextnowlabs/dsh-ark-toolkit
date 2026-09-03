@@ -5,7 +5,7 @@
  * @module dsh-ark-toolkit/artifact-access
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import type { JsonValue } from '@deepseek-ai/dsh-tools';
+import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import type { ArtifactDescriptor, ArtifactKind } from './artifacts.ts';
 /** Prefix owned by the plugin's artifact capability route. */
 export declare const ARTIFACT_ROUTE_PREFIX = "/_dsh/ark-toolkit/artifacts";

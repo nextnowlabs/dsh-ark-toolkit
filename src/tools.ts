@@ -6,7 +6,8 @@
  */
 
 import type { ContentBlock } from '@deepseek-ai/dsh-llm'
-import { defineTool, type JsonValue, type ToolRunContext, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+import { defineTool, type ToolRunContext, type ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import {
   ArkToolkitRuntime,
   type GenerateImageRequest,

@@ -80,7 +80,7 @@ function inputMachine(initial = '') {
 
 type TriggerService = 'slash' | 'inputTriggers'
 
-function fakeClient(initial = '', triggerServices: readonly TriggerService[] = ['slash'], aliasTriggers = false) {
+function fakeClient(initial = '', triggerServices: readonly TriggerService[] = ['inputTriggers'], aliasTriggers = false) {
   const input = inputMachine(initial)
   const effects: Array<() => void> = []
   const registrations: Array<{
@@ -223,35 +223,25 @@ describe('clipboard image client', () => {
     expect(PASTE_POLICY_ROUTE).toBe(SERVER_PASTE_POLICY_ROUTE)
   })
 
-  it('registers the reference codec through the legacy inputTriggers service', () => {
+  it('registers the reference codec through the inputTriggers service', () => {
     const bench = fakeClient('', ['inputTriggers'])
     expect(bench.source()?.name).toBe('ark-toolkit-pasted-image')
-    expect(bench.ctx.inject).toHaveBeenCalledWith(['slash'], expect.any(Function))
+    // 0.1.2-rc.1: dsh-client-runtime was removed, so the `slash` service no
+    // longer exists; the input-trigger registry is the single registration seam.
     expect(bench.ctx.inject).toHaveBeenCalledWith(['inputTriggers'], expect.any(Function))
+    expect(bench.ctx.inject).not.toHaveBeenCalledWith(['slash'], expect.any(Function))
     bench.dispose()
   })
 
-  it('registers both distinct trigger-service generations in a transitional runtime', () => {
-    const bench = fakeClient('', ['slash', 'inputTriggers'])
-    expect(bench.triggerRegistries.slash.registerSource).toHaveBeenCalledTimes(1)
+  it('registers the reference codec once and unregisters it on disposal', () => {
+    const bench = fakeClient('', ['inputTriggers'])
     expect(bench.triggerRegistries.inputTriggers.registerSource).toHaveBeenCalledTimes(1)
     bench.dispose()
-  })
-
-  it('registers once when a compatibility adapter aliases both service names', () => {
-    const bench = fakeClient('', ['slash', 'inputTriggers'], true)
-    expect(bench.triggerRegistries.slash.registerSource).toHaveBeenCalledTimes(1)
-    expect(bench.triggerRegistries.inputTriggers.registerSource).not.toHaveBeenCalled()
-    bench.disposeEffect(0)
-    expect(bench.source()?.name).toBe('ark-toolkit-pasted-image')
-    expect(bench.triggerRegistries.slash.dispose).not.toHaveBeenCalled()
-    bench.disposeEffect(1)
+    expect(bench.triggerRegistries.inputTriggers.dispose).toHaveBeenCalledTimes(1)
     expect(bench.source()).toBeUndefined()
-    expect(bench.triggerRegistries.slash.dispose).toHaveBeenCalledTimes(1)
-    bench.dispose()
   })
 
-  it('keeps an aliased registry live across real Cordis service removal and re-provision', async () => {
+  it('keeps the reference codec registered across real Cordis service removal and re-provision', async () => {
     const ctx = new Context()
     const unregister = vi.fn()
     const registerSource = vi.fn(() => unregister)
@@ -264,16 +254,6 @@ describe('clipboard image client', () => {
         return registerSource()
       }
     }
-    const mountAdapter = async () => {
-      const fiber = ctx.plugin({
-        inject: ['inputTriggers'],
-        apply(scope: Context) {
-          scope.provide('slash', (scope as Context & { inputTriggers: TriggerRegistryService }).inputTriggers)
-        },
-      })
-      await fiber.await()
-      return fiber
-    }
     ctx.provide('sessions', {
       list: { getSnapshot: () => ({ current: 'session-1' }) },
       scope: () => ({}),
@@ -285,15 +265,9 @@ describe('clipboard image client', () => {
     })
     let providerFiber = ctx.plugin(TriggerRegistryService)
     await providerFiber.await()
-    let adapterFiber = await mountAdapter()
     const pasteFiber = ctx.plugin({ apply: scope => { installPasteImages(scope as never) } })
     await pasteFiber.await()
     await vi.waitFor(() => { expect(registerSource).toHaveBeenCalledTimes(1) })
-
-    await adapterFiber.dispose()
-    expect(unregister).not.toHaveBeenCalled()
-    adapterFiber = await mountAdapter()
-    expect(registerSource).toHaveBeenCalledTimes(1)
 
     await providerFiber.dispose()
     await vi.waitFor(() => { expect(unregister).toHaveBeenCalledTimes(1) })
@@ -301,8 +275,6 @@ describe('clipboard image client', () => {
     providerFiber = ctx.plugin(TriggerRegistryService)
     await providerFiber.await()
     await vi.waitFor(() => { expect(registerSource).toHaveBeenCalledTimes(2) })
-    await adapterFiber.dispose()
-    expect(unregister).toHaveBeenCalledTimes(1)
     await providerFiber.dispose()
     await vi.waitFor(() => { expect(unregister).toHaveBeenCalledTimes(2) })
     await pasteFiber.dispose()

@@ -14,7 +14,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { isAbsolute, join, resolve } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import LlmService, { LlmAdapter, contentHasImage } from '@deepseek-ai/dsh-llm'
+import LlmRuntime, { LlmAdapter, contentHasImage } from '@deepseek-ai/dsh-llm'
 import type {
   ContentBlock,
   GenerateOptions,
@@ -541,7 +541,7 @@ export class ImageInputVariantAdapter extends LlmAdapter {
 
   constructor(
     private readonly ctx: Context,
-    private readonly llm: LlmService,
+    private readonly llm: LlmRuntime,
     private readonly upstream: string,
     private readonly upstreamName: string,
     private readonly runtime: () => ArkToolkitRuntime | undefined,

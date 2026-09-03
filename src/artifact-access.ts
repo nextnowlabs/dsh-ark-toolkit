@@ -12,7 +12,7 @@ import { chmod, lstat, mkdir, open, readFile, realpath, writeFile } from 'node:f
 import type { FileHandle } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { basename, dirname, extname, isAbsolute, join, relative, sep } from 'node:path'
-import type { JsonValue } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type { ArtifactDescriptor, ArtifactKind } from './artifacts.ts'
 import { isWithin, arkToolkitStateRoot } from './paths.ts'
 

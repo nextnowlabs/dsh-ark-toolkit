@@ -49,12 +49,12 @@ describe('package layout contract', () => {
     expect(PACKAGE.dsh?.client?.platform).toBe('web')
     expect(PACKAGE.dsh?.client?.inject).toEqual(expect.arrayContaining([
       '@deepseek-ai/dsh-api-remotes',
-      '@deepseek-ai/dsh-client-runtime',
       '@deepseek-ai/dsh-client-ui-input-trigger',
       '@deepseek-ai/dsh-client-ui-tool',
       '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-locale',
     ]))
+    expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-runtime')
   })
 
   it('ships the pure-Node plugin: lib, src, docs, assets, patch, and docs in files', async () => {
@@ -84,7 +84,7 @@ describe('package layout contract', () => {
 
   it('pins the dependency install scripts allowed in standalone CI', async () => {
     const workspace = await readFile(join(ROOT, 'pnpm-workspace.yaml'), 'utf8')
-    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.0-rc.8': true")
+    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.2-rc.1': true")
     expect(workspace).toContain("'node-pty@1.2.0-beta.15': true")
     expect(workspace).not.toMatch(/^\s{2}(?:'@deepseek-ai\/dsh-subprocess-local'|node-pty):/mu)
   })
@@ -105,9 +105,10 @@ describe('package layout contract', () => {
   it('targets the published DSH prerelease line without retired package names', () => {
     const peers = PACKAGE.peerDependencies ?? {}
     for (const [name, spec] of Object.entries(peers)) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.0-rc.6')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.2-rc.1')
     }
     expect(peers).toHaveProperty('@deepseek-ai/dsh-client-ui-input-trigger')
+    expect(peers).not.toHaveProperty('@deepseek-ai/dsh-client-runtime')
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-client-ui-slash')
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-host-apiproxy')
     expect(PACKAGE.peerDependenciesMeta?.['@deepseek-ai/dsh-host-webserver']?.optional).toBe(true)

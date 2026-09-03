@@ -81,7 +81,7 @@ function isBundledSkillResult(value: unknown): boolean {
 /** Whether durable history proves that this Session loaded the bundled Skill. */
 function hasLoadedArkSkill(session: Session): boolean {
   const nativeCalls = new Set<string>()
-  for (const event of session.events) {
+  for (const event of session.snapshotEvents()) {
     if (event.type === 'user/message') {
       const source = event.data.source
       if (source.kind === 'skill-invocation'

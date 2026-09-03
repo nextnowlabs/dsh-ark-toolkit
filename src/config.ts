@@ -9,7 +9,6 @@
 import z from '@deepseek-ai/schemastery'
 import type Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import { ArkToolkitError } from './errors.ts'
 import {
   ARK_BASE_URL,
@@ -35,8 +34,8 @@ export {
   VOLCENGINE_TTS_VOICE,
 } from './defaults.ts'
 
-/** Settings document namespace owned by this plugin. */
-export const ARK_TOOLKIT_SETTINGS_NAMESPACE = settingsNamespace('ark-toolkit')
+/** Settings document namespace owned by this plugin (0.1.2-rc.1: a plain string, no branded constructor). */
+export const ARK_TOOLKIT_SETTINGS_NAMESPACE = 'ark-toolkit' as const
 
 /** Browser-compatible default shared with the vendored Python client. */
 export const DEFAULT_VISION_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'

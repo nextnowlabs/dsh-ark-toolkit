@@ -8,8 +8,8 @@
 import type Schema from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
 export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, ARK_VISION_MODEL, SEEDREAM_MODEL_ALIASES, VOLCENGINE_TTS_CREDENTIAL, VOLCENGINE_TTS_RESOURCE, VOLCENGINE_TTS_URL, VOLCENGINE_TTS_VOICE, } from './defaults.ts';
-/** Settings document namespace owned by this plugin. */
-export declare const ARK_TOOLKIT_SETTINGS_NAMESPACE: import("@deepseek-ai/dsh-settings").SettingsNamespace;
+/** Settings document namespace owned by this plugin (0.1.2-rc.1: a plain string, no branded constructor). */
+export declare const ARK_TOOLKIT_SETTINGS_NAMESPACE: "ark-toolkit";
 /** Browser-compatible default shared with the vendored Python client. */
 export declare const DEFAULT_VISION_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 /**

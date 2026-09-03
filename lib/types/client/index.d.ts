@@ -3,7 +3,8 @@
  * plugin-configuration card (设置 → 插件 → 插件配置) with health checks,
  * connection tests, and safe Artifact previews.
  */
-import type { ClientContext, ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
+import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
 declare const en: {
     readonly settingsTitle: "Volcengine Ark Toolkit";
     readonly settingsIntro: "Configure the model and API key used by online vision features.";

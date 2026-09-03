@@ -1,8 +1,10 @@
 /** Clipboard-only multi-image input for DSH Web. */
 
 import { useSyncExternalStore, type ReactNode } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-api-session-controller/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import { readDisplayConfig } from './display-config.ts'
@@ -64,36 +66,6 @@ interface PasteOccurrence {
 type PasteDockProps = PropsRuntime<'conversation.input.dock'> & {
   controller: PasteImageController
   remove: (occurrence: PasteOccurrence) => void
-}
-
-interface ReferenceSourceRegistry {
-  registerSource: (source: InputTriggerSource) => () => void
-}
-
-interface ReferenceSourceRegistration {
-  dispose: () => void
-  owners: number
-}
-
-interface LegacyTriggerContext {
-  inputTriggers: ReferenceSourceRegistry
-}
-
-interface LegacySlashContext {
-  slash: ReferenceSourceRegistry
-}
-
-const CORDIS_ORIGINAL = Symbol.for('cordis.original')
-
-function registryIdentity(registry: ReferenceSourceRegistry): object {
-  let current: object = registry
-  while (true) {
-    const original = (current as Record<symbol, unknown>)[CORDIS_ORIGINAL]
-    if ((typeof original !== 'object' && typeof original !== 'function') || original === null || original === current) {
-      return current
-    }
-    current = original
-  }
 }
 
 let fallbackId = 0
@@ -696,30 +668,13 @@ export function PasteImageDock(props: PasteDockProps): ReactNode {
 /** Install capture interception, the text-reference codec, and composer feedback. */
 export function installPasteImages(ctx: ClientContext): void {
   const controller = new PasteImageController(ctx)
-  const registered = new WeakMap<object, ReferenceSourceRegistration>()
-  const register = (scope: ClientContext, registry: ReferenceSourceRegistry): void => {
-    scope.effect(() => {
-      const identity = registryIdentity(registry)
-      let registration = registered.get(identity)
-      if (registration === undefined) {
-        registration = { dispose: registry.registerSource(controller.source()), owners: 0 }
-        registered.set(identity, registration)
-      }
-      registration.owners += 1
-      return () => {
-        if (registered.get(identity) !== registration) return
-        registration.owners -= 1
-        if (registration.owners > 0) return
-        registered.delete(identity)
-        registration.dispose()
-      }
-    }, 'dsh-ark-toolkit: pasted image reference codec')
-  }
-  ctx.inject(['slash'], (scope: ClientContext) => {
-    register(scope, (scope as unknown as LegacySlashContext).slash)
-  })
+  // 0.1.2-rc.1: the input-trigger source registry is the single `inputTriggers`
+  // service (the legacy `slash` service was removed with dsh-client-runtime).
   ctx.inject(['inputTriggers'], (scope: ClientContext) => {
-    register(scope, (scope as unknown as LegacyTriggerContext).inputTriggers)
+    scope.effect(
+      () => scope.inputTriggers.registerSource(controller.source()),
+      'dsh-ark-toolkit: pasted image reference codec',
+    )
   })
   ctx.effect(() => {
     const listener = (event: ClipboardEvent): void => { controller.handlePaste(event) }

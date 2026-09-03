@@ -76,7 +76,7 @@ check(pkg.scripts?.build?.includes('node scripts/build-client.mjs') === true, 'b
 check(pkg.dependencies?.sharp === '0.34.2', 'sharp must be pinned to the exact prebuilt-binary release')
 check(pkg.peerDependencies?.['@deepseek-ai/schemastery'] === '^3.18.1', '@deepseek-ai/schemastery must be a host-provided peer dependency')
 check(pkg.peerDependencies?.schemastery === undefined, 'unscoped schemastery peer dependency must remain absent')
-check(pkg.peerDependencies?.['@deepseek-ai/cordis'] === '^4.0.1', '@deepseek-ai/cordis must be a host-provided peer dependency')
+check(pkg.peerDependencies?.['@deepseek-ai/cordis'] === '^4.0.2', '@deepseek-ai/cordis must be a host-provided peer dependency')
 check(pkg.peerDependencies?.cordis === undefined, 'unscoped cordis peer dependency must remain absent')
 
 const dependencyGroups = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']

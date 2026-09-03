@@ -2,14 +2,14 @@ import { fileURLToPath } from 'node:url'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
 import AgentRegistry, { type Agent } from '@deepseek-ai/dsh-agent'
-import { CallId, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
+import { ToolCallId, createToolResultMessage, createUserMessage } from '@deepseek-ai/dsh-llm'
 import { createScope, type Scope } from '@deepseek-ai/dsh-scope'
 import SessionStore, { Session, SessionId } from '@deepseek-ai/dsh-session'
 import SystemPrompt from '@deepseek-ai/dsh-system-prompt'
-import ToolRegistry, { defineTool } from '@deepseek-ai/dsh-tools'
-import SkillService from '@deepseek-ai/dsh-skill'
+import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
+import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
-import LocalSubprocessService from '@deepseek-ai/dsh-subprocess-local'
+import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import * as ArkToolkit from '../src/index.ts'
@@ -77,7 +77,7 @@ function recordNativeSkillInvocation(
   content = ARK_SKILLS_CONTENT,
   name = ARK_SKILLS_NAME,
 ): void {
-  const callId = CallId(`restored-skill-${turn}`)
+  const callId = ToolCallId(`restored-skill-${turn}`)
   session.append('turn/start', { turn })
   session.append('step/start', { turn, step: 1 })
   session.append('tool/call', {
@@ -108,8 +108,8 @@ function recordCodeSkillInvocation(
 ): void {
   session.append('turn/start', { turn })
   session.append('tool/code-dispatch', {
-    parentCallId: CallId(`restored-run-code-${turn}`),
-    subCallId: CallId(`restored-code-skill-${turn}`),
+    parentCallId: ToolCallId(`restored-run-code-${turn}`),
+    subCallId: ToolCallId(`restored-code-skill-${turn}`),
     name: 'skill',
     arguments: { name },
     isError: false,
@@ -139,7 +139,7 @@ async function registerAgent(ctx: Context, name: string, session?: Session): Pro
 async function loadVisionSkill(ctx: Context, agent: Agent): Promise<void> {
   const result = await ctx.tools.execute({
     signal: new AbortController().signal,
-    callId: CallId(`skill-${String(agent.id)}`),
+    callId: ToolCallId(`skill-${String(agent.id)}`),
     name: 'skill',
     arguments: { name: ARK_SKILLS_NAME },
     agent,
@@ -151,12 +151,12 @@ async function setupContext() {
   const ctx = new Context()
   contexts.push(ctx)
   await ctx.plugin(SystemPrompt)
-  await ctx.plugin(ToolRegistry)
+  await ctx.plugin(ToolRuntime)
   await ctx.plugin(SessionStore)
   await ctx.plugin(AgentRegistry)
-  await ctx.plugin(SkillService)
+  await ctx.plugin(SkillRegistry)
   await ctx.plugin(ToolSkill)
-  await ctx.plugin(LocalSubprocessService)
+  await ctx.plugin(LocalSubprocessRuntime)
   await ctx.plugin(MemorySettings)
   ctx.provide('credentials', fakeCredentials())
   const fiber = await ctx.plugin(ArkToolkit, {
@@ -270,7 +270,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: CallId('activate-after-direct-skill'),
+      callId: ToolCallId('activate-after-direct-skill'),
       name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
@@ -305,7 +305,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: CallId('shadowed-skill-call'),
+      callId: ToolCallId('shadowed-skill-call'),
       name: 'skill',
       arguments: { name: ARK_SKILLS_NAME },
       agent,
@@ -334,7 +334,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
 
     const result = await ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: CallId('activate-without-skill'),
+      callId: ToolCallId('activate-without-skill'),
       name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
@@ -353,7 +353,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     const signal = new AbortController().signal
     const skillResult = await ctx.tools.execute({
       signal,
-      callId: CallId('skill-call'),
+      callId: ToolCallId('skill-call'),
       name: 'skill',
       arguments: { name: ARK_SKILLS_NAME },
       agent,
@@ -361,7 +361,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(skillResult.isError, JSON.stringify(skillResult)).toBe(false)
     const activationResult = await ctx.tools.execute({
       signal,
-      callId: CallId('activate-call'),
+      callId: ToolCallId('activate-call'),
       name: ARK_TOOLKIT_ACTIVATE,
       arguments: {},
       agent,
@@ -383,7 +383,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     await loadVisionSkill(ctx, agent)
     const pending = ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: CallId('dispose-active-vision-tool'),
+      callId: ToolCallId('dispose-active-vision-tool'),
       name: 'ark_glance',
       arguments: { images: [SAMPLE_IMAGE] },
       agent,
@@ -399,12 +399,12 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     const ctx = new Context()
     contexts.push(ctx)
     await ctx.plugin(SystemPrompt)
-    await ctx.plugin(ToolRegistry)
+    await ctx.plugin(ToolRuntime)
     await ctx.plugin(SessionStore)
     await ctx.plugin(AgentRegistry)
-    await ctx.plugin(SkillService)
+    await ctx.plugin(SkillRegistry)
     await ctx.plugin(ToolSkill)
-    await ctx.plugin(LocalSubprocessService)
+    await ctx.plugin(LocalSubprocessRuntime)
     await ctx.plugin(MemorySettings)
     ctx.provide('credentials', fakeCredentials())
     await expect(ctx.plugin(ArkToolkit, {

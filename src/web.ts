@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import type { CredentialInfo, CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import { SettingsConflictError, type SettingsDescriptor } from '@deepseek-ai/dsh-settings'
+import { SettingsConflictError, type SettingsDescriptor, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 // Type-only imports activate the optional webServer and subprocess Context declarations.
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-subprocess'
@@ -334,7 +334,7 @@ export class ArkToolkitWebBackend {
     const descriptor = descriptorOf(this.ctx)
     if (descriptor.revision !== request.expectedRevision) {
       throw new SettingsConflictError(
-        ARK_TOOLKIT_SETTINGS_NAMESPACE,
+        ARK_TOOLKIT_SETTINGS_NAMESPACE as SettingsNamespace,
         request.expectedRevision,
         descriptor.revision,
       )

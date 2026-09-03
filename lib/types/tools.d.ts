@@ -4,7 +4,8 @@
  * without changing Headless or model-visible semantics.
  * @module dsh-ark-toolkit/tools
  */
-import { defineTool, type JsonValue } from '@deepseek-ai/dsh-tools';
+import { defineTool } from '@deepseek-ai/dsh-tools';
+import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { ArkToolkitRuntime } from './runtime.ts';
 /** Canonical names shared by registration, bootstrap guidance, and tests. */
 export declare const ARK_TOOL_NAMES: {
