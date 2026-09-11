@@ -1,12 +1,9 @@
 /**
- * Path fence shared by every tool: inputs must live in the workspace, the
- * platform temporary directory, or an explicitly authorized directory;
- * outputs stay inside the plugin-managed output directory, and a symbolic
- * link is allowed only when its real target stays inside the fence.
+ * Path fence shared by every tool: outputs stay inside the plugin-managed
+ * output directory, and a symbolic link is allowed only when its real target
+ * stays inside the fence.
  * @module dsh-ark-toolkit/paths
  */
-/** Supported input image extensions (the vision client's allowlist). */
-export declare const SUPPORTED_IMAGE_EXTENSIONS: readonly [".png", ".jpg", ".jpeg", ".gif", ".webp"];
 /** Persistent per-DSH-home cache root shared by runtime and Web support files. */
 export declare function arkToolkitStateRoot(): string;
 /** Resolved path policy for one tool invocation. */
@@ -41,20 +38,9 @@ export declare function normalizePlatformTempPath(raw: string, platform?: NodeJS
  */
 export declare function createPathPolicy(workspaceRaw: string, allowedDirs: readonly string[], outputDirRaw?: string): Promise<PathPolicy>;
 /**
- * Validate one input image path and return its fence-checked absolute path
- * and byte size.
- * @param raw - image path, resolved against the workspace.
- * @param policy - active path fence.
- * @returns absolute path and file size.
- */
-export declare function resolveInputFile(raw: string, policy: PathPolicy): Promise<{
-    path: string;
-    bytes: number;
-}>;
-/**
  * Validate one authorized regular file against an explicit extension set.
  * Realpath fencing makes local HTML and future non-image inputs follow the
- * same symlink-safe policy as images.
+ * same symlink-safe policy.
  * @param raw - path resolved against the workspace.
  * @param policy - active path fence.
  * @param extensions - accepted lowercase extensions including the leading dot.

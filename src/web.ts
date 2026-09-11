@@ -17,13 +17,6 @@ import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import { ArtifactAccessController, ARTIFACT_ROUTE_PREFIX } from './artifact-access.ts'
 import {
-  PastedImageBackend,
-  PASTE_IMAGES_ROUTE,
-  PASTE_POLICY_ROUTE,
-  type PasteSelectionQuery,
-  type PasteVerdict,
-} from './paste-images.ts'
-import {
   resolveConfig,
   ARK_TOOLKIT_SETTINGS_NAMESPACE,
   type ResolvedArkToolkitConfig,
@@ -43,13 +36,10 @@ import {
   type RuntimeManagerStatus,
 } from './runtime-manager.ts'
 import { PLUGIN_VERSION } from './version.ts'
-import { sameOriginPost, sameOriginRequest } from './web-request.ts'
+import { sameOriginPost } from './web-request.ts'
 
 /** Exact route used by the browser Settings page. */
 export const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
-
-/** Same-origin route used by the browser client to read display-mode flags. */
-export const DISPLAY_CONFIG_ROUTE = '/_dsh/ark-toolkit/display-config'
 
 /** Public Settings snapshot; credential values are deliberately impossible here. */
 export interface ArkToolkitSettingsSnapshot {
@@ -91,7 +81,6 @@ interface SaveRequest {
 interface HealthRequest {
   action: 'health'
   testConnection: boolean
-  testModel: boolean
 }
 
 interface CredentialRequest {
@@ -191,10 +180,7 @@ function parseRequest(value: unknown): SettingsRequest {
   if (!isRecord(value) || typeof value.action !== 'string') throw new TypeError('request action is required')
   if (value.action === 'health') {
     if (typeof value.testConnection !== 'boolean') throw new TypeError('health.testConnection must be boolean')
-    const testModel = value.testModel === undefined ? false : value.testModel
-    if (typeof testModel !== 'boolean') throw new TypeError('health.testModel must be boolean')
-    if (testModel && !value.testConnection) throw new TypeError('health.testModel requires health.testConnection')
-    return { action: 'health', testConnection: value.testConnection, testModel }
+    return { action: 'health', testConnection: value.testConnection }
   }
   if (value.action === 'save') {
     if (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0) {
@@ -340,14 +326,14 @@ export class ArkToolkitWebBackend {
       )
     }
     const resolved = resolveConfig(descriptor.value as ArkToolkitConfig)
-    const visionRef = credentialRef(String(resolved.provider.credential))
+    const arkRef = credentialRef(String(resolved.provider.credential))
     const ttsRef = credentialRef(String(resolved.provider.tts.credential))
-    const target = request.ref === visionRef ? visionRef
+    const target = request.ref === arkRef ? arkRef
       : request.ref === ttsRef ? ttsRef
         : undefined
     if (target === undefined) {
       throw new CredentialReferenceConflictError(
-        `credential reference "${request.ref}" does not match the configured "${visionRef}" or "${ttsRef}"; reload Settings and try again`,
+        `credential reference "${request.ref}" does not match the configured "${arkRef}" or "${ttsRef}"; reload Settings and try again`,
       )
     }
     await this.ctx.credentials.set(target, request.value)
@@ -368,7 +354,7 @@ export class ArkToolkitWebBackend {
         signal: controller.signal,
         workspace,
         sessionId: 'ark-toolkit-settings',
-      }, request.testModel)
+      })
     } finally {
       req.off('aborted', abort)
       req.socket.off('close', abort)
@@ -453,116 +439,15 @@ export class ArkToolkitWebBackend {
 }
 
 /**
- * Same-origin policy handler for the paste route: whether the browser should
- * take a paste over into workspace paths, or let it flow natively after an
- * optional automatic switch to the image-input variant. The optional `model`
- * query carries the model-selector label the client currently shows; the
- * optional `provider`/`modelId`/`reasoningEffort` queries carry the exact
- * route the client read from the live model catalog, which the resolver
- * prefers (a label alone cannot pick a provider). Unresolvable routes answer
- * native — the safe default.
- * @param resolve - resolves one live Session's paste verdict.
- * @returns the HTTP handler.
- */
-export function createPastePolicyHandler(
-  resolve: (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>,
-): (req: IncomingMessage, res: ServerResponse) => void {
-  return (req, res) => {
-    void (async () => {
-      try {
-        if (req.method !== 'GET') {
-          requestError(res, 405, 'method-not-allowed', 'Use GET')
-          return
-        }
-        if (!sameOriginRequest(req)) {
-          requestError(res, 403, 'origin-rejected', 'The request must originate from this DSH Web application')
-          return
-        }
-        let sessionId: string
-        let modelLabel: string | undefined
-        let selection: PasteSelectionQuery | undefined
-        try {
-          const url = new URL(req.url ?? PASTE_POLICY_ROUTE, 'http://dsh.internal')
-          const sessions = url.searchParams.getAll('sessionId')
-          if (sessions.length !== 1 || sessions[0] === undefined || sessions[0] === '') {
-            throw new TypeError('sessionId is required exactly once')
-          }
-          sessionId = sessions[0]!
-          const models = url.searchParams.getAll('model')
-          if (models.length > 1) throw new TypeError('model may be given at most once')
-          modelLabel = models[0]
-          const providers = url.searchParams.getAll('provider')
-          if (providers.length > 1) throw new TypeError('provider may be given at most once')
-          const modelIds = url.searchParams.getAll('modelId')
-          if (modelIds.length > 1) throw new TypeError('modelId may be given at most once')
-          const efforts = url.searchParams.getAll('reasoningEffort')
-          if (efforts.length > 1) throw new TypeError('reasoningEffort may be given at most once')
-          const provider = providers[0]
-          const modelId = modelIds[0]
-          if (provider !== undefined && modelId !== undefined && provider !== '' && modelId !== '') {
-            selection = {
-              provider,
-              model: modelId,
-              ...(efforts[0] === undefined || efforts[0] === '' ? {} : { reasoningEffort: efforts[0] }),
-            }
-          }
-        } catch (error) {
-          requestError(res, 400, 'invalid-request', publicMessage(error))
-          return
-        }
-        const verdict = await resolve(sessionId, selection, modelLabel)
-        responseJson(res, 200, { ok: true, value: verdict })
-      } catch (error) {
-        requestError(res, 500, 'policy-failed', publicMessage(error))
-      }
-    })()
-  }
-}
-
-/**
- * Same-origin display-config handler: exposes whether transparent routing is
- * active. The paste integration uses it to choose its notice text; the model
- * selector hides upstream twins synchronously from DOM display names and does
- * not depend on this route.
- * @param getDisplayConfig - resolves the current display-mode flags.
- * @returns the HTTP handler.
- */
-export function createDisplayConfigHandler(
-  getDisplayConfig: () => { hidden: boolean },
-): (req: IncomingMessage, res: ServerResponse) => void {
-  return (req, res) => {
-    try {
-      if (req.method !== 'GET') {
-        requestError(res, 405, 'method-not-allowed', 'Use GET')
-        return
-      }
-      if (!sameOriginRequest(req)) {
-        requestError(res, 403, 'origin-rejected', 'The request must originate from this DSH Web application')
-        return
-      }
-      responseJson(res, 200, { ok: true, value: getDisplayConfig() })
-    } catch (error) {
-      requestError(res, 500, 'display-config-failed', publicMessage(error))
-    }
-  }
-}
-
-/**
  * Attach optional Web routes whenever a webServer service is present.
  * @param ctx - plugin context owning route effects.
  * @param backend - Settings handler.
  * @param artifacts - signed Artifact handler.
- * @param pastedImages - pasted-image workspace handler.
- * @param pastePolicy - paste-policy verdict resolver (sessionId, selection, modelLabel).
- * @param getDisplayConfig - resolves display-mode flags for the browser client.
  */
 export function installArkToolkitWeb(
   ctx: Context,
   backend: ArkToolkitWebBackend,
   artifacts: ArtifactAccessController,
-  pastedImages: PastedImageBackend,
-  pastePolicy: (sessionId: string, selection?: PasteSelectionQuery, modelLabel?: string) => Promise<PasteVerdict>,
-  getDisplayConfig: () => { hidden: boolean },
 ): void {
   ctx.inject(['webServer'], (webCtx) => {
     webCtx.effect(() => {
@@ -578,25 +463,7 @@ export function installArkToolkitWeb(
         path: SETTINGS_ROUTE,
         handler: (req, res) => backend.handle(req, res),
       })
-      const disposePasteImages = webCtx.webServer.register({
-        kind: 'exact',
-        path: PASTE_IMAGES_ROUTE,
-        handler: (req, res) => pastedImages.handle(req, res),
-      })
-      const disposePastePolicy = webCtx.webServer.register({
-        kind: 'exact',
-        path: PASTE_POLICY_ROUTE,
-        handler: createPastePolicyHandler(pastePolicy),
-      })
-      const disposeDisplayConfig = webCtx.webServer.register({
-        kind: 'exact',
-        path: DISPLAY_CONFIG_ROUTE,
-        handler: createDisplayConfigHandler(getDisplayConfig),
-      })
       return () => {
-        disposeDisplayConfig()
-        disposePastePolicy()
-        disposePasteImages()
         disposeSettings()
         disposeArtifact()
         detach()

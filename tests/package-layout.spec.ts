@@ -14,7 +14,6 @@ const PACKAGE = JSON.parse(await readFile(join(ROOT, 'package.json'), 'utf8')) a
   dsh?: {
     bundle?: { patch?: string }
     client?: { platform?: string; inject?: string[] }
-    visionToolkit?: { upstreamSkillCommit?: string }
   }
   dependencies?: Record<string, string>
   peerDependencies?: Record<string, string>
@@ -49,11 +48,12 @@ describe('package layout contract', () => {
     expect(PACKAGE.dsh?.client?.platform).toBe('web')
     expect(PACKAGE.dsh?.client?.inject).toEqual(expect.arrayContaining([
       '@deepseek-ai/dsh-api-remotes',
-      '@deepseek-ai/dsh-client-ui-input-trigger',
       '@deepseek-ai/dsh-client-ui-tool',
       '@deepseek-ai/dsh-client-ui-settings',
       '@deepseek-ai/dsh-client-locale',
     ]))
+    // Image-understanding leftovers must not creep back into the bundle.
+    expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-input-trigger')
     expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-runtime')
   })
 
@@ -84,7 +84,7 @@ describe('package layout contract', () => {
 
   it('pins the dependency install scripts allowed in standalone CI', async () => {
     const workspace = await readFile(join(ROOT, 'pnpm-workspace.yaml'), 'utf8')
-    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.2-rc.1': true")
+    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.5-rc.2': true")
     expect(workspace).toContain("'node-pty@1.2.0-beta.15': true")
     expect(workspace).not.toMatch(/^\s{2}(?:'@deepseek-ai\/dsh-subprocess-local'|node-pty):/mu)
   })
@@ -105,14 +105,16 @@ describe('package layout contract', () => {
   it('targets the published DSH prerelease line without retired package names', () => {
     const peers = PACKAGE.peerDependencies ?? {}
     for (const [name, spec] of Object.entries(peers)) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.2-rc.1')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.5-rc.2')
     }
-    expect(peers).toHaveProperty('@deepseek-ai/dsh-client-ui-input-trigger')
+    // Image understanding is gone: no attachment/input-trigger/vision packages.
+    expect(peers).not.toHaveProperty('@deepseek-ai/dsh-attachment')
+    expect(peers).not.toHaveProperty('@deepseek-ai/dsh-client-ui-input-trigger')
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-client-runtime')
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-client-ui-slash')
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-host-apiproxy')
+    expect(peers).toHaveProperty('@deepseek-ai/dsh-llm')
     expect(PACKAGE.peerDependenciesMeta?.['@deepseek-ai/dsh-host-webserver']?.optional).toBe(true)
-    expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-slash')
   })
 
   it('emits no raw .ts relative imports in built JavaScript', async () => {
@@ -127,12 +129,13 @@ describe('package layout contract', () => {
     expect(client).toContain('userAgent')
     expect(client).not.toMatch(/require\("\.\//)
     const runtime = await readFile(join(ROOT, 'lib', 'runtime.js'), 'utf8')
-    expect(runtime).toContain('anthropic-version')
-    expect(runtime).toContain('x-api-key')
-    const visionApi = await readFile(join(ROOT, 'lib', 'vision-api.js'), 'utf8')
-    expect(visionApi).toContain('x-api-key')
-    expect(visionApi).toContain('anthropic-version')
-    expect(visionApi).toContain('chat/completions')
+    expect(runtime).toContain('images/generations')
+    const defaults = await readFile(join(ROOT, 'lib', 'defaults.js'), 'utf8')
+    expect(defaults).toContain('openspeech.bytedance.com')
+    // The vision client and its input-variant proxy are gone.
+    await expect(stat(join(ROOT, 'lib', 'vision-api.js'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(ROOT, 'lib', 'image-input-variants.js'))).rejects.toMatchObject({ code: 'ENOENT' })
+    await expect(stat(join(ROOT, 'lib', 'paste-images.js'))).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(stat(join(ROOT, 'lib', 'upstream.js'))).rejects.toMatchObject({ code: 'ENOENT' })
     await expect(stat(join(ROOT, 'lib', 'runtime-install.js'))).rejects.toMatchObject({ code: 'ENOENT' })
   })
@@ -146,7 +149,8 @@ describe('package layout contract', () => {
       }>
     }
     const outputLines = client.split(/\r?\n/u)
-    expect(indexedMap.sections.length).toBeGreaterThan(1)
+    // The client bundle is one section per compiled source module.
+    expect(indexedMap.sections.length).toBeGreaterThanOrEqual(1)
     for (const section of indexedMap.sections) {
       const source = section.map.sources[0]
       if (source === undefined) throw new Error('client source map section has no source')

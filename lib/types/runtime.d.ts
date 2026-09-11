@@ -1,9 +1,8 @@
 /**
  * Ark Toolkit runtime: structured requests in, structured results out.
- * Pure-TypeScript image understanding through the configured vision service;
- * ByteDance Seedream generation and Volcengine TTS stay direct HTTP. There is
- * no Python runtime and no vendored pixel toolkit: image probing, cropping,
- * and compression run on sharp inside Node.
+ * ByteDance Seedream image generation and Volcengine TTS synthesis stay direct
+ * HTTP. There is no Python runtime and no vendored pixel toolkit: the generated
+ * image probe runs on sharp inside Node.
  * @module dsh-ark-toolkit/runtime
  */
 import type { Context } from '@deepseek-ai/cordis';
@@ -33,30 +32,6 @@ export declare class Semaphore {
     acquire(signal: AbortSignal, permits?: number): Promise<void>;
     /** Release owned permits and wake FIFO waiters whose full weight now fits. */
     release(permits?: number): void;
-}
-/** Validated image metadata retained in structured results and diagnostics. */
-export interface ImageInfo {
-    path: string;
-    bytes: number;
-    width: number;
-    height: number;
-    format: string;
-    /** Original user-facing image path before any automatic compression. */
-    originalPath: string;
-}
-/** Structured input for one glance call. */
-export interface GlanceRequest {
-    images: string[];
-    query?: string;
-    ocr?: boolean;
-    region?: string;
-}
-/** Structured glance result. */
-export interface GlanceResult {
-    images: ImageInfo[];
-    mode: 'describe' | 'qa' | 'ocr';
-    answer: string;
-    truncated: boolean;
 }
 /** Structured input for the ByteDance Seedream text-to-image tool. */
 export interface GenerateImageRequest {
@@ -126,13 +101,12 @@ export interface ArkToolkitHealthResult {
     pluginVersion: string;
     checks: {
         credential: HealthCheck;
+        ttsCredential: HealthCheck;
         artifactDirectory: HealthCheck;
         service: HealthCheck;
-        model: HealthCheck;
     };
     healthy: boolean;
     connectionTested: boolean;
-    modelTested: boolean;
 }
 /** Shared per-call execution options. */
 export interface ToolCallOptions {
@@ -141,22 +115,12 @@ export interface ToolCallOptions {
     workspace: string;
     /** Session identity for the per-session concurrency cap. */
     sessionId?: string;
-    /** Live Session object whose lifetime bounds the one-entry glance cache. */
-    sessionScope?: object;
 }
-/** Parse a non-empty four-integer pixel box. */
-export declare function parseRegion(region: string): {
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-};
 /** Runtime facade used by every native tool. */
 export declare class ArkToolkitRuntime {
     private readonly ctx;
     private readonly config;
     private readonly semaphores;
-    private readonly glanceCache;
     constructor(ctx: Context, config: ResolvedArkToolkitConfig);
     /** Stable runtime identity reported to tools and logs. */
     get runtimeInfo(): {
@@ -167,25 +131,15 @@ export declare class ArkToolkitRuntime {
     private operationError;
     private semaphore;
     private runOperation;
-    /** Resolve the configured credential at the remote-operation boundary. */
-    private serviceOptions;
+    /** Resolve the Ark credential, failing loud when it is not configured. */
+    private arkCredential;
     private pathPolicy;
-    private compressedImageRoot;
-    private readCacheCandidate;
-    private cacheEntryOutDigest;
-    private pruneCompressedCache;
-    private autoCompressImage;
-    private validateImage;
-    private accountImage;
-    private glanceCacheKey;
-    /** glance: describe, targeted QA, OCR, or multi-image comparison through the vision model. */
-    glance(request: GlanceRequest, options: ToolCallOptions): Promise<GlanceResult>;
     private writableDirectoryCheck;
     /** generateImage: ByteDance Seedream text-to-image through Volcengine Ark. */
     generateImage(request: GenerateImageRequest, options: ToolCallOptions): Promise<GenerateImageResult>;
     /** speak: ByteDance TTS V3 speech synthesis through Volcengine Speech. */
     speak(request: SpeakRequest, options: ToolCallOptions): Promise<SpeakResult>;
-    /** Health: inspect local readiness, optionally probe `/models`, and explicitly test one real multimodal request. */
-    health(testConnection: boolean, options: ToolCallOptions, testModel?: boolean): Promise<ArkToolkitHealthResult>;
+    /** Health: inspect local readiness and optionally probe the Ark `/models` endpoint. */
+    health(testConnection: boolean, options: ToolCallOptions): Promise<ArkToolkitHealthResult>;
 }
 //# sourceMappingURL=runtime.d.ts.map

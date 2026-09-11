@@ -5,17 +5,15 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
 import { apply, decodeArkResult, inject, ArkSettingsController } from '../src/client/index.tsx'
-import { readDisplayConfig, resetDisplayConfigCache } from '../src/client/display-config.ts'
 
 afterEach(() => {
   cleanup()
   document.querySelectorAll('style[data-plugin-css="@nextnowlabs/dsh-ark-toolkit/client"]').forEach(element => { element.remove() })
-  resetDisplayConfigCache()
   vi.unstubAllGlobals()
   vi.restoreAllMocks()
 })
 
-function settled(meta: unknown, isError = false, toolName = 'vision_ground'): ToolCallBlock {
+function settled(meta: unknown, isError = false, toolName = 'ark_generate_image'): ToolCallBlock {
   return {
     kind: 'tool-result',
     seq: 2,
@@ -32,9 +30,10 @@ function settled(meta: unknown, isError = false, toolName = 'vision_ground'): To
   } as unknown as ToolCallBlock
 }
 
-function fakeClientContext(legacyRemote = true) {
+function fakeClientContext() {
   const registrations: Array<{ options: Record<string, unknown>; component: ComponentType<Record<string, unknown>> }> = []
   const effects: Array<() => void> = []
+  const on = vi.fn(() => () => {})
   const slots = {
     inject: vi.fn((_name: string, callback: () => unknown) => {
       const result = callback()
@@ -51,27 +50,21 @@ function fakeClientContext(legacyRemote = true) {
   }
   const ctx = {
     slots,
-    inputTriggers: { registerSource: vi.fn(() => () => {}) },
-    sessions: {
-      list: { getSnapshot: () => ({ current: undefined }) },
-      scope: vi.fn(() => undefined),
-    },
-    conversation: { input: { for: vi.fn() } },
     locale: {
       register: vi.fn(() => () => {}),
       bind: vi.fn(() => (key: string) => key),
     },
-    remote: legacyRemote ? { $on: vi.fn(() => () => {}) } : {},
+    remote: { $on: vi.fn(() => () => {}) },
     effect: vi.fn((setup: () => void | (() => void)) => {
       const dispose = setup()
       if (typeof dispose === 'function') effects.push(dispose)
     }),
-    on: vi.fn(() => () => {}),
+    on,
     inject: vi.fn((services: string[], callback: (scope: unknown) => void) => {
       if (services.every(service => service in ctx)) callback(ctx)
     }),
   }
-  return { ctx, slots, registrations, effects }
+  return { ctx, slots, registrations, effects, on }
 }
 
 function settingsSnapshot(runtime: { ready: boolean; lastError?: string } = { ready: true }) {
@@ -81,23 +74,17 @@ function settingsSnapshot(runtime: { ready: boolean; lastError?: string } = { re
     settings: {
       value: {
         provider: {
-          baseUrl: 'https://api.inferera.com/v1',
-          credential: 'VISION_API_KEY',
-          model: 'gemini-3.6-flash',
-          protocol: 'openai',
+          baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+          credential: 'ARK_API_KEY',
           userAgent: 'fixture-agent/1.0',
         },
-        language: 'zh',
         timeoutMs: 61000,
-        maxImageBytes: 10485760,
-        maxImagePixels: 40000000,
         concurrency: 4,
-        allowedDirs: [],
       },
       revision: 1,
       applies: 'live',
     },
-    credential: { ref: 'VISION_API_KEY', configured: false, writable: true },
+    credential: { ref: 'ARK_API_KEY', configured: false, writable: true },
     credentialTts: { ref: 'VOLCENGINE_TTS_KEY', configured: false, writable: true },
     runtime: {
       ...runtime,
@@ -132,20 +119,28 @@ function artifact(
     mimeType,
     kind,
     description,
-    sourceTool: 'vision_card_test',
+    sourceTool: 'ark_card_test',
     previewIntent,
     bytes: 123,
   }
 }
 
+/** Resolve one registered keyed component by its slot key. */
+function componentOf(registrations: ReturnType<typeof fakeClientContext>['registrations'], key: string) {
+  const found = registrations.find(entry => entry.options.key === key)
+  if (found === undefined) throw new Error(`${key} component was not registered`)
+  return found.component
+}
+
 describe('Ark Toolkit client plugin', () => {
   it('registers every dedicated Tool view and the Settings card', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote', 'conversation', 'sessions'])
+    expect(inject).toEqual(['slots', 'locale', 'remote'])
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
     const remote = ctx.remote as { $on: ReturnType<typeof vi.fn> }
     expect(remote.$on).toHaveBeenCalledWith('settings/document-updated', expect.any(Function))
-    expect(remote.$on).toHaveBeenCalledWith('credentials/updated', expect.any(Function))
+    expect(remote.$on).toHaveBeenCalledWith('credentials/reference-updated', expect.any(Function))
+    expect(ctx.on).toHaveBeenCalledWith('connection/reset', expect.any(Function))
 
     const toolKeys = registrations
       .filter(entry => entry.options.name === 'tool.call.toolview')
@@ -159,12 +154,18 @@ describe('Ark Toolkit client plugin', () => {
     })
   })
 
-  it('uses current client runtime invalidation events when remote.$on is unavailable', () => {
-    const { ctx } = fakeClientContext(false)
+  it('refreshes the Settings card only for its own namespace and credential references', () => {
+    const { ctx } = fakeClientContext()
     apply(ctx as never)
-    expect(ctx.on).toHaveBeenCalledWith('settings/changed', expect.any(Function))
-    expect(ctx.on).toHaveBeenCalledWith('credentials/changed', expect.any(Function))
-    expect(ctx.on).toHaveBeenCalledWith('connection/reset', expect.any(Function))
+    const remote = ctx.remote as { $on: ReturnType<typeof vi.fn> }
+    const settingsListener = remote.$on.mock.calls.find(call => call[0] === 'settings/document-updated')?.[1] as (ns: string) => void
+    const credentialListener = remote.$on.mock.calls.find(call => call[0] === 'credentials/reference-updated')?.[1] as (ref: string) => void
+    // Unloaded controller: every refresh is a cheap no-op, so this only proves
+    // the listeners are wired and never throw on unrelated names.
+    expect(() => { settingsListener('other-plugin') }).not.toThrow()
+    expect(() => { settingsListener('ark-toolkit') }).not.toThrow()
+    expect(() => { credentialListener('OTHER_KEY') }).not.toThrow()
+    expect(() => { credentialListener('ARK_API_KEY') }).not.toThrow()
   })
 
   it('uses Harness theme tokens for every theme-dependent color', () => {
@@ -176,21 +177,21 @@ describe('Ark Toolkit client plugin', () => {
     expect(css).toContain('.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%)')
     expect(css).toContain('.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)')
     expect(css).toContain('.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}')
-    expect(css).toContain('.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-label)}')
     expect(css).toContain('.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}')
     expect(css).toContain('.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden')
     expect(css).toContain('.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent')
-    expect(css).toContain('.dvt-settings{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;box-sizing:border-box')
-    expect(css).toContain('.dvt-panel{display:grid;grid-template-columns:minmax(0,1fr)')
-    expect(css).toContain('.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap')
+    expect(css).toContain('.dvt-settings{display:grid;gap:12px}')
+    expect(css).toContain('.dvt-panel{')
+    expect(css).toContain('.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between')
     expect(css).toContain('.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr)')
+    expect(css).not.toContain('dvt-paste-')
     expect(css).not.toMatch(/--dsw-alias-(?:fg-primary|fg-muted|border-subtle)/u)
     expect(css).not.toMatch(/var\(--dsw-[^,)]+,/u)
     expect(css).not.toMatch(/#[\da-f]{3,8}\b|rgba?\(/iu)
   })
 
   it('prefers canonical presentation metadata and falls back to JSON result text', () => {
-    const canonical = { target: 'Send', matches: [] }
+    const canonical = { prompt: 'a cat', images: [] }
     expect(decodeArkResult(settled(canonical))).toBe(canonical)
     const noMeta = { ...settled(undefined), content: [{ type: 'text', text: '{}' }] } as unknown as ToolCallBlock
     expect(decodeArkResult(noMeta)).toEqual({})
@@ -200,11 +201,6 @@ describe('Ark Toolkit client plugin', () => {
   it('renders generated Seedream images with safe previews and actions', () => {
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const component = (key: string) => {
-      const found = registrations.find(entry => entry.options.key === key)
-      if (found === undefined) throw new Error(`${key} component was not registered`)
-      return found.component
-    }
     const image = artifact(
       '/workspace/.dsh-ark-toolkit/artifacts/cat.png',
       'cat.png',
@@ -225,7 +221,7 @@ describe('Ark Toolkit client plugin', () => {
       },
     }, false, 'ark_generate_image')
     const openFile = vi.fn()
-    render(createElement(component('ark_generate_image'), {
+    render(createElement(componentOf(registrations, 'ark_generate_image'), {
       callId: 'call-1', toolName: 'ark_generate_image', block, openFile,
       t: (key: string) => key,
     }))
@@ -238,11 +234,6 @@ describe('Ark Toolkit client plugin', () => {
   it('renders synthesized speech with a download action and no image preview', () => {
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const component = (key: string) => {
-      const found = registrations.find(entry => entry.options.key === key)
-      if (found === undefined) throw new Error(`${key} component was not registered`)
-      return found.component
-    }
     const audio = artifact(
       '/workspace/.dsh-ark-toolkit/artifacts/hi.mp3',
       'hi.mp3',
@@ -262,7 +253,7 @@ describe('Ark Toolkit client plugin', () => {
       },
     }, false, 'ark_speak')
     const openFile = vi.fn()
-    render(createElement(component('ark_speak'), {
+    render(createElement(componentOf(registrations, 'ark_speak'), {
       callId: 'call-speak', toolName: 'ark_speak', block, openFile,
       t: (key: string) => key,
     }))
@@ -303,7 +294,7 @@ describe('Ark Toolkit client plugin', () => {
 
   it('renders the Settings card collapsed with the credential state in the header', async () => {
     const initial = settingsSnapshot()
-    initial.credential = { ref: 'VISION_API_KEY', configured: true, source: 'file', writable: false }
+    initial.credential = { ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false }
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: initial })))
 
     const { ctx, registrations } = fakeClientContext()
@@ -395,13 +386,14 @@ describe('Ark Toolkit client plugin', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     const tutorial = await screen.findByRole('link', { name: 'arkTutorial' })
-    expect(tutorial.getAttribute('href')).toBe('https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md')
+    expect(tutorial.getAttribute('href')).toBe('https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao.md')
 
     const command = 'dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/'
     const code = screen.getByText(command)
     expect(code.tagName).toBe('CODE')
     fireEvent.click(screen.getByRole('button', { name: 'copy' }))
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(command))
+
     await screen.findByRole('button', { name: 'copied' })
   })
 
@@ -478,74 +470,19 @@ describe('Ark Toolkit client plugin', () => {
     const updateButton = await screen.findByRole('button', { name: 'updateNow' }) as HTMLButtonElement
     expect(updateButton.disabled).toBe(false)
 
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'changed-model' } })
+    fireEvent.change(screen.getByLabelText('concurrency'), { target: { value: '5' } })
     expect(updateButton.disabled).toBe(true)
     expect(screen.getByText('updateSaveFirst')).toBeTruthy()
 
-    fireEvent.change(screen.getByLabelText('model'), { target: { value: 'gemini-3.6-flash' } })
+    fireEvent.change(screen.getByLabelText('concurrency'), { target: { value: '4' } })
     const keyInput = screen.getByLabelText('apiKey') as HTMLInputElement
     expect(keyInput.disabled).toBe(false)
     fireEvent.change(keyInput, { target: { value: 'unsaved-secret' } })
     expect(updateButton.disabled).toBe(true)
   })
 
-  it('invalidates the display-config cache after a Settings save', async () => {
-    const displayConfig = vi.fn(async () => jsonResponse({ ok: true, value: { hidden: true } }))
-    const fetchMock = vi.fn(async (input: unknown) => {
-      if (String(input).endsWith('/display-config')) return displayConfig()
-      return jsonResponse({ ok: true, value: settingsSnapshot() })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-    const controller = new ArkSettingsController()
-
-    expect((await readDisplayConfig()).hidden).toBe(true)
-    expect(displayConfig).toHaveBeenCalledTimes(1)
-
-    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, undefined, true)
-
-    expect(saved).toBe(true)
-    expect((await readDisplayConfig()).hidden).toBe(true)
-    expect(displayConfig).toHaveBeenCalledTimes(2)
-  })
-
-  it('discards an in-flight display-config response after a Settings save', async () => {
-    let resolveFirstDisplay: ((value: Response) => void) | undefined
-    let displayRequests = 0
-    const displayConfig = vi.fn(() => {
-      displayRequests += 1
-      if (displayRequests === 1) {
-        return new Promise<Response>(resolve => { resolveFirstDisplay = resolve })
-      }
-      return Promise.resolve(jsonResponse({ ok: true, value: { hidden: true } }))
-    })
-    const fetchMock = vi.fn(async (input: unknown) => {
-      if (String(input).endsWith('/display-config')) return displayConfig()
-      return jsonResponse({ ok: true, value: settingsSnapshot() })
-    })
-    vi.stubGlobal('fetch', fetchMock)
-    const controller = new ArkSettingsController()
-
-    const firstRead = readDisplayConfig()
-    await new Promise(resolve => setTimeout(resolve, 0))
-    expect(displayRequests).toBe(1)
-
-    const saved = await controller.save(settingsSnapshot().settings.value, 1, undefined, undefined, true)
-    expect(saved).toBe(true)
-
-    resolveFirstDisplay?.(jsonResponse({ ok: true, value: { hidden: false } }))
-    await expect(firstRead).resolves.toEqual({ hidden: true })
-    expect(displayRequests).toBe(2)
-  })
-
   it('locks the API key input for a read-only credential', async () => {
     const initial = settingsSnapshot()
-    initial.settings.value.provider = {
-      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-      credential: 'ARK_API_KEY',
-      model: 'doubao-seed-2-0-lite-260215',
-      protocol: 'openai',
-      userAgent: 'fixture-agent/1.0',
-    }
     initial.credential = {
       ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false,
     }
@@ -566,56 +503,17 @@ describe('Ark Toolkit client plugin', () => {
     expect(keyInput.disabled).toBe(true)
   })
 
-  it('labels the lightweight API probe separately from the real multimodal model test', async () => {
+  it('runs the local health check and the explicit Ark connection test', async () => {
     const health = {
       pluginVersion: '0.1.0',
       checks: {
-        service: { status: 'ok', detail: 'Service responded at https://vision.example/v1/models (HTTP 200)' },
-        model: { status: 'ok', detail: 'Vision model fixture-model completed a multimodal request' },
+        credential: { status: 'ok', detail: 'credential ARK_API_KEY is resolvable' },
+        ttsCredential: { status: 'ok', detail: 'credential VOLCENGINE_TTS_KEY is resolvable' },
+        artifactDirectory: { status: 'ok', detail: 'Artifact directory is writable: /tmp/x' },
+        service: { status: 'ok', detail: 'Service responded at https://ark.example/v1/models (HTTP 200)' },
       },
       healthy: true,
       connectionTested: true,
-      modelTested: true,
-    }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: health }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    await screen.findByRole('button', { name: 'testModel' })
-    expect(screen.getByRole('button', { name: 'testConnection' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: 'testModel' }))
-    await screen.findByText('healthModelReady')
-    expect(screen.getByText('modelTestVerifiedTag')).toBeTruthy()
-    const request = fetchMock.mock.calls[1]?.[1] as RequestInit
-    expect(JSON.parse(String(request.body))).toEqual({
-      action: 'health',
-      testConnection: true,
-      testModel: true,
-    })
-  })
-
-  it('does not show the verified tag after only the API connection test passes', async () => {
-    const health = {
-      pluginVersion: '0.1.0',
-      checks: {
-        service: { status: 'ok', detail: 'Service responded at https://vision.example/v1/models (HTTP 200)' },
-        model: { status: 'not_tested', detail: 'Vision model was not tested; run an explicit model test to send the bundled diagnostic image' },
-      },
-      healthy: true,
-      connectionTested: true,
-      modelTested: false,
     }
     const fetchMock = vi.fn()
       .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
@@ -634,9 +532,14 @@ describe('Ark Toolkit client plugin', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
     fireEvent.click(await screen.findByRole('button', { name: 'testConnection' }))
-    await screen.findByText('healthModelNotTested')
-    expect(screen.getByText('modelTestNotRunTag')).toBeTruthy()
-    expect(screen.queryByText('modelTestVerifiedTag')).toBeNull()
+    await screen.findByText('healthServiceResponded')
+    // Both the Ark and the TTS credential resolve against the same fixture.
+    expect(screen.getAllByText('healthCredentialReady')).toHaveLength(2)
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit
+    expect(JSON.parse(String(request.body))).toEqual({
+      action: 'health',
+      testConnection: true,
+    })
   })
 
   it('saves Settings first, then stores the typed API key without sending it in Settings', async () => {
@@ -677,7 +580,7 @@ describe('Ark Toolkit client plugin', () => {
     expect(settingsBody.action).toBe('save')
     expect(JSON.stringify(settingsBody)).not.toContain('sk-browser-entry')
     expect(credentialBody).toEqual({
-      action: 'credential', expectedRevision: 2, ref: 'VISION_API_KEY', value: 'sk-browser-entry',
+      action: 'credential', expectedRevision: 2, ref: 'ARK_API_KEY', value: 'sk-browser-entry',
     })
     expect(keyInput.value).toBe('')
   })
@@ -730,22 +633,20 @@ describe('Ark Toolkit client plugin', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
 
-    const model = await screen.findByLabelText('model')
-    fireEvent.change(model, { target: { value: 'next-model' } })
+    const concurrency = await screen.findByLabelText('concurrency')
+    fireEvent.change(concurrency, { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: 'save' }))
     await screen.findByText('provider.baseUrl must be an http(s) URL')
     const saveRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
     expect(JSON.parse(String(saveRequest.body))).toMatchObject({
       value: {
-        provider: {
-          model: 'next-model',
-        },
+        concurrency: 7,
       },
     })
 
     fireEvent.click(screen.getByRole('button', { name: 'reload' }))
     await waitFor(() => {
-      expect((screen.getByLabelText('baseUrl') as HTMLInputElement).value).toBe('https://api.inferera.com/v1')
+      expect((screen.getByLabelText('baseUrl') as HTMLInputElement).value).toBe('https://ark.cn-beijing.volces.com/api/v3')
     })
     expect(screen.getByText('runtimeCandidateRejected')).toBeTruthy()
     expect(screen.queryByText('runtimeUnavailable')).toBeNull()

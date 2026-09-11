@@ -2,6 +2,31 @@
 
 All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
+## [0.1.0] - 2026-09-11
+
+### BREAKING
+
+- **移除图片理解（识图）能力。** DSH `0.1.5-rc.2` 起 DeepSeek 模型原生声明图片输入（如新增默认模型 `deepseek-flash` 的 `inputModalities: ["text", "image"]`），识图不再需要插件代劳。以下内容全部删除：
+  - `ark_glance` 工具，以及 `provider.model`（图片理解模型）、`provider.protocol`（OpenAI/Anthropic 视觉协议）、`language`（视觉输出语言）、`maxImageBytes` / `maxImagePixels`（上传前压缩预算）、`imageInputVariants`（文本模型图片变体）、`allowedDirs`（额外输入目录）等配置项；
+  - 视觉 API 客户端 `src/vision-api.ts`、图片裁剪/压缩、按内容键控的压缩缓存与 glance 结果去重缓存；
+  - 文本模型图片代理路由（`src/image-input-variants.ts`）、粘贴图片接管（`src/paste-images.ts` 与对应客户端代码）、模型选择器变体隐藏（`src/client/model-variants-hider.ts`）与 `display-config` 路由；
+  - 健康检查中的“视觉模型”实测项与“测试视觉模型”按钮。
+  - 旧配置里的这些字段会被**安全忽略**，不会导致插件加载失败；`ark_glance` 的调用需要改用模型的原生图片输入。
+- **Web 客户端不再接管粘贴。** 图片粘贴、历史图片与 `read_image` 全部回到 DSH 原生附件流程；`dsh.client.inject` 移除 `@deepseek-ai/dsh-client-ui-input-trigger`，peerDependencies 移除 `@deepseek-ai/dsh-attachment`。
+- **TTS 语音合成与 Seedream 文生图不受影响**，凭据名（`ARK_API_KEY` / `VOLCENGINE_TTS_KEY`）、模型别名与既有参数保持兼容。
+
+### Changed
+
+- **跟进 DSH `0.1.5-rc.2`。** 全部 `@deepseek-ai/dsh-*` peer/dev 依赖升级到 `0.1.5-rc.2`（`@deepseek-ai/schemastery` 随宿主升到 `3.18.2`），`pnpm-workspace.yaml` 的 `allowBuilds`/`minimumReleaseAgeExclude` 同步更新（`koffi` 3.1.5 → 3.2.1）。旧 lockfile 会把 `@deepseek-ai/dsh-sandbox` 解析到不存在的 `^0.1.5` 区间并导致安装失败，需要重新生成 `pnpm-lock.yaml`。
+- **适配 DSH 0.1.5 的事件重命名。** 会话事件 `tool/code-dispatch` → `tool/ptc-dispatch`（子调用 id `<parent>:code:<n>` → `<parent>:ptc:<n>`），历史会话的 PTC 模式激活恢复逻辑同步适配。
+- **修复设置卡片的事件订阅。** 原先尝试用 `ctx.remote.$on('credentials/updated')` 与不存在的 `settings/changed` / `credentials/changed` 兜底，实际从未生效；现在改用真正的转发事件 `settings/document-updated` 与 `credentials/reference-updated`，保存密钥或改动设置后卡片会正确刷新。
+- **设置界面精简。** Ark Toolkit 卡片只保留 Ark 文生图与 TTS 两组服务配置、健康检查与插件更新；高级设置保留凭据名、端点、User-Agent、超时与并发。
+- **文档重写。** `docs/ark-doubao-vision.md` → `docs/ark-doubao.md`（只讲 Seedream 文生图），README、安装指南与需求追踪同步更新。
+
+### Fixed
+
+- **超时覆盖排队时间的问题。** 排队等待并发槽位后重新起算执行超时，不再让先前的排队时间吃掉执行预算。
+
 ## [0.0.7] - 2026-09-03
 
 ### Changed

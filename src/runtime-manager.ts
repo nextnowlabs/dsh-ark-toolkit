@@ -35,12 +35,7 @@ async function defaultFactory(ctx: Context, config: ResolvedArkToolkitConfig): P
 }
 
 function fingerprint(config: ResolvedArkToolkitConfig): string {
-  // Transparent routing is a display/policy flag: toggling it must not rebuild
-  // the runtime, only reconcile the model-selector routes.
-  return JSON.stringify({
-    ...config,
-    imageInputVariants: { ...config.imageInputVariants, hidden: false },
-  })
+  return JSON.stringify(config)
 }
 
 function messageOf(error: unknown): string {

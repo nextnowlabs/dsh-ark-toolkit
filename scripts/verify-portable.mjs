@@ -26,7 +26,7 @@ async function filesBelow(directory) {
   const entries = await readdir(directory, { withFileTypes: true })
   const files = []
   for (const entry of entries) {
-    if (entry.isDirectory() && ['.git', '.dsh-vision-toolkit', '.dsh-ark-toolkit', 'node_modules', '.pnpm-store'].includes(entry.name)) continue
+    if (entry.isDirectory() && ['.git', '.dsh-ark-toolkit', 'node_modules', '.pnpm-store'].includes(entry.name)) continue
     const path = join(directory, entry.name)
     if (entry.isDirectory()) files.push(...await filesBelow(path))
     else if (entry.isFile()) files.push(path)
@@ -110,11 +110,10 @@ const requiredFiles = [
   'lib/index.js',
   'lib/types/index.d.ts',
   'lib/client.js',
-  'lib/vision-api.js',
   'lib/image-codec.js',
   'assets/skill/SKILL.md',
   'docs/installation.md',
-  'docs/ark-doubao-vision.md',
+  'docs/ark-doubao.md',
   'docs/requirements-traceability/README.md',
 ]
 for (const path of requiredFiles) {
@@ -193,8 +192,11 @@ for (const path of javascriptFiles) {
 
 const client = await readFile(join(root, 'lib/client.js'), 'utf8')
 check(client.includes('window.__ModuleLoader__.load'), 'lib/client.js is not a loader-compatible DSH Web bundle')
-const visionApi = await readFile(join(root, 'lib/vision-api.js'), 'utf8')
-check(visionApi.includes('chat/completions'), 'lib/vision-api.js must target the OpenAI-compatible chat completions endpoint')
+const runtime = await readFile(join(root, 'lib/runtime.js'), 'utf8')
+check(runtime.includes('images/generations'), 'lib/runtime.js must target the Ark images/generations endpoint')
+const defaults = await readFile(join(root, 'lib/defaults.js'), 'utf8')
+check(defaults.includes('openspeech.bytedance.com'), 'lib/defaults.js must carry the Volcengine Speech TTS endpoint')
+check(!(await exists(join(root, 'lib/vision-api.js'))), 'the retired image-understanding client must stay absent')
 
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const packArgs = ['pack', '--dry-run', '--ignore-scripts', '--json']
@@ -207,7 +209,7 @@ if (pack.status !== 0) {
   try {
     const result = JSON.parse(pack.stdout)
     const packedFiles = new Set((result[0]?.files ?? []).map(file => file.path))
-    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'lib/vision-api.js', 'lib/image-codec.js', 'cordis.patch.yml', 'assets/skill/SKILL.md', 'docs/installation.md']) {
+    for (const path of ['lib/index.js', 'lib/types/index.d.ts', 'lib/client.js', 'lib/image-codec.js', 'cordis.patch.yml', 'assets/skill/SKILL.md', 'docs/installation.md']) {
       check(packedFiles.has(path), `dry-run tarball is missing ${path}`)
     }
     for (const prefix of ['runtime/', 'vendor/', 'patches/']) {

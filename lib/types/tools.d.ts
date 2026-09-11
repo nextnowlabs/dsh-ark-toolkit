@@ -9,7 +9,6 @@ import type { JsonValue } from '@deepseek-ai/dsh-util-values';
 import { ArkToolkitRuntime } from './runtime.ts';
 /** Canonical names shared by registration, bootstrap guidance, and tests. */
 export declare const ARK_TOOL_NAMES: {
-    readonly glance: "ark_glance";
     readonly generateImage: "ark_generate_image";
     readonly speak: "ark_speak";
 };

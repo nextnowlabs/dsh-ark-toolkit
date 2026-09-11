@@ -1,6 +1,7 @@
 /**
  * Plugin version facts. The pure-Node build has no pinned upstream snapshot:
- * image understanding runs directly against the configured vision service.
+ * image generation and speech synthesis call the configured ByteDance
+ * services directly.
  * @module dsh-ark-toolkit/version
  */
 

@@ -19,11 +19,12 @@ describe('pure-Node ark-skills Skill', () => {
     await expect(stat(join(ARK_SKILLS_RESOURCE_BASE, 'SKILL.md'))).resolves.toBeDefined()
   })
 
-  it('documents only the pure-Node tool set without Python or local pixel tools', () => {
-    expect(ARK_SKILLS_CONTENT).toContain('ark_glance')
+  it('documents only the surviving pure-Node tool set', () => {
     expect(ARK_SKILLS_CONTENT).toContain('ark_generate_image')
     expect(ARK_SKILLS_CONTENT).toContain('ark_speak')
-    expect(ARK_SKILLS_CONTENT).toContain('untrusted visual evidence')
+    // Image understanding is gone: DeepSeek models accept images natively.
+    expect(ARK_SKILLS_CONTENT).not.toContain('ark_glance')
+    expect(ARK_SKILLS_CONTENT).not.toContain('OCR')
     expect(ARK_SKILLS_CONTENT).not.toContain('vision_pixel_diff')
     expect(ARK_SKILLS_CONTENT).not.toContain('vision_ground')
     expect(ARK_SKILLS_CONTENT).not.toContain('python3')

@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>DSH Ark Toolkit — image understanding for DeepSeek Harness</title>
-    <meta name="description" content="A pure-TypeScript DeepSeek Harness plugin: image Q&amp;A, OCR, and multi-image comparison through Volcengine Ark, plus Seedream image generation and ByteDance TTS." />
-    <meta property="og:title" content="DSH Ark Toolkit — image understanding for DeepSeek Harness" />
-    <meta property="og:description" content="Give text-only DSH agents eyes: image understanding, Seedream image generation, and ByteDance TTS — pure TypeScript." />
+    <title>DSH Ark Toolkit — Seedream image generation and TTS for DeepSeek Harness</title>
+    <meta name="description" content="A pure-TypeScript DeepSeek Harness plugin: ByteDance Seedream image generation and ByteDance TTS speech synthesis, delivered as workspace Artifacts." />
+    <meta property="og:title" content="DSH Ark Toolkit — Seedream image generation and TTS for DeepSeek Harness" />
+    <meta property="og:description" content="Generate images with Seedream and turn text into speech with ByteDance TTS — pure TypeScript, one Skill, real Artifacts." />
     <meta name="theme-color" content="#5b4cf0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%235b4cf0'/%3E%3Cpath d='M13 46 25 34l11-16M25 34h20M45 34l7 12' fill='none' stroke='white' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E" />
     <style>
@@ -497,8 +497,8 @@
       <div class="hero">
         <div>
           <div class="eyebrow"><span class="dot"></span> Pure TypeScript &times; DeepSeek Harness</div>
-          <h1>Give text-only DSH agents eyes.</h1>
-          <p class="lede">Image understanding, OCR, and multi-image comparison through Volcengine Ark — plus Seedream image generation and ByteDance TTS. Pure TypeScript, install and go.</p>
+          <h1>Generate images and voice, right in the conversation.</h1>
+          <p class="lede">ByteDance Seedream image generation and ByteDance TTS speech synthesis through Volcengine. Pure TypeScript, install and go.</p>
           <div class="actions">
             <a class="button primary" href="#install">Install the bundle</a>
           </div>
@@ -510,22 +510,13 @@
       <section id="use-cases">
         <div class="shell">
           <div class="section-label">Capability-focused workflows</div>
-          <h2>Answer, transcribe, compare, generate.</h2>
-          <p class="section-copy">One Skill activates three structured tools for the current Agent. Paste an image, ask a question, OCR visible text, compare screenshots, generate a picture, or read text out loud.</p>
+          <h2>Generate a picture. Read it out loud.</h2>
+          <p class="section-copy">One Skill activates two structured tools for the current Agent. Generate a picture from a prompt, or turn text into a downloadable audio file.</p>
 
           <div class="use-cases">
             <article class="use-case">
               <div>
-                <span class="case-kicker">01 · Understand</span>
-                <h3>Image Q&amp;A and OCR</h3>
-                <p>Pass one or more images to <code>ark_glance</code> with a question, ask for verbatim OCR, or zoom into a region so small text and icons become readable.</p>
-                <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
-              </div>
-            </article>
-
-            <article class="use-case">
-              <div>
-                <span class="case-kicker">02 · Create</span>
+                <span class="case-kicker">01 · Create</span>
                 <h3>Seedream image generation</h3>
                 <p><code>ark_generate_image</code> renders a prompt with ByteDance Seedream through Ark and delivers a PNG/JPEG Artifact that later tools can reuse.</p>
                 <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
@@ -534,7 +525,7 @@
 
             <article class="use-case">
               <div>
-                <span class="case-kicker">03 · Speak</span>
+                <span class="case-kicker">02 · Speak</span>
                 <h3>ByteDance TTS voice synthesis</h3>
                 <p><code>ark_speak</code> turns text into MP3/OGG/PCM/WAV audio with the ByteDance Volcengine Speech TTS V3 service, delivered as a downloadable Artifact.</p>
                 <a href="https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/README.md">Read the guide →</a>
@@ -551,12 +542,11 @@
           <p class="section-copy">Each capability has its own schema and structured result. The versioned Skill activates them for one Agent, while health and version administration stay in Web Settings instead of model context.</p>
 
           <div class="features">
-            <article class="feature"><div class="feature-icon">01</div><h3>Understand images</h3><p>Ask questions, OCR visible text verbatim, and compare multiple images in one call through the configured vision model.</p></article>
-            <article class="feature"><div class="feature-icon">02</div><h3>Generate images</h3><p>Seedream image generation with size and aspect-ratio control, delivered as a workspace Artifact.</p></article>
-            <article class="feature"><div class="feature-icon">03</div><h3>Synthesize speech</h3><p>ByteDance TTS with voice, format, speed, pitch, and emotion controls, delivered as an audio Artifact.</p></article>
-            <article class="feature"><div class="feature-icon">04</div><h3>Ship real Artifacts</h3><p>Generated images and audio carry stable descriptors for preview, download, or local open.</p></article>
-            <article class="feature"><div class="feature-icon">05</div><h3>Protect credentials</h3><p>DSH Credentials, path fencing, hard deadlines, redacted errors, and untrusted-visual-evidence handling keep data handling visible.</p></article>
-            <article class="feature"><div class="feature-icon">06</div><h3>Run Web or Headless</h3><p>Web adds cards and Settings; Headless receives the same complete tool semantics and structured results.</p></article>
+            <article class="feature"><div class="feature-icon">01</div><h3>Generate images</h3><p>Seedream image generation with size and aspect-ratio control, delivered as a workspace Artifact.</p></article>
+            <article class="feature"><div class="feature-icon">02</div><h3>Synthesize speech</h3><p>ByteDance TTS with voice, format, speed, pitch, and emotion controls, delivered as an audio Artifact.</p></article>
+            <article class="feature"><div class="feature-icon">03</div><h3>Ship real Artifacts</h3><p>Generated images and audio carry stable descriptors for preview, download, or local open.</p></article>
+            <article class="feature"><div class="feature-icon">04</div><h3>Protect credentials</h3><p>DSH Credentials, path fencing, hard deadlines, redacted errors, and untrusted-content handling keep data handling visible.</p></article>
+            <article class="feature"><div class="feature-icon">05</div><h3>Run Web or Headless</h3><p>Web adds cards and Settings; Headless receives the same complete tool semantics and structured results.</p></article>
           </div>
         </div>
       </section>

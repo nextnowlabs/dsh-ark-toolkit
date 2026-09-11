@@ -7,13 +7,13 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
 declare const en: {
     readonly settingsTitle: "Volcengine Ark Toolkit";
-    readonly settingsIntro: "Configure the model and API key used by online vision features.";
+    readonly settingsIntro: "Configure the ByteDance models and API keys used by image generation and speech synthesis.";
     readonly collapse: "Collapse";
     readonly expand: "Expand";
-    readonly externalNotice: "Image understanding (ark_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.";
-    readonly provider: "Vision service";
-    readonly providerHint: "Provide the model and API key used by online vision features.";
-    readonly arkTutorial: "Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →";
+    readonly externalNotice: "Image generation (ark_generate_image) and speech synthesis (ark_speak) send your prompt or text to the configured ByteDance services; the resulting file is written into the session workspace.";
+    readonly ark: "Ark image generation";
+    readonly arkHint: "Doubao Seedream model and Ark API key used by the ark_generate_image tool.";
+    readonly arkTutorial: "Getting a Volcengine Ark API key and calling Doubao Seedream: step-by-step tutorial →";
     readonly baseUrl: "Base URL";
     readonly apiKey: "API key";
     readonly apiKeyPlaceholderMissing: "Paste the API key";
@@ -23,29 +23,21 @@ declare const en: {
     readonly apiKeyBlank: "The API key cannot contain only spaces.";
     readonly apiKeyInvalid: "Paste only the key, without a variable name, quotes, spaces, or line breaks.";
     readonly credential: "Credential name";
-    readonly credentialHint: "This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.";
-    readonly model: "Model";
+    readonly credentialHint: "This is the DSH credential reference that stores the Volcengine Ark API key used by image generation.";
+    readonly model: "Seedream model";
+    readonly modelHint: "The ark_generate_image default; a tool call can still override it per request.";
     readonly userAgent: "User-Agent";
     readonly tts: "Speech (TTS)";
-    readonly ttsHint: "Separate ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark vision key.";
+    readonly ttsHint: "ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark key.";
     readonly ttsBaseUrl: "TTS base URL";
     readonly ttsCredential: "TTS credential name";
     readonly ttsResource: "TTS resource / App ID";
     readonly ttsVoice: "Default voice";
     readonly ttsKey: "TTS app token";
     readonly ttsKeyHint: "The token is stored in DSH Credentials and is never shown again after saving.";
-    readonly language: "Output language";
     readonly limits: "Limits";
     readonly timeout: "Request timeout (ms)";
-    readonly maxBytes: "Maximum image bytes";
-    readonly maxPixels: "Maximum image pixels";
     readonly concurrency: "Concurrent calls per session";
-    readonly runtime: "Runtime";
-    readonly runtimeMode: "Runtime mode";
-    readonly toolkitPath: "Pinned checkout path";
-    readonly python: "Python override";
-    readonly allowedDirs: "Additional allowed directories";
-    readonly allowedDirsHint: "One path per line. The session workspace is always allowed.";
     readonly save: "Save and apply";
     readonly saving: "Validating runtime…";
     readonly reload: "Reload";
@@ -60,19 +52,12 @@ declare const en: {
     readonly health: "Health";
     readonly runHealth: "Run health check";
     readonly testConnection: "Test API connection";
-    readonly testModel: "Test vision model";
     readonly testing: "Checking…";
-    readonly testingModel: "Testing model…";
-    readonly connectionHint: "The API connection test only queries GET /models. The vision model test sends the bundled diagnostic image and verifies one real multimodal request.";
+    readonly connectionHint: "The health check inspects local readiness. The API connection test only queries GET /models on the configured Ark endpoint.";
     readonly saveBeforeTesting: "Save service changes before testing the connection.";
     readonly advanced: "Advanced settings";
-    readonly advancedHint: "Credential name, provider compatibility, output language, resource limits, runtime source, Python, and additional readable directories.";
-    readonly imageInput: "Image input";
-    readonly hiddenVariants: "Transparent variant routing";
-    readonly hiddenVariantsLabel: "Keep the original model names and enable images automatically";
-    readonly hiddenVariantsHint: "Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Ark Toolkit) entries.";
+    readonly advancedHint: "Credential names, endpoints, User-Agent, and request limits. Most users never need these.";
     readonly pluginVersion: "Plugin";
-    readonly upstreamVersion: "Upstream";
     readonly activeGeneration: "Runtime generation";
     readonly activeGenerationValue: "Generation {generation}";
     readonly updates: "Plugin updates";
@@ -110,73 +95,33 @@ declare const en: {
     readonly runtimeUnavailable: "Runtime unavailable";
     readonly runtimeCandidateRejected: "Last runtime candidate was rejected; the active generation remains available.";
     readonly runtimeReady: "Ready";
-    readonly runtimeManaged: "Managed";
-    readonly runtimeExternal: "External checkout";
+    readonly runtimePureNode: "Pure Node";
     readonly retry: "Retry";
     readonly open: "Open file";
     readonly download: "Download";
     readonly previewUnavailable: "HTTP preview is unavailable in this host; use Open file.";
     readonly running: "Running…";
     readonly failed: "Failed";
-    readonly matches: "matches";
-    readonly elements: "elements";
-    readonly dimensions: "Dimensions";
-    readonly coordinates: "Coordinates";
     readonly artifact: "Artifact";
     readonly artifacts: "Artifacts";
-    readonly difference: "Overall difference";
-    readonly worstRegions: "Worst regions";
-    readonly colors: "Dominant colors";
     readonly noResult: "Structured result unavailable; inspect the raw Tool result.";
     readonly healthy: "Healthy";
     readonly degraded: "Needs attention";
     readonly notTested: "Not tested";
-    readonly groundTitle: "Ground";
-    readonly detectTitle: "Detect";
-    readonly traceTitle: "Trace SVG";
-    readonly pixelDiffTitle: "Pixel Diff";
-    readonly cropTitle: "Crop";
-    readonly longOcrTitle: "Long OCR";
-    readonly extractForegroundTitle: "Extract Foreground";
-    readonly htmlScreenshotTitle: "HTML Screenshot";
-    readonly artifactTitle: "Ark Artifact";
     readonly generateImageTitle: "Generated image";
     readonly speakTitle: "Synthesized speech";
-    readonly dominantColorsTitle: "Dominant Colors";
-    readonly artifactGroundPreview: "Grounding bounding-box preview";
-    readonly artifactDetectPreview: "Detected-element bounding-box preview";
-    readonly artifactCrop: "Cropped image region";
-    readonly artifactTrace: "Traced vector geometry";
-    readonly artifactDiffHeatmap: "Pixel-difference heatmap";
-    readonly artifactDiffReport: "Structured pixel-difference report";
-    readonly artifactLongManifest: "Long-screenshot split and merge manifest";
-    readonly artifactLongTranscript: "Merged long-screenshot OCR transcript";
-    readonly artifactLongAudit: "Long-screenshot OCR boundary audit";
-    readonly artifactLongChunk: "Long-screenshot OCR chunk {index}";
-    readonly artifactOcrSidecar: "OCR sidecar for chunk {index}";
-    readonly artifactForeground: "Extracted transparent foreground";
-    readonly artifactHtmlScreenshot: "Headless browser screenshot of local HTML";
+    readonly artifactTitle: "Ark Artifact";
     readonly artifactSeedreamImage: "Seedream generated image";
     readonly artifactTtsSpeech: "ByteDance TTS synthesized speech";
-    readonly runtimePureNode: "Pure Node";
-    readonly label: "Label";
-    readonly paths: "paths";
-    readonly healthPython: "Python";
-    readonly healthDependencies: "Dependencies";
-    readonly healthChrome: "Browser";
-    readonly healthCredential: "Credential";
+    readonly healthCredential: "Ark credential";
+    readonly healthTtsCredential: "TTS credential";
     readonly healthArtifactDirectory: "Artifact directory";
-    readonly healthTempDirectory: "Temporary directory";
-    readonly healthService: "Vision service";
-    readonly healthModel: "Vision model";
+    readonly healthService: "Ark service";
     readonly statusOk: "OK";
     readonly statusWarning: "Warning";
     readonly statusError: "Error";
     readonly statusNotTested: "Not tested";
     readonly positiveInteger: "{field} must be a positive integer.";
-    readonly healthPythonDetail: "{version} via {path}";
-    readonly healthChromeMissing: "Chrome, Chromium, or Edge was not found; HTML Screenshot is unavailable.";
-    readonly healthChromeProbeFailed: "Could not check whether a supported browser is available.";
     readonly healthCredentialMissing: "Credential {credential} is not configured.";
     readonly healthCredentialReady: "Credential {credential} is available.";
     readonly healthCredentialFailed: "Could not read credential {credential}.";
@@ -187,18 +132,11 @@ declare const en: {
     readonly healthConnectionCredentialMissing: "Connection test skipped because the credential is unavailable.";
     readonly healthServiceResponded: "Service responded at {endpoint} (HTTP {status}).";
     readonly healthServiceRejectedCredential: "Service rejected the configured credential (HTTP {status}).";
-    readonly healthServiceForbidden: "Service is reachable, but GET /models is restricted (HTTP {status}). This is often an account or model-list permission limit, not an invalid key; you can ignore this warning when the vision-model test reports success.";
+    readonly healthServiceForbidden: "Service is reachable, but GET /models is restricted (HTTP {status}). This is often an account or model-list permission limit, not an invalid key.";
     readonly healthServiceNoModels: "Service is reachable but does not support GET /models (HTTP {status}).";
     readonly healthServiceRateLimited: "Service is reachable, but the connection test was rate-limited (HTTP 429).";
     readonly healthServiceHttpFailed: "Connection test failed with HTTP {status}.";
     readonly healthServiceUnreachable: "Could not reach {endpoint}.";
-    readonly healthModelNotTested: "Vision model not tested. Run Test vision model to make one real multimodal request.";
-    readonly healthModelCredentialMissing: "Vision model test skipped because the credential is unavailable.";
-    readonly healthModelReady: "Model {model} completed a real multimodal request.";
-    readonly healthModelFailed: "Real multimodal request failed: {detail}";
-    readonly modelTestVerifiedTag: "Verified";
-    readonly modelTestNotRunTag: "Not tested";
-    readonly modelTestFailedTag: "Test failed";
 };
 type LocaleKey = keyof typeof en;
 interface ToolCallOwnerProps {
@@ -246,13 +184,11 @@ interface HealthResult {
     checks: Record<string, HealthCheck>;
     healthy: boolean;
     connectionTested: boolean;
-    modelTested: boolean;
 }
 interface SettingsValue {
     provider?: {
         baseUrl?: string;
         credential?: string;
-        model?: string;
         userAgent?: string;
         tts?: {
             baseUrl?: string;
@@ -261,23 +197,8 @@ interface SettingsValue {
             voice?: string;
         };
     };
-    language?: 'zh' | 'en';
     timeoutMs?: number;
-    maxImageBytes?: number;
-    maxImagePixels?: number;
     concurrency?: number;
-    runtime?: {
-        mode?: 'managed' | 'external';
-        agentArkToolkitPath?: string;
-        python?: string;
-    };
-    allowedDirs?: string[];
-    imageInputVariants?: {
-        enabled?: boolean;
-        providers?: string[];
-        autoSwitch?: boolean;
-        hidden?: boolean;
-    };
 }
 type PluginUpdateUnavailableReason = 'profile-not-found' | 'not-direct-dependency' | 'unsupported-install-source' | 'profile-read-only' | 'pnpm-unavailable' | 'unsupported-platform' | 'restart-unmanaged' | 'restart-address-unavailable';
 interface PluginUpdateCapability {
@@ -332,20 +253,10 @@ interface SettingsSnapshot {
         ready: boolean;
         generation: number;
         activeConfig?: SettingsValue;
-        upstream?: {
-            source: 'managed' | 'external';
-            path: string;
-            runtimeHome: string;
-            python: string;
-            pythonVersion: string;
-        };
         lastError?: string;
     };
     release: {
         pluginVersion: string;
-        upstreamRepository: string;
-        upstreamVersion: string;
-        upstreamCommit: string;
         update: PluginUpdateCapability;
     };
     artifactRouteAvailable: boolean;
@@ -358,7 +269,7 @@ interface SettingsState {
     health?: HealthResult | undefined;
     update?: PluginUpdateCheck | undefined;
     restart?: PluginUpdateResult | undefined;
-    action?: 'save' | 'health' | 'connection' | 'model' | 'check-update' | 'apply-update' | undefined;
+    action?: 'save' | 'health' | 'connection' | 'check-update' | 'apply-update' | undefined;
     message?: string | undefined;
     error?: string | undefined;
 }
@@ -373,12 +284,12 @@ export declare class ArkSettingsController {
     load(): Promise<void>;
     refreshIfLoaded(): void;
     save(value: SettingsValue, expectedRevision: number, credentialValue: string | undefined, credentialTtsValue: string | undefined, writeSettings: boolean): Promise<boolean>;
-    runHealth(mode: 'health' | 'connection' | 'model'): Promise<void>;
+    runHealth(mode: 'health' | 'connection'): Promise<void>;
     checkUpdate(): Promise<void>;
     applyUpdate(expectedVersion: string): Promise<void>;
     reportRestartTimeout(message: string): void;
 }
-/** Required client services. The pasted-image codec attaches to either trigger-service generation after load. */
+/** Required client services. */
 export declare const inject: string[];
 /** Register dedicated Tool views and the Ark Toolkit plugin-configuration card. */
 export declare function apply(ctx: ClientContext): void;

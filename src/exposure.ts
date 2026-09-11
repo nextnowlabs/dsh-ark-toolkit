@@ -1,5 +1,5 @@
 /**
- * Agent-scoped progressive exposure for the model-facing visual tools.
+ * Agent-scoped progressive exposure for the model-facing Ark tools.
  * Runtime readiness is global, while tool schemas enter only an Agent through
  * the matching Skill or its bootstrap tool; administrative diagnostics stay on
  * the Web seam.
@@ -14,7 +14,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { ARK_SKILLS_CONTENT, ARK_SKILLS_NAME } from './skill.ts'
 import { ARK_TOOL_NAMES } from './tools.ts'
 
-/** Small bootstrap tool retained only until the current Agent gains visual tools. */
+/** Small bootstrap tool retained only until the current Agent gains the Ark tools. */
 export const ARK_TOOLKIT_ACTIVATE = 'ark_toolkit_activate'
 
 /** Skill names used by releases before the rename to ark-skills, kept for Session restore. */
@@ -103,7 +103,7 @@ function hasLoadedArkSkill(session: Session): boolean {
         && containsBundledSkillContent(block.content)) return true
       continue
     }
-    if (event.type === 'tool/code-dispatch'
+    if (event.type === 'tool/ptc-dispatch'
       && event.data.name === 'skill'
       && event.data.isError === false
       && isArkSkillArguments(event.data.arguments)
@@ -114,7 +114,7 @@ function hasLoadedArkSkill(session: Session): boolean {
 
 /**
  * Owns one progressive-exposure generation for a ready Ark Toolkit runtime.
- * The bootstrap tool is global; visual definitions are created and registered
+ * The bootstrap tool is global; tool definitions are created and registered
  * in an Agent scope after the Skill load is durable, just succeeded, or the
  * model explicitly invokes the bootstrap fallback.
  */
@@ -134,7 +134,7 @@ export class ArkToolExposure {
     this.activationTool = defineTool({
       name: ARK_TOOLKIT_ACTIVATE,
       description: `Activate the independent Ark Toolkit execution tools for this Agent: ${Object.values(ARK_TOOL_NAMES).join(', ')}. `
-        + `Loading the ${ARK_SKILLS_NAME} Skill normally activates them automatically; call this once when the visual tools are still absent, then use them for image understanding, OCR, UI detection, and related tasks. `
+        + `Loading the ${ARK_SKILLS_NAME} Skill normally activates them automatically; call this once when the Ark tools are still absent, then use them for Seedream image generation and Volcengine text-to-speech. `
         + 'It is safe to call before the Skill is loaded, and this activation tool disappears after success.',
       parameters: {},
       output: {

@@ -21,13 +21,11 @@ import {
   type ArkToolkitConfig,
 } from './config.ts'
 import { ArkToolExposure } from './exposure.ts'
-import { createPasteTakeoverResolver, installImageInputVariants } from './image-input-variants.ts'
 import { ArkToolkitRuntimeManager } from './runtime-manager.ts'
 import { ARK_SKILLS_SKILL } from './skill.ts'
 import { createArkTools } from './tools.ts'
 import { PLUGIN_VERSION } from './version.ts'
 import { installArkToolkitWeb, ArkToolkitWebBackend } from './web.ts'
-import { MAX_PASTE_IMAGE_BYTES, PastedImageBackend } from './paste-images.ts'
 
 export const name = '@nextnowlabs/dsh-ark-toolkit'
 
@@ -82,38 +80,18 @@ export async function apply(ctx: Context, config: ArkToolkitConfig = {}): Promis
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
     ctx.logger.error(
-      'dsh-ark-toolkit %s: runtime not ready; the ark-skills skill, activation bootstrap, and Agent-scoped visual tools are NOT registered. Settings remain available for repair. %s',
+      'dsh-ark-toolkit %s: runtime not ready; the ark-skills skill, activation bootstrap, and Agent-scoped tools are NOT registered. Settings remain available for repair. %s',
       PLUGIN_VERSION,
       message,
     )
   }
 
   const backend = new ArkToolkitWebBackend(ctx, manager, artifacts, ensureOperational)
-  const pastedImages = new PastedImageBackend(ctx, {
-    maxUploadBytes: () => MAX_PASTE_IMAGE_BYTES,
-  })
-  // Image-input variants register asynchronously once eligible routes exist;
-  // the runtime getter stays lazy so variants appear even when the runtime
-  // becomes ready after the first sweep.
-  const variants = installImageInputVariants(
-    ctx,
-    () => resolveConfig(settings.get()),
-    () => manager.ready ? manager.current() : undefined,
-  )
-  installArkToolkitWeb(
-    ctx,
-    backend,
-    artifacts,
-    pastedImages,
-    createPasteTakeoverResolver(ctx, () => resolveConfig(settings.get())),
-    () => ({ hidden: resolveConfig(settings.get()).imageInputVariants.hidden }),
-  )
-  disposers.push(variants.dispose)
+  installArkToolkitWeb(ctx, backend, artifacts)
   disposers.push(settings.watch(async (next) => {
     try {
       await manager.reconfigure(next)
       ensureOperational()
-      variants.reconcile()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       ctx.logger.error('dsh-ark-toolkit: keeping the previous runtime after a refused Settings generation. %s', message)

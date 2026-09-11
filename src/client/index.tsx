@@ -17,15 +17,10 @@ import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-credentials/types'
 import type {} from '@deepseek-ai/dsh-settings/types'
-import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
-import type {} from '@deepseek-ai/dsh-client-ui-input-trigger/client'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
-import { installPasteImages } from './paste-images.tsx'
-import { installModelVariantsHider } from './model-variants-hider.ts'
-import { resetDisplayConfigCache } from './display-config.ts'
 
 const NS = 'ark-toolkit'
 const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
@@ -34,23 +29,22 @@ const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKi
 // Keep these browser defaults aligned with src/defaults.ts without importing server-side config.
 const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
 const ARK_CREDENTIAL = 'ARK_API_KEY'
-const ARK_VISION_MODEL = 'doubao-seed-2-0-lite-260215'
+const ARK_SEEDREAM_MODEL = 'doubao-seedream-5-0-260128'
 const TTS_BASE_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse'
 const TTS_CREDENTIAL = 'VOLCENGINE_TTS_KEY'
 const TTS_RESOURCE = 'seed-tts-2.0'
 const TTS_VOICE = 'zh_female_shuangkuaisisi_uranus_bigtts'
-const ARK_TUTORIAL_URL_EN = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
-const ARK_TUTORIAL_URL_ZH = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao-vision.md'
+const ARK_TUTORIAL_URL = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao.md'
 
 const en = {
   settingsTitle: 'Volcengine Ark Toolkit',
-  settingsIntro: 'Configure the model and API key used by online vision features.',
+  settingsIntro: 'Configure the ByteDance models and API keys used by image generation and speech synthesis.',
   collapse: 'Collapse',
   expand: 'Expand',
-  externalNotice: 'Image understanding (ark_glance), image generation, and speech synthesis send data to the configured remote service. Images are compressed locally before upload when needed.',
-  provider: 'Vision service',
-  providerHint: 'Provide the model and API key used by online vision features.',
-  arkTutorial: 'Using ByteDance Volcengine Ark for image understanding? Follow the step-by-step tutorial →',
+  externalNotice: 'Image generation (ark_generate_image) and speech synthesis (ark_speak) send your prompt or text to the configured ByteDance services; the resulting file is written into the session workspace.',
+  ark: 'Ark image generation',
+  arkHint: 'Doubao Seedream model and Ark API key used by the ark_generate_image tool.',
+  arkTutorial: 'Getting a Volcengine Ark API key and calling Doubao Seedream: step-by-step tutorial →',
   baseUrl: 'Base URL',
   apiKey: 'API key',
   apiKeyPlaceholderMissing: 'Paste the API key',
@@ -60,29 +54,21 @@ const en = {
   apiKeyBlank: 'The API key cannot contain only spaces.',
   apiKeyInvalid: 'Paste only the key, without a variable name, quotes, spaces, or line breaks.',
   credential: 'Credential name',
-  credentialHint: 'This is the DSH credential reference that stores the Volcengine Ark API key used by the vision service.',
-  model: 'Model',
+  credentialHint: 'This is the DSH credential reference that stores the Volcengine Ark API key used by image generation.',
+  model: 'Seedream model',
+  modelHint: 'The ark_generate_image default; a tool call can still override it per request.',
   userAgent: 'User-Agent',
   tts: 'Speech (TTS)',
-  ttsHint: 'Separate ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark vision key.',
+  ttsHint: 'ByteDance Volcengine Speech service used by the ark_speak tool, with its own app token independent of the Ark key.',
   ttsBaseUrl: 'TTS base URL',
   ttsCredential: 'TTS credential name',
   ttsResource: 'TTS resource / App ID',
   ttsVoice: 'Default voice',
   ttsKey: 'TTS app token',
   ttsKeyHint: 'The token is stored in DSH Credentials and is never shown again after saving.',
-  language: 'Output language',
   limits: 'Limits',
   timeout: 'Request timeout (ms)',
-  maxBytes: 'Maximum image bytes',
-  maxPixels: 'Maximum image pixels',
   concurrency: 'Concurrent calls per session',
-  runtime: 'Runtime',
-  runtimeMode: 'Runtime mode',
-  toolkitPath: 'Pinned checkout path',
-  python: 'Python override',
-  allowedDirs: 'Additional allowed directories',
-  allowedDirsHint: 'One path per line. The session workspace is always allowed.',
   save: 'Save and apply',
   saving: 'Validating runtime…',
   reload: 'Reload',
@@ -97,19 +83,12 @@ const en = {
   health: 'Health',
   runHealth: 'Run health check',
   testConnection: 'Test API connection',
-  testModel: 'Test vision model',
   testing: 'Checking…',
-  testingModel: 'Testing model…',
-  connectionHint: 'The API connection test only queries GET /models. The vision model test sends the bundled diagnostic image and verifies one real multimodal request.',
+  connectionHint: 'The health check inspects local readiness. The API connection test only queries GET /models on the configured Ark endpoint.',
   saveBeforeTesting: 'Save service changes before testing the connection.',
   advanced: 'Advanced settings',
-  advancedHint: 'Credential name, provider compatibility, output language, resource limits, runtime source, Python, and additional readable directories.',
-  imageInput: 'Image input',
-  hiddenVariants: 'Transparent variant routing',
-  hiddenVariantsLabel: 'Keep the original model names and enable images automatically',
-  hiddenVariantsHint: 'Text-only models keep one model-selector entry with the original name while the session runs on the image-capable variant. Pasted images, image history, and the built-in read_image tool keep working; disable to restore the explicit (Ark Toolkit) entries.',
+  advancedHint: 'Credential names, endpoints, User-Agent, and request limits. Most users never need these.',
   pluginVersion: 'Plugin',
-  upstreamVersion: 'Upstream',
   activeGeneration: 'Runtime generation',
   activeGenerationValue: 'Generation {generation}',
   updates: 'Plugin updates',
@@ -147,73 +126,33 @@ const en = {
   runtimeUnavailable: 'Runtime unavailable',
   runtimeCandidateRejected: 'Last runtime candidate was rejected; the active generation remains available.',
   runtimeReady: 'Ready',
-  runtimeManaged: 'Managed',
-  runtimeExternal: 'External checkout',
+  runtimePureNode: 'Pure Node',
   retry: 'Retry',
   open: 'Open file',
   download: 'Download',
   previewUnavailable: 'HTTP preview is unavailable in this host; use Open file.',
   running: 'Running…',
   failed: 'Failed',
-  matches: 'matches',
-  elements: 'elements',
-  dimensions: 'Dimensions',
-  coordinates: 'Coordinates',
   artifact: 'Artifact',
   artifacts: 'Artifacts',
-  difference: 'Overall difference',
-  worstRegions: 'Worst regions',
-  colors: 'Dominant colors',
   noResult: 'Structured result unavailable; inspect the raw Tool result.',
   healthy: 'Healthy',
   degraded: 'Needs attention',
   notTested: 'Not tested',
-  groundTitle: 'Ground',
-  detectTitle: 'Detect',
-  traceTitle: 'Trace SVG',
-  pixelDiffTitle: 'Pixel Diff',
-  cropTitle: 'Crop',
-  longOcrTitle: 'Long OCR',
-  extractForegroundTitle: 'Extract Foreground',
-  htmlScreenshotTitle: 'HTML Screenshot',
-  artifactTitle: 'Ark Artifact',
   generateImageTitle: 'Generated image',
   speakTitle: 'Synthesized speech',
-  dominantColorsTitle: 'Dominant Colors',
-  artifactGroundPreview: 'Grounding bounding-box preview',
-  artifactDetectPreview: 'Detected-element bounding-box preview',
-  artifactCrop: 'Cropped image region',
-  artifactTrace: 'Traced vector geometry',
-  artifactDiffHeatmap: 'Pixel-difference heatmap',
-  artifactDiffReport: 'Structured pixel-difference report',
-  artifactLongManifest: 'Long-screenshot split and merge manifest',
-  artifactLongTranscript: 'Merged long-screenshot OCR transcript',
-  artifactLongAudit: 'Long-screenshot OCR boundary audit',
-  artifactLongChunk: 'Long-screenshot OCR chunk {index}',
-  artifactOcrSidecar: 'OCR sidecar for chunk {index}',
-  artifactForeground: 'Extracted transparent foreground',
-  artifactHtmlScreenshot: 'Headless browser screenshot of local HTML',
+  artifactTitle: 'Ark Artifact',
   artifactSeedreamImage: 'Seedream generated image',
   artifactTtsSpeech: 'ByteDance TTS synthesized speech',
-  runtimePureNode: 'Pure Node',
-  label: 'Label',
-  paths: 'paths',
-  healthPython: 'Python',
-  healthDependencies: 'Dependencies',
-  healthChrome: 'Browser',
-  healthCredential: 'Credential',
+  healthCredential: 'Ark credential',
+  healthTtsCredential: 'TTS credential',
   healthArtifactDirectory: 'Artifact directory',
-  healthTempDirectory: 'Temporary directory',
-  healthService: 'Vision service',
-  healthModel: 'Vision model',
+  healthService: 'Ark service',
   statusOk: 'OK',
   statusWarning: 'Warning',
   statusError: 'Error',
   statusNotTested: 'Not tested',
   positiveInteger: '{field} must be a positive integer.',
-  healthPythonDetail: '{version} via {path}',
-  healthChromeMissing: 'Chrome, Chromium, or Edge was not found; HTML Screenshot is unavailable.',
-  healthChromeProbeFailed: 'Could not check whether a supported browser is available.',
   healthCredentialMissing: 'Credential {credential} is not configured.',
   healthCredentialReady: 'Credential {credential} is available.',
   healthCredentialFailed: 'Could not read credential {credential}.',
@@ -224,31 +163,24 @@ const en = {
   healthConnectionCredentialMissing: 'Connection test skipped because the credential is unavailable.',
   healthServiceResponded: 'Service responded at {endpoint} (HTTP {status}).',
   healthServiceRejectedCredential: 'Service rejected the configured credential (HTTP {status}).',
-  healthServiceForbidden: 'Service is reachable, but GET /models is restricted (HTTP {status}). This is often an account or model-list permission limit, not an invalid key; you can ignore this warning when the vision-model test reports success.',
+  healthServiceForbidden: 'Service is reachable, but GET /models is restricted (HTTP {status}). This is often an account or model-list permission limit, not an invalid key.',
   healthServiceNoModels: 'Service is reachable but does not support GET /models (HTTP {status}).',
   healthServiceRateLimited: 'Service is reachable, but the connection test was rate-limited (HTTP 429).',
   healthServiceHttpFailed: 'Connection test failed with HTTP {status}.',
   healthServiceUnreachable: 'Could not reach {endpoint}.',
-  healthModelNotTested: 'Vision model not tested. Run Test vision model to make one real multimodal request.',
-  healthModelCredentialMissing: 'Vision model test skipped because the credential is unavailable.',
-  healthModelReady: 'Model {model} completed a real multimodal request.',
-  healthModelFailed: 'Real multimodal request failed: {detail}',
-  modelTestVerifiedTag: 'Verified',
-  modelTestNotRunTag: 'Not tested',
-  modelTestFailedTag: 'Test failed',
 } as const
 
 type LocaleKey = keyof typeof en
 
 const zh: Record<LocaleKey, string> = {
   settingsTitle: '火山引擎',
-  settingsIntro: '配置在线视觉功能使用的模型与 API 密钥。',
+  settingsIntro: '配置文生图与语音合成使用的字节模型和 API 密钥。',
   collapse: '收起',
   expand: '展开',
-  externalNotice: '图片理解（ark_glance）、文生图和语音合成会把数据发送到下方配置的远程服务；发送前如需压缩，会在本机完成。',
-  provider: '在线视觉服务',
-  providerHint: '填写在线视觉功能使用的模型名称和 API 密钥。',
-  arkTutorial: '用字节火山方舟做图片理解？看这篇图文教程 →',
+  externalNotice: '文生图（ark_generate_image）和语音合成（ark_speak）会把提示词或文本发送到下方配置的字节服务；生成的文件会写入当前会话工作区。',
+  ark: '火山方舟文生图',
+  arkHint: 'ark_generate_image 工具使用的豆包 Seedream 模型与方舟 API 密钥。',
+  arkTutorial: '申请火山方舟 API Key 并用豆包 Seedream 生成图片：图文教程 →',
   baseUrl: 'API 地址',
   apiKey: 'API 密钥',
   apiKeyPlaceholderMissing: '粘贴 API 密钥',
@@ -258,29 +190,21 @@ const zh: Record<LocaleKey, string> = {
   apiKeyBlank: 'API 密钥不能只包含空格。',
   apiKeyInvalid: '请只粘贴密钥本身，不要包含变量名、引号、空格或换行。',
   credential: '凭据名称',
-  credentialHint: '这是保存火山方舟 API 密钥的 DSH 凭据名称。',
-  model: '模型名称',
+  credentialHint: '这是保存火山方舟 API 密钥的 DSH 凭据名称，供文生图使用。',
+  model: 'Seedream 模型',
+  modelHint: 'ark_generate_image 的默认模型；调用时仍可单独覆盖。',
   userAgent: 'User-Agent',
   tts: '语音合成（TTS）',
-  ttsHint: 'ark_speak 工具使用独立的字节火山语音服务，App Token 与火山方舟视觉密钥相互独立。',
+  ttsHint: 'ark_speak 工具使用的字节火山语音服务，App Token 与方舟文生图密钥相互独立。',
   ttsBaseUrl: 'TTS 接口地址',
   ttsCredential: 'TTS 凭据名称',
   ttsResource: 'TTS 资源 ID（App ID）',
   ttsVoice: '默认音色',
   ttsKey: 'TTS App Token',
   ttsKeyHint: 'Token 会保存到 DSH 凭据存储，保存后不会在页面中回显。',
-  language: '结果语言',
-  limits: '资源与并发限制',
+  limits: '请求限制',
   timeout: '单次请求超时（毫秒）',
-  maxBytes: '单张图片大小上限（字节）',
-  maxPixels: '单张图片最大像素数',
   concurrency: '单个会话最多并发任务数',
-  runtime: '工具运行环境',
-  runtimeMode: '环境来源',
-  toolkitPath: 'agent-ark-toolkit 目录',
-  python: 'Python 解释器（可选）',
-  allowedDirs: '允许读取的其他目录',
-  allowedDirsHint: '每行填写一个目录。当前会话的工作目录始终可以读取，无需重复填写。',
   save: '保存设置',
   saving: '正在检查并应用…',
   reload: '重新加载',
@@ -295,19 +219,12 @@ const zh: Record<LocaleKey, string> = {
   health: '运行检查',
   runHealth: '检查本地环境',
   testConnection: '测试 API 连接',
-  testModel: '测试视觉模型',
   testing: '检查中…',
-  testingModel: '正在测试模型…',
-  connectionHint: '“测试 API 连接”只请求 GET /models；“测试视觉模型”会发送插件自带的诊断图片，验证一次真实多模态调用。',
-  saveBeforeTesting: '修改服务配置后，请先保存，再执行 API 或视觉模型测试。',
+  connectionHint: '“检查本地环境”只检查本机就绪情况；“测试 API 连接”只请求配置的方舟地址上的 GET /models。',
+  saveBeforeTesting: '修改服务配置后，请先保存，再执行连接测试。',
   advanced: '高级设置',
-  advancedHint: '凭据名称、服务兼容参数、结果语言、资源限制、运行环境来源、Python 和额外可读目录。一般无需修改。',
-  imageInput: '图片输入',
-  hiddenVariants: '透明变体路由',
-  hiddenVariantsLabel: '保留原模型名并自动启用图片能力',
-  hiddenVariantsHint: '文本模型在模型列表中只显示原名称，会话实际运行在支持图片的变体路由上：粘贴图片、历史图片和内置 read_image 工具均可正常使用。关闭后恢复显示显式的（Ark Toolkit）条目。',
+  advancedHint: '凭据名称、服务地址、User-Agent 和请求限制。一般无需修改。',
   pluginVersion: '插件版本',
-  upstreamVersion: '工具包版本',
   activeGeneration: '本次运行已应用',
   activeGenerationValue: '{generation} 次',
   updates: '插件更新',
@@ -345,73 +262,33 @@ const zh: Record<LocaleKey, string> = {
   runtimeUnavailable: '运行环境尚未就绪',
   runtimeCandidateRejected: '新设置未能生效，仍在使用上一次可用的设置。',
   runtimeReady: '已就绪',
-  runtimeManaged: '自动安装',
-  runtimeExternal: '本地源码',
+  runtimePureNode: '纯 Node',
   retry: '重试',
   open: '在工作区中打开',
   download: '下载',
   previewUnavailable: '此页面无法直接预览该文件，请在工作区中打开。',
   running: '运行中…',
   failed: '运行失败',
-  matches: '处匹配',
-  elements: '个元素',
-  dimensions: '图片尺寸',
-  coordinates: '坐标',
   artifact: '生成文件',
   artifacts: '个生成文件',
-  difference: '像素差异',
-  worstRegions: '差异最大的区域',
-  colors: '种颜色',
   noResult: '未能读取结果，请查看工具的原始输出。',
   healthy: '一切正常',
   degraded: '有项目需要处理',
   notTested: '尚未检查',
-  groundTitle: '目标定位',
-  detectTitle: '界面元素识别',
-  traceTitle: '描摹为 SVG',
-  pixelDiffTitle: '像素对比',
-  cropTitle: '裁剪图片',
-  longOcrTitle: '长图文字识别',
-  extractForegroundTitle: '提取前景',
-  htmlScreenshotTitle: '网页截图',
-  artifactTitle: '视觉处理结果',
   generateImageTitle: '生成的图片',
   speakTitle: '合成语音',
-  dominantColorsTitle: '主色提取',
-  artifactGroundPreview: '目标定位框预览',
-  artifactDetectPreview: '界面元素标注预览',
-  artifactCrop: '裁剪后的图片',
-  artifactTrace: '描摹得到的矢量图',
-  artifactDiffHeatmap: '像素差异热力图',
-  artifactDiffReport: '像素差异详细报告',
-  artifactLongManifest: '长图切分与合并记录',
-  artifactLongTranscript: '长图文字识别结果',
-  artifactLongAudit: '长图分块边界检查记录',
-  artifactLongChunk: '长图文字识别分块 {index}',
-  artifactOcrSidecar: '分块 {index} 的文字识别记录',
-  artifactForeground: '提取后的透明背景前景图',
-  artifactHtmlScreenshot: '本地网页截图',
+  artifactTitle: '生成文件',
   artifactSeedreamImage: 'Seedream 生成的图片',
   artifactTtsSpeech: '字节 TTS 语音合成',
-  runtimePureNode: '纯 Node',
-  label: '名称',
-  paths: '条路径',
-  healthPython: 'Python',
-  healthDependencies: 'Python 依赖',
-  healthChrome: '浏览器',
-  healthCredential: 'API 密钥',
+  healthCredential: '方舟凭据',
+  healthTtsCredential: 'TTS 凭据',
   healthArtifactDirectory: '输出目录',
-  healthTempDirectory: '临时目录',
-  healthService: '视觉服务',
-  healthModel: '视觉模型',
+  healthService: '方舟服务',
   statusOk: '正常',
   statusWarning: '注意',
   statusError: '异常',
   statusNotTested: '未检查',
   positiveInteger: '{field}必须填写正整数。',
-  healthPythonDetail: '版本 {version}；解释器：{path}',
-  healthChromeMissing: '未找到 Chrome、Chromium 或 Edge，网页截图功能暂不可用。',
-  healthChromeProbeFailed: '无法检查浏览器是否可用。',
   healthCredentialMissing: '尚未配置凭据 {credential}。',
   healthCredentialReady: '已找到凭据 {credential}。',
   healthCredentialFailed: '无法读取凭据 {credential}。',
@@ -422,18 +299,11 @@ const zh: Record<LocaleKey, string> = {
   healthConnectionCredentialMissing: 'API 密钥不可用，未执行连接测试。',
   healthServiceResponded: '服务已响应：{endpoint}（HTTP {status}）。',
   healthServiceRejectedCredential: '服务拒绝了当前 API 密钥（HTTP {status}）。',
-  healthServiceForbidden: '服务可以访问，但对 GET /models 的访问被限制（HTTP {status}）。这通常是账号或模型列表权限限制，不代表密钥无效；若“视觉模型已实测正常”，此警告可忽略。',
+  healthServiceForbidden: '服务可以访问，但对 GET /models 的访问被限制（HTTP {status}）。这通常是账号或模型列表权限限制，不代表密钥无效。',
   healthServiceNoModels: '服务可以访问，但不支持 GET /models（HTTP {status}）。',
   healthServiceRateLimited: '服务可以访问，但本次连接测试触发了限流（HTTP 429）。',
   healthServiceHttpFailed: '连接测试失败（HTTP {status}）。',
   healthServiceUnreachable: '无法连接到 {endpoint}。',
-  healthModelNotTested: '尚未测试视觉模型。点击“测试视觉模型”可执行一次真实多模态请求。',
-  healthModelCredentialMissing: '视觉模型测试已跳过，因为当前 API 密钥不可用。',
-  healthModelReady: '模型 {model} 已完成一次真实多模态请求。',
-  healthModelFailed: '真实多模态请求失败：{detail}',
-  modelTestVerifiedTag: '已实测',
-  modelTestNotRunTag: '未测试',
-  modelTestFailedTag: '测试失败',
 }
 
 type Translate = (key: LocaleKey, params?: Record<string, unknown>) => string
@@ -499,14 +369,12 @@ interface HealthResult {
   checks: Record<string, HealthCheck>
   healthy: boolean
   connectionTested: boolean
-  modelTested: boolean
 }
 
 interface SettingsValue {
   provider?: {
     baseUrl?: string
     credential?: string
-    model?: string
     userAgent?: string
     tts?: {
       baseUrl?: string
@@ -515,19 +383,8 @@ interface SettingsValue {
       voice?: string
     }
   }
-  language?: 'zh' | 'en'
   timeoutMs?: number
-  maxImageBytes?: number
-  maxImagePixels?: number
   concurrency?: number
-  runtime?: { mode?: 'managed' | 'external'; agentArkToolkitPath?: string; python?: string }
-  allowedDirs?: string[]
-  imageInputVariants?: {
-    enabled?: boolean
-    providers?: string[]
-    autoSwitch?: boolean
-    hidden?: boolean
-  }
 }
 
 type PluginUpdateUnavailableReason =
@@ -581,20 +438,10 @@ interface SettingsSnapshot {
     ready: boolean
     generation: number
     activeConfig?: SettingsValue
-    upstream?: {
-      source: 'managed' | 'external'
-      path: string
-      runtimeHome: string
-      python: string
-      pythonVersion: string
-    }
     lastError?: string
   }
   release: {
     pluginVersion: string
-    upstreamRepository: string
-    upstreamVersion: string
-    upstreamCommit: string
     update: PluginUpdateCapability
   }
   artifactRouteAvailable: boolean
@@ -683,21 +530,11 @@ function statusText(block: ToolCallBlock, t: Translate): string | undefined {
   return undefined
 }
 
-function ArkIcon({ kind = 'scan' }: { kind?: 'scan' | 'target' | 'layers' | 'shape' | 'diff' | 'palette' }) {
-  const path = kind === 'target'
-    ? 'M8 2v2m0 8v2M2 8h2m8 0h2M5 5h6v6H5z'
-    : kind === 'layers'
-      ? 'm3 6 5-3 5 3-5 3-5-3Zm0 3 5 3 5-3M3 12l5 3 5-3'
-      : kind === 'shape'
-        ? 'M3 12 6 4l7-1-1 7-9 2Zm3-8 6 6'
-        : kind === 'diff'
-          ? 'M3 3h4v4H3V3Zm6 6h4v4H9V9Zm0-6h4M3 11h4'
-          : kind === 'palette'
-            ? 'M8 2a6 6 0 1 0 0 12h1.2a1.3 1.3 0 0 0 0-2.6H8a1.5 1.5 0 0 1 0-3h3.5A2.5 2.5 0 0 0 14 5.9C13.2 3.6 10.9 2 8 2Z'
-            : 'M3 5V3h2M11 3h2v2M13 11v2h-2M5 13H3v-2M5 8h6'
+/** Small inline glyph for the Ark Tool cards. */
+function ArkIcon() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.35" strokeLinecap="round" strokeLinejoin="round">
-      <path d={path} />
+      <path d="M3 5V3h2M11 3h2v2M13 11v2h-2M5 13H3v-2M5 8h6" />
     </svg>
   )
 }
@@ -818,7 +655,7 @@ interface SettingsState {
   health?: HealthResult | undefined
   update?: PluginUpdateCheck | undefined
   restart?: PluginUpdateResult | undefined
-  action?: 'save' | 'health' | 'connection' | 'model' | 'check-update' | 'apply-update' | undefined
+  action?: 'save' | 'health' | 'connection' | 'check-update' | 'apply-update' | undefined
   message?: string | undefined
   error?: string | undefined
 }
@@ -944,21 +781,17 @@ export class ArkSettingsController {
       this.set({ ...this.state, action: undefined, error: error instanceof Error ? error.message : String(error) })
       return false
     } finally {
-      // The backend commits the generation before the response is readable, so
-      // the browser cache must not keep serving the previous hidden flag.
-      resetDisplayConfigCache()
+      this.set({ ...this.state, action: undefined })
     }
   }
 
-  async runHealth(mode: 'health' | 'connection' | 'model'): Promise<void> {
-    const testConnection = mode !== 'health'
-    const testModel = mode === 'model'
+  async runHealth(mode: 'health' | 'connection'): Promise<void> {
     this.set({ ...this.state, action: mode, error: undefined, message: undefined })
     try {
       const health = await apiRequest<HealthResult>({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'health', testConnection, testModel }),
+        body: JSON.stringify({ action: 'health', testConnection: mode === 'connection' }),
       })
       this.set({ ...this.state, action: undefined, health })
     } catch (error) {
@@ -1007,44 +840,26 @@ export class ArkSettingsController {
 interface Draft {
   baseUrl: string
   credential: string
-  model: string
   userAgent: string
   ttsBaseUrl: string
   ttsCredential: string
   ttsResource: string
   ttsVoice: string
-  language: 'zh' | 'en'
   timeoutMs: string
-  maxImageBytes: string
-  maxImagePixels: string
   concurrency: string
-  allowedDirs: string
-  hiddenVariants: boolean
-  variantEnabled: boolean
-  variantProviders: string
-  variantAutoSwitch: boolean
 }
 
 function draftOf(value: SettingsValue): Draft {
   return {
     baseUrl: value.provider?.baseUrl ?? ARK_BASE_URL,
     credential: value.provider?.credential ?? ARK_CREDENTIAL,
-    model: value.provider?.model ?? ARK_VISION_MODEL,
     userAgent: value.provider?.userAgent ?? DEFAULT_USER_AGENT,
     ttsBaseUrl: value.provider?.tts?.baseUrl ?? TTS_BASE_URL,
     ttsCredential: value.provider?.tts?.credential ?? TTS_CREDENTIAL,
     ttsResource: value.provider?.tts?.resource ?? TTS_RESOURCE,
     ttsVoice: value.provider?.tts?.voice ?? TTS_VOICE,
-    language: value.language ?? 'zh',
     timeoutMs: String(value.timeoutMs ?? 600000),
-    maxImageBytes: String(value.maxImageBytes ?? 4194304),
-    maxImagePixels: String(value.maxImagePixels ?? 20000000),
     concurrency: String(value.concurrency ?? 4),
-    allowedDirs: (value.allowedDirs ?? []).join('\n'),
-    hiddenVariants: value.imageInputVariants?.hidden ?? true,
-    variantEnabled: value.imageInputVariants?.enabled ?? true,
-    variantProviders: (value.imageInputVariants?.providers ?? []).join('\n'),
-    variantAutoSwitch: value.imageInputVariants?.autoSwitch ?? true,
   }
 }
 
@@ -1069,7 +884,6 @@ function valueOf(draft: Draft, t: Translate): SettingsValue {
     provider: {
       baseUrl: draft.baseUrl.trim(),
       credential: draft.credential.trim(),
-      model: draft.model.trim(),
       userAgent: draft.userAgent.trim(),
       tts: {
         baseUrl: draft.ttsBaseUrl.trim(),
@@ -1078,20 +892,8 @@ function valueOf(draft: Draft, t: Translate): SettingsValue {
         voice: draft.ttsVoice.trim(),
       },
     },
-    language: draft.language,
     timeoutMs: positiveInteger(draft.timeoutMs, t('timeout'), t),
-    maxImageBytes: positiveInteger(draft.maxImageBytes, t('maxBytes'), t),
-    maxImagePixels: positiveInteger(draft.maxImagePixels, t('maxPixels'), t),
     concurrency: positiveInteger(draft.concurrency, t('concurrency'), t),
-    allowedDirs: draft.allowedDirs.split(/\r?\n/).map(entry => entry.trim()).filter(Boolean),
-    imageInputVariants: {
-      ...(draft.variantEnabled ? {} : { enabled: false }),
-      ...(draft.variantProviders.trim().length === 0 ? {} : {
-        providers: draft.variantProviders.split(/\r?\n/).map(entry => entry.trim()).filter(Boolean),
-      }),
-      ...(draft.variantAutoSwitch ? {} : { autoSwitch: false }),
-      hidden: draft.hiddenVariants,
-    },
   }
 }
 
@@ -1155,11 +957,12 @@ function SettingsCard({ controller, t }: SettingsCardProps) {
     </li>
   )
 }
+
 const HEALTH_NAME_KEYS: Record<string, LocaleKey> = {
   credential: 'healthCredential',
+  ttsCredential: 'healthTtsCredential',
   artifactDirectory: 'healthArtifactDirectory',
   service: 'healthService',
-  model: 'healthModel',
 }
 
 const HEALTH_STATUS_KEYS: Record<HealthCheck['status'], LocaleKey> = {
@@ -1176,16 +979,10 @@ function healthDetail(detail: string, t: Translate): string {
   if (match !== null) return t('healthCredentialReady', { credential: match[1] })
   match = /^credential (.+) could not be resolved$/u.exec(detail)
   if (match !== null) return t('healthCredentialFailed', { credential: match[1] })
-  match = /^(Artifact directory|Runtime temp directory) is writable: (.+)$/u.exec(detail)
-  if (match !== null) return t('healthDirectoryWritable', {
-    directory: match[1] === 'Artifact directory' ? t('healthArtifactDirectory') : t('healthTempDirectory'),
-    path: match[2],
-  })
-  match = /^(Artifact directory|Runtime temp directory) is not writable: (.+)$/u.exec(detail)
-  if (match !== null) return t('healthDirectoryNotWritable', {
-    directory: match[1] === 'Artifact directory' ? t('healthArtifactDirectory') : t('healthTempDirectory'),
-    path: match[2],
-  })
+  match = /^Artifact directory is writable: (.+)$/u.exec(detail)
+  if (match !== null) return t('healthDirectoryWritable', { directory: t('healthArtifactDirectory'), path: match[1] })
+  match = /^Artifact directory is not writable: (.+)$/u.exec(detail)
+  if (match !== null) return t('healthDirectoryNotWritable', { directory: t('healthArtifactDirectory'), path: match[1] })
   if (detail === 'Artifact directory could not be prepared') return t('healthArtifactDirectoryFailed')
   if (detail === 'Connection was not tested; pass testConnection=true to query the configured /models endpoint') return t('healthConnectionNotTested')
   if (detail === 'Connection test skipped because the configured credential is unavailable') return t('healthConnectionCredentialMissing')
@@ -1193,7 +990,7 @@ function healthDetail(detail: string, t: Translate): string {
   if (match !== null) return t('healthServiceResponded', { endpoint: match[1], status: match[2] })
   match = /^Service rejected the configured credential \(HTTP (\d+)\)$/u.exec(detail)
   if (match !== null) return t('healthServiceRejectedCredential', { status: match[1] })
-  match = /^Service is reachable but restricted GET \/models \(HTTP (\d+)\); the credential may still be valid for real vision requests$/u.exec(detail)
+  match = /^Service is reachable but restricted GET \/models \(HTTP (\d+)\); the credential may still be valid for image generation$/u.exec(detail)
   if (match !== null) return t('healthServiceForbidden', { status: match[1] })
   match = /^Service is reachable but does not expose GET \/models \(HTTP (\d+)\)$/u.exec(detail)
   if (match !== null) return t('healthServiceNoModels', { status: match[1] })
@@ -1202,19 +999,7 @@ function healthDetail(detail: string, t: Translate): string {
   if (match !== null) return t('healthServiceHttpFailed', { status: match[1] })
   match = /^Service could not be reached at (.+)$/u.exec(detail)
   if (match !== null) return t('healthServiceUnreachable', { endpoint: match[1] })
-  if (detail === 'Vision model was not tested; run an explicit model test to send the bundled diagnostic image') return t('healthModelNotTested')
-  if (detail === 'Vision model test skipped because the configured credential is unavailable') return t('healthModelCredentialMissing')
-  match = /^Vision model (.+) completed a multimodal request$/u.exec(detail)
-  if (match !== null) return t('healthModelReady', { model: match[1] })
-  match = /^Vision model test failed: (.+)$/u.exec(detail)
-  if (match !== null) return t('healthModelFailed', { detail: match[1] })
   return detail
-}
-
-function modelTestTag(health: HealthResult, check: HealthCheck): { status: 'ok' | 'warning' | 'error'; label: LocaleKey } {
-  if (!health.modelTested) return { status: 'warning', label: 'modelTestNotRunTag' }
-  if (check.status === 'ok') return { status: 'ok', label: 'modelTestVerifiedTag' }
-  return { status: 'error', label: 'modelTestFailedTag' }
 }
 
 function credentialSource(source: string, t: Translate): string {
@@ -1327,7 +1112,6 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
   const updateHasUnsavedChanges = apiKey.length > 0 || ttsKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
   const manualUpdateProfile = updateCapability.profile ?? 'web'
   const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/`
-  const tutorialUrl = draft?.language === 'en' ? ARK_TUTORIAL_URL_EN : ARK_TUTORIAL_URL_ZH
   const copyManualUpdate = (): void => {
     void navigator.clipboard?.writeText(manualUpdateCommand)
       .then(() => {
@@ -1353,10 +1137,9 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
       {state.message === 'manual-restart-required' && state.restart !== undefined ? <div className="dvt-alert success">{t('manualRestartRequired', { version: state.restart.toVersion })}</div> : null}
       {snapshot.runtime.lastError === undefined ? null : <div className="dvt-alert error"><strong>{runtimeErrorTitle}</strong><span>{snapshot.runtime.lastError}</span></div>}
 
-      <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('provider')}</h3><p>{t('providerHint')}</p></div><span className={`dvt-badge ${snapshot.credential.configured ? 'ok' : 'error'}`}>{snapshot.credential.configured ? t('configured') : t('missing')}</span></div>
-        <p className="dvt-tutorial-link"><a href={tutorialUrl} target="_blank" rel="noreferrer">{t('arkTutorial')}</a></p>
+      <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('ark')}</h3><p>{t('arkHint')}</p></div><span className={`dvt-badge ${snapshot.credential.configured ? 'ok' : 'error'}`}>{snapshot.credential.configured ? t('configured') : t('missing')}</span></div>
+        <p className="dvt-tutorial-link"><a href={ARK_TUTORIAL_URL} target="_blank" rel="noreferrer">{t('arkTutorial')}</a></p>
         <div className="dvt-form-grid">
-          <Field label={t('model')}><Input disabled={!snapshot.writable || busy} value={draft.model} onChange={(event) => { update('model', event.target.value) }} /></Field>
           <Field label={t('apiKey')} hint={keyLocked ? t('apiKeyLocked') : snapshot.credential.source === undefined ? t('apiKeyHint') : `${t('apiKeyHint')} ${t('sourceHint', { source: t('source'), value: credentialSource(snapshot.credential.source, t) })}`}><Input aria-label={t('apiKey')} type="password" autoComplete="new-password" disabled={busy || keyLocked} placeholder={snapshot.credential.configured ? t('apiKeyPlaceholderConfigured') : t('apiKeyPlaceholderMissing')} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setDraftError(undefined) }} /></Field>
         </div>
       </section>
@@ -1370,12 +1153,11 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
 
       <div className="dvt-save-row"><Button variant="primary" disabled={!canSave || busy} onClick={save}>{state.action === 'save' ? t('saving') : t('save')}</Button><Button variant="outline" disabled={busy} onClick={() => { void controller.load() }}>{t('reload')}</Button></div>
 
-      <section className="dvt-panel"><div className="dvt-panel-title"><div><h3>{t('health')}</h3><p>{t('connectionHint')}</p></div><div className="dvt-actions"><Button size="sm" variant="outline" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('health') }}>{state.action === 'health' ? t('testing') : t('runHealth')}</Button><Button size="sm" variant="outline" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('connection') }}>{state.action === 'connection' ? t('testing') : t('testConnection')}</Button><Button size="sm" variant="primary" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('model') }}>{state.action === 'model' ? t('testingModel') : t('testModel')}</Button></div></div>
+      <section className="dvt-panel"><div className="dvt-panel-title"><div><h3>{t('health')}</h3><p>{t('connectionHint')}</p></div><div className="dvt-actions"><Button size="sm" variant="outline" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('health') }}>{state.action === 'health' ? t('testing') : t('runHealth')}</Button><Button size="sm" variant="primary" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('connection') }}>{state.action === 'connection' ? t('testing') : t('testConnection')}</Button></div></div>
         <p className="dvt-muted">{t('saveBeforeTesting')}</p>
-        {state.health === undefined ? <p className="dvt-muted">{t('notTested')}</p> : <div className="dvt-health-grid">{Object.entries(state.health.checks).map(([name, check]) => {
-          const testTag = name === 'model' ? modelTestTag(state.health as HealthResult, check) : undefined
-          return <div key={name} data-status={check.status}><span>{t(HEALTH_NAME_KEYS[name] ?? 'health')}</span>{testTag === undefined ? null : <em className="dvt-health-test-tag" data-status={testTag.status}>{t(testTag.label)}</em>}<strong>{t(HEALTH_STATUS_KEYS[check.status])}</strong><p>{healthDetail(check.detail, t)}</p></div>
-        })}</div>}
+        {state.health === undefined ? <p className="dvt-muted">{t('notTested')}</p> : <div className="dvt-health-grid">{Object.entries(state.health.checks).map(([name, check]) => (
+          <div key={name} data-status={check.status}><span>{t(HEALTH_NAME_KEYS[name] ?? 'health')}</span><strong>{t(HEALTH_STATUS_KEYS[check.status])}</strong><p>{healthDetail(check.detail, t)}</p></div>
+        ))}</div>}
       </section>
 
       <section className="dvt-panel dvt-update-panel">
@@ -1405,9 +1187,10 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
       <details className="dvt-advanced">
         <summary><span><strong>{t('advanced')}</strong><small>{t('advancedHint')}</small></span><span className="dvt-details-chevron" aria-hidden="true">⌄</span></summary>
         <div className="dvt-advanced-body">
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('provider')}</h3></div><div className="dvt-form-grid">
+          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('ark')}</h3></div><div className="dvt-form-grid">
             <Field label={t('credential')} hint={t('credentialHint')}><Input aria-label={t('credential')} readOnly value={draft.credential} /></Field>
             <Field label={t('baseUrl')}><Input readOnly value={draft.baseUrl} /></Field>
+            <Field label={t('model')} hint={t('modelHint')}><Input readOnly value={ARK_SEEDREAM_MODEL} /></Field>
             <Field label={t('userAgent')}><Input readOnly value={draft.userAgent} /></Field>
           </div></section>
 
@@ -1418,20 +1201,9 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
           </div></section>
 
           <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('limits')}</h3></div><div className="dvt-form-grid">
-            <Field label={t('language')}><select value={draft.language} onChange={(event) => { update('language', event.target.value as 'zh' | 'en') }}><option value="zh">中文</option><option value="en">English</option></select></Field>
             <Field label={t('timeout')}><Input inputMode="numeric" value={draft.timeoutMs} onChange={(event) => { update('timeoutMs', event.target.value) }} /></Field>
-            <Field label={t('maxBytes')}><Input inputMode="numeric" value={draft.maxImageBytes} onChange={(event) => { update('maxImageBytes', event.target.value) }} /></Field>
-            <Field label={t('maxPixels')}><Input inputMode="numeric" value={draft.maxImagePixels} onChange={(event) => { update('maxImagePixels', event.target.value) }} /></Field>
             <Field label={t('concurrency')}><Input inputMode="numeric" value={draft.concurrency} onChange={(event) => { update('concurrency', event.target.value) }} /></Field>
           </div></section>
-
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('imageInput')}</h3></div><label className="dvt-check"><input type="checkbox" checked={draft.hiddenVariants} disabled={!snapshot.writable || busy} onChange={(event) => { update('hiddenVariants', event.target.checked) }} /><span>{t('hiddenVariantsLabel')}</span><small>{t('hiddenVariantsHint')}</small></label></section>
-
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('runtime')}</h3><span className={`dvt-badge ${snapshot.runtime.ready ? 'ok' : 'error'}`}>{snapshot.runtime.ready ? t('runtimePureNode') : t('runtimeUnavailable')}</span></div><div className="dvt-form-grid">
-            <Field label={t('allowedDirs')} hint={t('allowedDirsHint')}><textarea rows={3} value={draft.allowedDirs} onChange={(event) => { update('allowedDirs', event.target.value) }} /></Field>
-          </div>
-          </section>
-
         </div>
       </details>
 
@@ -1445,13 +1217,15 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
 const CSS = `
 .dvt-tool{margin:4px 0;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;box-shadow:var(--dsw-shadow-lv1)}
 .dvt-tool-head{width:100%;min-height:38px;display:flex;align-items:center;gap:7px;padding:8px 10px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.dvt-tool-head:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}.dvt-tool-icon{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 12%,transparent);flex:none}.dvt-tool-title{font-size:12px;font-weight:650;white-space:nowrap}.dvt-tool-sep{opacity:.35}.dvt-tool-summary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-secondary)}.dvt-tool-status{margin-left:auto;font-size:11px;color:var(--dsw-alias-label-secondary);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dvt-tool[data-state=error] .dvt-tool-status{color:var(--dsw-alias-state-error-primary)}.dvt-chevron{margin-left:auto;transition:transform .16s ease;opacity:.55}.dvt-chevron[data-open=true]{transform:rotate(180deg)}.dvt-tool-body{padding:0 10px 10px}.dvt-stack{display:grid;gap:10px}.dvt-muted{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}
-.dvt-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.dvt-metrics>div,.dvt-diff-score{padding:10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);display:grid;gap:4px}.dvt-metrics span,.dvt-diff-score span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dsw-alias-label-secondary)}.dvt-metrics strong,.dvt-diff-score strong{font-size:13px}.dvt-list{list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:160px;overflow:auto}.dvt-list li{display:flex;justify-content:space-between;gap:12px;padding:6px 8px;border-radius:7px;background:var(--dsw-alias-bg-layer-2);font-size:11px}.dvt-list code{color:var(--dsw-alias-state-business-primary)}.dvt-table-wrap{max-height:220px;overflow:auto;border:1px solid var(--dsw-alias-border-l1);border-radius:9px}.dvt-table{width:100%;border-collapse:collapse;font-size:11px}.dvt-table th,.dvt-table td{padding:7px 8px;text-align:left;border-bottom:1px solid var(--dsw-alias-border-l1)}.dvt-table th{position:sticky;top:0;background:var(--dsw-alias-bg-layer-2);font-size:10px;text-transform:uppercase;letter-spacing:.05em}.dvt-table tr:last-child td{border-bottom:0}
-.dvt-artifact{border:1px solid var(--dsw-alias-border-l1);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-1)}.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%) 50%/18px 18px;border:0}.dvt-svg{height:280px}.dvt-artifact-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px}.dvt-artifact-meta>div:first-child{min-width:0;display:grid;gap:2px}.dvt-artifact-meta strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}.dvt-artifact-meta span,.dvt-artifact-meta small{font-size:10px;color:var(--dsw-alias-label-secondary)}.dvt-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);text-decoration:none;font-size:12px;font-weight:600}.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}.dvt-download:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.dvt-artifact>.dvt-muted{padding:0 10px 10px}.dvt-diff-score>div{height:5px;border-radius:99px;background:var(--dsw-alias-border-l2);overflow:hidden}.dvt-diff-score i{display:block;height:100%;min-width:2px;background:linear-gradient(90deg,var(--dsw-alias-state-warn-primary),var(--dsw-alias-state-error-primary));border-radius:99px}.dvt-tool h4{font-size:11px;margin:0 0 6px}.dvt-palette{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:7px}.dvt-palette>div{display:flex;align-items:center;gap:8px;padding:7px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px}.dvt-palette i{width:28px;height:28px;border-radius:7px;box-shadow:inset 0 0 0 1px var(--dsw-alias-border-l2)}.dvt-palette span{display:grid}.dvt-palette strong{font-size:11px}.dvt-palette small{font-size:10px;color:var(--dsw-alias-label-secondary)}
-.dvt-tutorial-link{margin:0;font-size:12px;line-height:1.5}.dvt-tutorial-link a{color:var(--dsw-alias-state-business-primary);text-decoration:none;font-weight:600}.dvt-tutorial-link a:hover{text-decoration:underline}.dvt-manual-update{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}.dvt-manual-update code{flex:1;min-width:0;overflow:auto;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-primary)}.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;color:var(--dsw-alias-label-primary);box-sizing:border-box}.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}.dvt-card-head:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}.dvt-card-head-text{display:grid;gap:2px;flex:1;min-width:0}.dvt-card-head-text strong{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dvt-card-head-text small{font-size:12px;color:var(--dsw-alias-label-secondary);line-height:1.5}.dvt-card-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary);font-size:11px;font-weight:600;white-space:nowrap}.dvt-card-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}.dvt-card-pill[data-status=error]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-card-chevron{font-size:14px;opacity:.55;transition:transform .15s ease}.dvt-plugin-card[data-open] .dvt-card-chevron{transform:rotate(180deg)}.dvt-card-body{padding:0 14px 14px;min-width:0}.dvt-card-body[hidden]{display:none}.dvt-settings{display:grid;grid-template-columns:minmax(0,1fr);width:100%;min-width:0;box-sizing:border-box;gap:14px;color:var(--dsw-alias-label-primary)}.dvt-settings-footer{display:flex;justify-content:flex-end;padding:8px 2px 2px;border-top:1px solid var(--dsw-alias-border-l1)}.dvt-release{display:grid;gap:4px;min-width:170px;padding:9px 11px;border-radius:10px;background:var(--dsw-alias-bg-layer-2);font-size:10px;color:var(--dsw-alias-label-secondary)}.dvt-release span{display:flex;justify-content:space-between;gap:12px}.dvt-release strong{color:var(--dsw-alias-label-primary)}.dvt-alert{padding:10px 12px;border-radius:10px;font-size:12px;line-height:1.5;display:grid;gap:3px}.dvt-alert.notice{background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 10%,transparent);color:var(--dsw-alias-state-business-primary)}.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-label)}.dvt-alert.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-alert.success{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 10%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-panel{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:15px;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);box-shadow:var(--dsw-shadow-lv1)}.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px}.dvt-panel-title>div:first-child{flex:1 1 320px;min-width:0}.dvt-panel-title>.dvt-actions{margin-left:auto;justify-content:flex-end}.dvt-panel-title h3{font-size:14px;margin:0}.dvt-panel-title p{font-size:11px;line-height:1.45;color:var(--dsw-alias-label-secondary);margin:4px 0 0;max-width:620px}.dvt-badge{font-size:10px;padding:3px 7px;border-radius:999px;font-weight:650}.dvt-badge.ok{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-badge.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-label)}.dvt-badge.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dvt-field{display:grid;min-width:0;gap:6px;align-content:start}.dvt-field>span{font-size:11px;font-weight:600}.dvt-field>small{font-size:10px;color:var(--dsw-alias-label-secondary);line-height:1.4}.dvt-field select,.dvt-field textarea{width:100%;box-sizing:border-box;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12px;padding:8px 10px}.dvt-field select{height:36px}.dvt-field textarea{resize:vertical;min-height:76px}.dvt-check{display:grid;gap:6px;cursor:pointer}.dvt-check input{width:auto}.dvt-check>span{font-size:12px;font-weight:600}.dvt-check>small{font-size:10px;color:var(--dsw-alias-label-secondary);line-height:1.4}.dvt-runtime-facts{display:grid;gap:4px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);overflow:auto}.dvt-runtime-facts code{font-size:10px;white-space:nowrap;color:var(--dsw-alias-label-secondary)}.dvt-save-row{display:flex;gap:8px;padding:2px 0}.dvt-update-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.dvt-update-grid>div{display:grid;gap:3px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}.dvt-update-grid span{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:var(--dsw-alias-label-caption)}.dvt-update-grid strong{font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.dvt-release{min-width:220px}.dvt-release span{white-space:nowrap}.dvt-essential{border-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 30%,var(--dsw-alias-border-l1));box-shadow:var(--dsw-shadow-lv1),0 0 0 3px color-mix(in srgb,var(--dsw-alias-state-business-primary) 5%,transparent)}.dvt-advanced{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dvt-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;cursor:pointer;list-style:none}.dvt-advanced>summary::-webkit-details-marker{display:none}.dvt-advanced>summary>span:first-child{display:grid;gap:3px}.dvt-advanced>summary strong{font-size:13px}.dvt-advanced>summary small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary);font-weight:400}.dvt-details-chevron{font-size:15px;opacity:.55;transition:transform .16s ease}.dvt-advanced[open] .dvt-details-chevron{transform:rotate(180deg)}.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:0 12px 12px}.dvt-advanced-body>.dvt-panel{box-shadow:none}
-.dvt-health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.dvt-health-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-border-l4)}.dvt-health-grid>div[data-status=ok]{border-left-color:var(--dsw-alias-state-success-primary)}.dvt-health-grid>div[data-status=warning],.dvt-health-grid>div[data-status=not_tested]{border-left-color:var(--dsw-alias-state-warn-primary)}.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}.dvt-health-grid span{font-size:10px;text-transform:capitalize}.dvt-health-grid strong{float:right;font-size:9px;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}.dvt-health-test-tag{display:inline-flex;margin-left:6px;padding:1px 6px;border-radius:999px;background:var(--dsw-alias-bg-layer-1);font-size:9px;font-style:normal;font-weight:600;color:var(--dsw-alias-label-secondary)}.dvt-health-test-tag[data-status=ok]{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-health-test-tag[data-status=warning]{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent);color:var(--dsw-alias-state-warn-label)}.dvt-health-test-tag[data-status=error]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 12%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-health-grid p{clear:both;margin:5px 0 0;font-size:10px;line-height:1.4;color:var(--dsw-alias-label-secondary)}.dvt-loading{padding:24px;border-radius:12px;background:var(--dsw-alias-bg-layer-2);font-size:12px;color:var(--dsw-alias-label-secondary)}
-.dvt-paste-dock{box-sizing:border-box;width:calc(100% - 32px);max-width:var(--dsh-composer-card-max-width,960px);margin:0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:0 2px 6px}.dvt-paste-chip{max-width:100%;height:32px;box-sizing:border-box;display:flex;align-items:center;gap:7px;padding:0 6px 0 10px;border:1px solid var(--dsw-alias-border-l1);border-radius:9px;background:var(--dsw-specific-tip);font-size:12px}.dvt-paste-chip[data-status=copying]{border-color:var(--dsw-alias-state-business-primary)}.dvt-paste-chip[data-status=error]{border-color:var(--dsw-alias-state-error-primary)}.dvt-paste-name{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dvt-paste-detail{color:var(--dsw-alias-label-caption);max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dvt-paste-chip[data-status=error] .dvt-paste-detail{color:var(--dsw-alias-state-error-primary)}.dvt-paste-chip button{width:20px;height:20px;display:grid;place-items:center;border:0;border-radius:50%;padding:0;background:transparent;color:var(--dsw-alias-label-caption);font:inherit;font-size:16px;cursor:pointer}.dvt-paste-chip button:hover{background:var(--dsw-alias-interactive-bg-hover);color:var(--dsw-alias-label-primary)}.dvt-paste-chip button:disabled{opacity:.4;cursor:default}
-@media(max-width:720px){.dvt-settings-footer{display:grid}.dvt-release{width:auto}.dvt-form-grid,.dvt-update-grid{grid-template-columns:1fr}.dvt-metrics{grid-template-columns:1fr}.dvt-artifact-meta{align-items:flex-start;flex-direction:column}.dvt-panel-title{flex-direction:column}}
+.dvt-artifact{border:1px solid var(--dsw-alias-border-l1);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-1)}.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%) 50%/18px 18px;border:0}.dvt-svg{height:280px}.dvt-artifact-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px}.dvt-artifact-meta>div:first-child{min-width:0;display:grid;gap:2px}.dvt-artifact-meta strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}.dvt-artifact-meta span,.dvt-artifact-meta small{font-size:10px;color:var(--dsw-alias-label-secondary)}.dvt-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);text-decoration:none;font-size:12px;font-weight:600}.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}.dvt-download:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.dvt-artifact>.dvt-muted{padding:0 10px 10px}
+.dvt-tutorial-link{margin:0;font-size:12px;line-height:1.5}.dvt-tutorial-link a{color:var(--dsw-alias-state-business-primary);text-decoration:none;font-weight:600}.dvt-tutorial-link a:hover{text-decoration:underline}.dvt-manual-update{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}.dvt-manual-update code{flex:1;min-width:0;overflow:auto;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-primary)}.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;color:var(--dsw-alias-label-primary);box-sizing:border-box}.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}.dvt-card-head:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}.dvt-card-head-text{display:grid;gap:2px;flex:1;min-width:0}.dvt-card-head-text strong{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dvt-card-head-text small{font-size:12px;color:var(--dsw-alias-label-secondary);line-height:1.5}.dvt-card-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary);font-size:11px;font-weight:600;white-space:nowrap}.dvt-card-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}.dvt-card-pill[data-status=error]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-card-chevron{font-size:14px;opacity:.55;transition:transform .15s ease}.dvt-plugin-card[data-open] .dvt-card-chevron{transform:rotate(180deg)}.dvt-card-body{padding:0 14px 14px;min-width:0}
+.dvt-panel{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);padding:14px 15px;display:grid;gap:12px}.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.dvt-panel-title h3{margin:0;font-size:13px}.dvt-panel-title p{margin:3px 0 0;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-secondary)}.dvt-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);font-size:11px;font-weight:600;white-space:nowrap}.dvt-badge.ok{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-badge.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-badge.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 14%,transparent);color:var(--dsw-alias-state-warn-label)}
+.dvt-settings{display:grid;gap:12px}.dvt-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.dvt-field{display:grid;gap:5px;font-size:12px}.dvt-field>span{font-weight:600}.dvt-field small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary)}.dvt-save-row{display:flex;gap:8px;flex-wrap:wrap}.dvt-alert{padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5;display:grid;gap:3px}.dvt-alert.notice{background:var(--dsw-alias-bg-layer-2)}.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}.dvt-alert.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.dvt-alert.success{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}
+.dvt-update-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.dvt-update-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);display:grid;gap:3px}.dvt-update-grid span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dsw-alias-label-secondary)}.dvt-update-grid strong{font-size:13px}
+.dvt-settings-footer{display:flex;justify-content:space-between;gap:14px;font-size:11px;color:var(--dsw-alias-label-secondary)}
+.dvt-release{display:flex;gap:14px;flex-wrap:wrap}.dvt-release span{white-space:nowrap}.dvt-essential{border-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 30%,var(--dsw-alias-border-l1));box-shadow:var(--dsw-shadow-lv1),0 0 0 3px color-mix(in srgb,var(--dsw-alias-state-business-primary) 5%,transparent)}.dvt-advanced{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dvt-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;cursor:pointer;list-style:none}.dvt-advanced>summary::-webkit-details-marker{display:none}.dvt-advanced>summary>span:first-child{display:grid;gap:3px}.dvt-advanced>summary strong{font-size:13px}.dvt-advanced>summary small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary);font-weight:400}.dvt-details-chevron{font-size:15px;opacity:.55;transition:transform .16s ease}.dvt-advanced[open] .dvt-details-chevron{transform:rotate(180deg)}.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:0 12px 12px}.dvt-advanced-body>.dvt-panel{box-shadow:none}
+.dvt-health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.dvt-health-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-border-l4)}.dvt-health-grid>div[data-status=ok]{border-left-color:var(--dsw-alias-state-success-primary)}.dvt-health-grid>div[data-status=warning],.dvt-health-grid>div[data-status=not_tested]{border-left-color:var(--dsw-alias-state-warn-primary)}.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}.dvt-health-grid span{font-size:10px;text-transform:capitalize}.dvt-health-grid strong{float:right;font-size:9px;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}.dvt-health-grid p{clear:both;margin:5px 0 0;font-size:10px;line-height:1.4;color:var(--dsw-alias-label-secondary)}.dvt-loading{padding:24px;border-radius:12px;background:var(--dsw-alias-bg-layer-2);font-size:12px;color:var(--dsw-alias-label-secondary)}
+@media(max-width:720px){.dvt-settings-footer{display:grid}.dvt-release{width:auto}.dvt-form-grid,.dvt-update-grid{grid-template-columns:1fr}.dvt-artifact-meta{align-items:flex-start;flex-direction:column}.dvt-panel-title{flex-direction:column}}
 `
 
 function installStyles(): () => void {
@@ -1466,15 +1240,13 @@ function installStyles(): () => void {
   return () => { style.remove() }
 }
 
-/** Required client services. The pasted-image codec attaches to either trigger-service generation after load. */
-export const inject = ['slots', 'locale', 'remote', 'conversation', 'sessions']
+/** Required client services. */
+export const inject = ['slots', 'locale', 'remote']
 
 /** Register dedicated Tool views and the Ark Toolkit plugin-configuration card. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(installStyles, 'dsh-ark-toolkit: styles')
   ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-ark-toolkit: locale')
-  installPasteImages(ctx)
-  ctx.effect(installModelVariantsHider, 'dsh-ark-toolkit: model-selector transparent routing')
   const t = ctx.locale.bind(NS)
   const injected = () => ({ t })
   const entries: Array<[string, (props: ViewProps) => ReactNode]> = [
@@ -1489,37 +1261,20 @@ export function apply(ctx: ClientContext): void {
 
   const controller = new ArkSettingsController()
   ctx.effect(() => {
-    const refreshSettings = (namespace: string): void => {
-      if (namespace === 'ark-toolkit') {
-        resetDisplayConfigCache()
-        controller.refreshIfLoaded()
-      }
-    }
-    const refreshCredential = (ref: string): void => {
-      const current = controller.snapshot().snapshot
-      if (current?.credential.ref === ref) controller.refreshIfLoaded()
-    }
-    const legacyRemote = ctx.remote as typeof ctx.remote & {
-      $on?: (event: string, listener: (value: string) => void) => () => void
-    }
-    const currentEvents = ctx as unknown as {
-      on(event: 'settings/changed', listener: (namespace: string) => void): () => void
-      on(event: 'credentials/changed', listener: (ref: string) => void): () => void
-    }
-    const disposers = typeof legacyRemote.$on === 'function'
-      ? [
-        legacyRemote.$on('settings/document-updated', refreshSettings),
-        legacyRemote.$on('credentials/updated', refreshCredential),
-      ]
-      : [
-        currentEvents.on('settings/changed', (namespace) => {
-          refreshSettings(namespace)
-        }),
-        currentEvents.on('credentials/changed', (ref) => {
-          refreshCredential(ref)
-        }),
-      ]
-    disposers.push(ctx.on('connection/reset', () => { controller.refreshIfLoaded() }))
+    // Both signals arrive over the Remote transport: a committed Settings
+    // document (any namespace) and a changed Credential reference. Comparing
+    // against the served credential names keeps unrelated stores quiet.
+    const disposers = [
+      ctx.remote.$on('settings/document-updated', (namespace: string) => {
+        if (namespace === NS) controller.refreshIfLoaded()
+      }),
+      ctx.remote.$on('credentials/reference-updated', (ref: string) => {
+        const current = controller.snapshot().snapshot
+        const updated = String(ref)
+        if (current?.credential.ref === updated || current?.credentialTts.ref === updated) controller.refreshIfLoaded()
+      }),
+      ctx.on('connection/reset', () => { controller.refreshIfLoaded() }),
+    ]
     return () => { for (const dispose of disposers) dispose() }
   }, 'dsh-ark-toolkit: Settings invalidations')
   // 设置 → 插件 → 插件配置: one keyed card per settings namespace. The Host

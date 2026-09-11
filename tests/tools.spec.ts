@@ -27,7 +27,7 @@ const TOOL_NAMES: readonly string[] = Object.values(ARK_TOOL_NAMES)
 function fakeCredentials(): Credentials {
   return {
     async resolve() {
-      return { value: 'test-vision-key', source: 'env' }
+      return { value: 'test-ark-key', source: 'env' }
     },
   } as unknown as Credentials
 }
@@ -100,16 +100,17 @@ function recordNativeSkillInvocation(
   session.append('turn/end', { turn, reason: { kind: 'completed' } })
 }
 
-function recordCodeSkillInvocation(
+function recordPtcSkillInvocation(
   session: Session,
   turn = 1,
   content = ARK_SKILLS_CONTENT,
   name = ARK_SKILLS_NAME,
 ): void {
   session.append('turn/start', { turn })
-  session.append('tool/code-dispatch', {
+  session.append('tool/ptc-dispatch', {
+    rootCallId: ToolCallId(`restored-run-code-${turn}`),
     parentCallId: ToolCallId(`restored-run-code-${turn}`),
-    subCallId: ToolCallId(`restored-code-skill-${turn}`),
+    subCallId: ToolCallId(`restored-ptc-skill-${turn}`),
     name: 'skill',
     arguments: { name },
     isError: false,
@@ -136,7 +137,7 @@ async function registerAgent(ctx: Context, name: string, session?: Session): Pro
   return agent
 }
 
-async function loadVisionSkill(ctx: Context, agent: Agent): Promise<void> {
+async function loadArkSkill(ctx: Context, agent: Agent): Promise<void> {
   const result = await ctx.tools.execute({
     signal: new AbortController().signal,
     callId: ToolCallId(`skill-${String(agent.id)}`),
@@ -161,32 +162,30 @@ async function setupContext() {
   ctx.provide('credentials', fakeCredentials())
   const fiber = await ctx.plugin(ArkToolkit, {
     provider: {
-      baseUrl: 'https://vision.example/v1',
-      credential: 'VISION_API_KEY',
-      model: 'fixture-model',
+      baseUrl: 'https://ark.example/v1',
+      credential: 'ARK_API_KEY',
     },
   })
   return { ctx, fiber }
 }
 
 describe('dsh-ark-toolkit plugin lifecycle', () => {
-  it('keeps visual schemas hidden until the matching Skill loads for one Agent', async () => {
+  it('keeps tool schemas hidden until the matching Skill loads for one Agent', async () => {
     const { ctx } = await setupContext()
     expect(ctx.tools.schemas().map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas().some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
     const skills = await ctx.skills.list()
     const skill = skills.find(entry => entry.name === ARK_SKILLS_NAME)
     expect(skill).toBeDefined()
-    expect(skill?.description).toContain('图片理解')
+    expect(skill?.description).toContain('Seedream')
     expect(skill?.provider).toBe('runtime')
     const definition = await ctx.skills.get(ARK_SKILLS_NAME)
-    expect(definition?.content).toContain('untrusted visual evidence')
+    expect(definition?.content).toContain('ark_generate_image')
+    expect(definition?.content).toContain('ark_speak')
     expect(definition?.content).toContain('ark_toolkit_activate')
-    expect(definition?.content).toContain('immediately repeated `ark_glance`')
     expect(definition?.content).toContain('Disabling or unloading the plugin cancels')
-    expect(definition?.content).toContain('platform temporary directory automatically')
-    expect(definition?.content).toContain('`/tmp/...`')
-    expect(definition?.content).toContain('%TEMP%')
+    expect(definition?.content).toContain('workspace Artifact')
+    expect(definition?.content).toContain('Reading images is **not** part of this toolkit')
     expect(definition?.resourceBase).toEqual({
       kind: 'directory',
       path: ARK_SKILLS_RESOURCE_BASE,
@@ -197,14 +196,13 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(ctx.tools.schemas(activated).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas(activated).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
 
-    await loadVisionSkill(ctx, activated)
-    await loadVisionSkill(ctx, activated)
+    await loadArkSkill(ctx, activated)
+    await loadArkSkill(ctx, activated)
     const activatedNames = ctx.tools.schemas(activated).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(activatedNames).toContain(name)
     expect(activatedNames).not.toContain(ARK_TOOLKIT_ACTIVATE)
-    const glance = ctx.tools.schemas(activated).find(tool => tool.name === 'ark_glance')
-    expect(glance?.description).toContain('platform temporary directory')
-    expect(glance?.description).toContain('/tmp/')
+    const generate = ctx.tools.schemas(activated).find(tool => tool.name === 'ark_generate_image')
+    expect(generate?.description).toContain('session workspace')
     expect(ctx.tools.schemas(untouched).map(tool => tool.name)).toContain(ARK_TOOLKIT_ACTIVATE)
     expect(ctx.tools.schemas(untouched).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
   })
@@ -220,12 +218,12 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
-  it('restores Code Mode Skill activation before a persisted Agent is registered', async () => {
+  it('restores PTC mode Skill activation before a persisted Agent is registered', async () => {
     const { ctx } = await setupContext()
-    const session = Session.create(SessionId('restored-code-skill'))
-    recordCodeSkillInvocation(session)
+    const session = Session.create(SessionId('restored-ptc-skill'))
+    recordPtcSkillInvocation(session)
 
-    const agent = await registerAgent(ctx, 'restored-code-skill', session)
+    const agent = await registerAgent(ctx, 'restored-ptc-skill', session)
     const names = ctx.tools.schemas(agent).map(tool => tool.name)
     for (const name of TOOL_NAMES) expect(names).toContain(name)
     expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
@@ -252,7 +250,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
   it('unregisters every tool and skill on dispose', async () => {
     const { ctx, fiber } = await setupContext()
     const agent = await registerAgent(ctx, 'dispose')
-    await loadVisionSkill(ctx, agent)
+    await loadArkSkill(ctx, agent)
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(true)
     await fiber.dispose()
     expect(ctx.tools.schemas(agent).some(tool => TOOL_NAMES.includes(tool.name))).toBe(false)
@@ -367,7 +365,7 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
       agent,
     })
     expect(activationResult.isError, JSON.stringify(activationResult)).toBe(false)
-    expect(JSON.stringify(activationResult.content)).toContain('ark_glance')
+    expect(JSON.stringify(activationResult.content)).toContain('ark_generate_image')
 
     session.append('step/start', { turn: 1, step: 1 })
     session.append('step/end', { turn: 1, step: 1 })
@@ -376,16 +374,16 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     expect(names).not.toContain(ARK_TOOLKIT_ACTIVATE)
   })
 
-  it('cancels an in-flight vision tool when the plugin is disposed', async () => {
+  it('cancels an in-flight generation when the plugin is disposed', async () => {
     const { ctx, fiber } = await setupContext()
     vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => {})))
     const agent = await registerAgent(ctx, 'dispose-active')
-    await loadVisionSkill(ctx, agent)
+    await loadArkSkill(ctx, agent)
     const pending = ctx.tools.execute({
       signal: new AbortController().signal,
-      callId: ToolCallId('dispose-active-vision-tool'),
-      name: 'ark_glance',
-      arguments: { images: [SAMPLE_IMAGE] },
+      callId: ToolCallId('dispose-active-generate-tool'),
+      name: 'ark_generate_image',
+      arguments: { prompt: 'a cat' },
       agent,
     })
 
@@ -408,48 +406,85 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     await ctx.plugin(MemorySettings)
     ctx.provide('credentials', fakeCredentials())
     await expect(ctx.plugin(ArkToolkit, {
-      provider: { baseUrl: 'not-a-url', credential: 'K', model: 'm' },
+      provider: { baseUrl: 'not-a-url', credential: 'ARK_API_KEY' },
     })).rejects.toMatchObject({ code: 'config' })
   })
 
   it('declares model-friendly parameters and JSON object outputs for every tool', async () => {
     const { ctx } = await setupContext()
     const agent = await registerAgent(ctx, 'schemas')
-    await loadVisionSkill(ctx, agent)
+    await loadArkSkill(ctx, agent)
     for (const name of TOOL_NAMES) {
       const definition = ctx.tools.get(name, agent)
       expect(definition, name).toBeDefined()
       expect(definition?.description?.length, `${name} description`).toBeGreaterThan(0)
-      if (name === 'ark_glance' || name === 'ark_generate_image') {
-        expect(definition?.description, `${name} trust boundary`).toContain('untrusted visual evidence')
+      if (name === 'ark_generate_image') {
+        expect(definition?.description, `${name} trust boundary`).toContain('untrusted content')
       }
       const output = definition?.output as { schema?: { type?: string } } | undefined
       expect(output?.schema?.type, `${name} output`).toBe('object')
       const blocks = definition?.output.render({}, { kind: 'ok' })
       expect(blocks?.[0]).toMatchObject({ type: 'text' })
     }
-    const glance = ctx.tools.get('ark_glance', agent)
-    expect(glance?.parameters).toMatchObject({
-      properties: { ocr: { type: 'boolean' }, images: { type: 'array' } },
+    const generate = ctx.tools.get('ark_generate_image', agent)
+    expect(generate?.parameters).toMatchObject({
+      properties: { prompt: { type: 'string' }, size: { type: 'string' } },
     })
+    const speak = ctx.tools.get('ark_speak', agent)
+    expect(speak?.parameters).toMatchObject({
+      properties: { text: { type: 'string' }, encoding: { type: 'string' } },
+    })
+    // Image understanding was removed: DeepSeek models read images natively.
+    expect(ctx.tools.get('ark_glance')).toBeUndefined()
     expect(ctx.tools.get('vision_ground')).toBeUndefined()
     expect(ctx.tools.get('vision_pixel_diff')).toBeUndefined()
     expect(ctx.tools.get('ark_toolkit_health')).toBeUndefined()
     expect(ctx.tools.get('ark_toolkit_version')).toBeUndefined()
   })
 
-  it('declares replay-safe file locations and presentation metadata for artifact tools', async () => {
+  it('declares replay-safe presentation metadata for the artifact tools', async () => {
     const { ctx } = await setupContext()
     const agent = await registerAgent(ctx, 'presentation')
-    await loadVisionSkill(ctx, agent)
-    const glance = ctx.tools.get('ark_glance', agent)
-    expect(glance?.presentCall?.({ images: ['shot.png', 'shot2.png'] })).toMatchObject({
-      card: 'generic',
-      locations: [{ path: 'shot.png' }, { path: 'shot2.png' }],
-    })
+    await loadArkSkill(ctx, agent)
     const generate = ctx.tools.get('ark_generate_image', agent)
+    expect(generate?.presentCall?.({ prompt: 'a cat' })).toMatchObject({ card: 'generic' })
     expect(typeof generate?.output.presentationMeta).toBe('function')
     const speak = ctx.tools.get('ark_speak', agent)
     expect(typeof speak?.output.presentationMeta).toBe('function')
+  })
+
+  it('generates a Seedream image through the configured Ark endpoint', async () => {
+    const { ctx } = await setupContext()
+    const agent = await registerAgent(ctx, 'generate')
+    const imageBytes = await import('node:fs/promises').then(fs => fs.readFile(SAMPLE_IMAGE))
+    const calls: Array<{ url: string; body: Record<string, unknown> }> = []
+    vi.stubGlobal('fetch', vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      calls.push({ url: String(input), body: JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown> })
+      return new Response(JSON.stringify({ data: [{ b64_json: imageBytes.toString('base64') }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }))
+    await loadArkSkill(ctx, agent)
+    const result = await ctx.tools.execute({
+      signal: new AbortController().signal,
+      callId: ToolCallId('generate-call'),
+      name: 'ark_generate_image',
+      arguments: { prompt: '一只戴帽子的橘猫', size: '2K', aspectRatio: '16:9' },
+      agent,
+    })
+    expect(result.isError, JSON.stringify(result)).toBe(false)
+    expect(calls[0]?.url).toBe('https://ark.example/v1/images/generations')
+    expect(calls[0]?.body).toMatchObject({
+      model: 'doubao-seedream-5-0-260128',
+      size: '2K',
+      n: 1,
+      extra_parameters: { aspect_ratio: '16:9' },
+    })
+    const value = JSON.parse((result.content[0] as { text: string }).text) as {
+      images: Array<{ artifact: { kind: string; sourceTool: string }, width: number, height: number }>
+    }
+    expect(value.images[0]?.artifact).toMatchObject({ kind: 'image', sourceTool: 'ark_generate_image' })
+    expect(value.images[0]?.width).toBeGreaterThan(0)
   })
 })

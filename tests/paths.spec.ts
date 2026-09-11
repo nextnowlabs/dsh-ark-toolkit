@@ -10,8 +10,8 @@ import {
   createStagedOutput,
   normalizePlatformTempPath,
   platformTempDirectory,
+  resolveAuthorizedFile,
   resolveHtmlFile,
-  resolveInputFile,
   resolveOutputDirectory,
   resolveOutputFile,
   seedStagedDirectory,
@@ -89,26 +89,28 @@ describe('platform temporary paths', () => {
   })
 })
 
-describe('resolveInputFile', () => {
-  it('accepts a workspace image and reports bytes', async () => {
+describe('resolveAuthorizedFile', () => {
+  const EXTENSIONS = ['.png', '.webp'] as const
+
+  it('accepts a workspace file and reports bytes', async () => {
     const workspace = await tempDir('workspace')
     await writeFile(join(workspace, 'a.png'), 'data')
     const policy = await createPathPolicy(workspace, [])
-    const image = await resolveInputFile('a.png', policy)
-    expect(image.path).toBe(await realpath(join(workspace, 'a.png')))
-    expect(image.bytes).toBe(4)
+    const file = await resolveAuthorizedFile('a.png', policy, EXTENSIONS, 'image')
+    expect(file.path).toBe(await realpath(join(workspace, 'a.png')))
+    expect(file.bytes).toBe(4)
   })
 
-  it('accepts an image inside an allowedDir', async () => {
+  it('accepts a file inside an allowedDir', async () => {
     const workspace = await tempDir('workspace')
     const allowed = await tempDir('allowed')
     await writeFile(join(allowed, 'b.webp'), 'data')
     const policy = await createPathPolicy(workspace, [allowed])
-    const image = await resolveInputFile(join(allowed, 'b.webp'), policy)
-    expect(image.path).toBe(await realpath(join(allowed, 'b.webp')))
+    const file = await resolveAuthorizedFile(join(allowed, 'b.webp'), policy, EXTENSIONS, 'image')
+    expect(file.path).toBe(await realpath(join(allowed, 'b.webp')))
   })
 
-  it('accepts an image in the platform temporary directory', async () => {
+  it('accepts a file in the platform temporary directory', async () => {
     const workspace = await tempDir('workspace')
     const temporary = await mkdtemp(join(platformTempDirectory(), 'dsh-ark-toolkit-platform-temp-'))
     tempDirs.push(temporary)
@@ -118,8 +120,8 @@ describe('resolveInputFile', () => {
     const input = process.platform === 'win32'
       ? `/tmp/${basename(temporary)}/temporary.png`
       : path
-    const image = await resolveInputFile(input, policy)
-    expect(image.path).toBe(await realpath(path))
+    const file = await resolveAuthorizedFile(input, policy, EXTENSIONS, 'image')
+    expect(file.path).toBe(await realpath(path))
   })
 
   it('rejects missing files, directories, and unsupported extensions', async () => {
@@ -127,9 +129,9 @@ describe('resolveInputFile', () => {
     await mkdir(join(workspace, 'dir.png'))
     await writeFile(join(workspace, 'doc.txt'), 'x')
     const policy = await createPathPolicy(workspace, [])
-    await expect(resolveInputFile('missing.png', policy)).rejects.toMatchObject({ code: 'input' })
-    await expect(resolveInputFile('dir.png', policy)).rejects.toMatchObject({ code: 'input' })
-    await expect(resolveInputFile('doc.txt', policy)).rejects.toMatchObject({ code: 'input' })
+    await expect(resolveAuthorizedFile('missing.png', policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'input' })
+    await expect(resolveAuthorizedFile('dir.png', policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'input' })
+    await expect(resolveAuthorizedFile('doc.txt', policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'input' })
   })
 
   it('rejects traversal and absolute escapes', async () => {
@@ -137,8 +139,8 @@ describe('resolveInputFile', () => {
     const outside = await outsideTempDir('outside')
     await writeFile(join(outside, 'x.png'), 'data')
     const policy = await createPathPolicy(workspace, [])
-    await expect(resolveInputFile('../x.png', policy)).rejects.toMatchObject({ code: 'input' })
-    await expect(resolveInputFile(join(outside, 'x.png'), policy)).rejects.toMatchObject({ code: 'path' })
+    await expect(resolveAuthorizedFile('../x.png', policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'input' })
+    await expect(resolveAuthorizedFile(join(outside, 'x.png'), policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'path' })
   })
 
   it('rejects a symlink whose real target escapes the fence', async () => {
@@ -147,7 +149,7 @@ describe('resolveInputFile', () => {
     await writeFile(join(outside, 'secret.png'), 'data')
     await symlink(join(outside, 'secret.png'), join(workspace, 'link.png'))
     const policy = await createPathPolicy(workspace, [])
-    await expect(resolveInputFile('link.png', policy)).rejects.toMatchObject({ code: 'path' })
+    await expect(resolveAuthorizedFile('link.png', policy, EXTENSIONS, 'image')).rejects.toMatchObject({ code: 'path' })
   })
 
   it('allows a symlink whose real target stays inside the fence', async () => {
@@ -155,8 +157,8 @@ describe('resolveInputFile', () => {
     await writeFile(join(workspace, 'real.png'), 'data')
     await symlink(join(workspace, 'real.png'), join(workspace, 'link.png'))
     const policy = await createPathPolicy(workspace, [])
-    const image = await resolveInputFile('link.png', policy)
-    expect(image.path).toBe(await realpath(join(workspace, 'real.png')))
+    const file = await resolveAuthorizedFile('link.png', policy, EXTENSIONS, 'image')
+    expect(file.path).toBe(await realpath(join(workspace, 'real.png')))
   })
 })
 

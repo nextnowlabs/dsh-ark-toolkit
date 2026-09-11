@@ -3,8 +3,7 @@ import {
   ARK_BASE_URL,
   ARK_CREDENTIAL,
   ARK_SEEDREAM_MODEL,
-  ARK_VISION_MODEL,
-  DEFAULT_VISION_USER_AGENT,
+  DEFAULT_PROVIDER_USER_AGENT,
   resolveConfig,
   resolveSeedreamModel,
   SEEDREAM_MODEL_ALIASES,
@@ -19,19 +18,11 @@ describe('resolveConfig', () => {
     const config = resolveConfig({})
     expect(config.provider.baseUrl).toBe(ARK_BASE_URL)
     expect(config.provider.credential).toBe(ARK_CREDENTIAL)
-    expect(config.provider.model).toBe(ARK_VISION_MODEL)
-    expect(ARK_VISION_MODEL).toBe('doubao-seed-2-0-lite-260215')
     expect(ARK_SEEDREAM_MODEL).toBe('doubao-seedream-5-0-260128')
     expect(ARK_BASE_URL).toBe('https://ark.cn-beijing.volces.com/api/v3')
-    expect(config.provider.protocol).toBe('openai')
-    expect(config.provider.userAgent).toBe(DEFAULT_VISION_USER_AGENT)
-    expect(config.language).toBe('zh')
+    expect(config.provider.userAgent).toBe(DEFAULT_PROVIDER_USER_AGENT)
     expect(config.timeoutMs).toBe(600000)
-    expect(config.maxImageBytes).toBe(4194304)
-    expect(config.maxImagePixels).toBe(20000000)
     expect(config.concurrency).toBe(4)
-    expect(config.allowedDirs).toEqual([])
-    expect(config.imageInputVariants).toEqual({ enabled: true, providers: [], autoSwitch: true, hidden: true })
   })
 
   it('applies the ByteDance Volcengine Speech TTS defaults for the speak tool', () => {
@@ -73,35 +64,17 @@ describe('resolveConfig', () => {
     expect(resolveSeedreamModel('my-custom-model')).toBe('my-custom-model')
   })
 
-  it('normalizes image-input variant settings', () => {
-    const config = resolveConfig({
-      imageInputVariants: {
-        enabled: false,
-        providers: [' deepseek-official ', '  ', 'glm'],
-      },
-    })
-    expect(config.imageInputVariants).toEqual({ enabled: false, providers: ['deepseek-official', 'glm'], autoSwitch: true, hidden: true })
-    expect(resolveConfig({ imageInputVariants: {} }).imageInputVariants).toEqual({ enabled: true, providers: [], autoSwitch: true, hidden: true })
-    expect(resolveConfig({ imageInputVariants: { hidden: true } }).imageInputVariants.hidden).toBe(true)
-  })
-
   it('normalizes the provider URL and credential', () => {
     const config = resolveConfig({
       provider: {
         baseUrl: 'https://example.com/v1/',
-        credential: 'MY_VISION_KEY',
-        model: 'model-x',
-        protocol: 'anthropic',
-        userAgent: 'custom-vision-client/2.0',
+        credential: 'MY_ARK_KEY',
+        userAgent: 'custom-ark-client/2.0',
       },
-      language: 'en',
-      allowedDirs: ['~/Pictures'],
     })
     expect(config.provider.baseUrl).toBe('https://example.com/v1')
-    expect(config.provider.credential).toBe('MY_VISION_KEY')
-    expect(config.provider.protocol).toBe('anthropic')
-    expect(config.provider.userAgent).toBe('custom-vision-client/2.0')
-    expect(config.allowedDirs).toEqual(['~/Pictures'])
+    expect(config.provider.credential).toBe('MY_ARK_KEY')
+    expect(config.provider.userAgent).toBe('custom-ark-client/2.0')
   })
 
   it('rejects a non-http baseUrl', () => {
@@ -114,26 +87,13 @@ describe('resolveConfig', () => {
       .toThrowError(/credential/)
   })
 
-  it('rejects an empty model', () => {
-    expect(() => resolveConfig({ provider: { model: '  ' } }))
-      .toThrowError(/provider\.model/)
-  })
-
   it('rejects an empty User-Agent', () => {
     expect(() => resolveConfig({ provider: { userAgent: '  ' } }))
       .toThrowError(/provider\.userAgent/)
   })
 
-  it('rejects an unsupported provider protocol', () => {
-    expect(() => resolveConfig({ provider: { protocol: 'responses' as 'openai' } }))
-      .toThrowError(/provider\.protocol/)
-  })
-
-  it('rejects unsupported language and limits', () => {
-    expect(() => resolveConfig({ language: 'fr' as 'zh' })).toThrowError(/language/)
+  it('rejects unsupported limits', () => {
     expect(() => resolveConfig({ timeoutMs: 500 })).toThrowError(/timeoutMs/)
-    expect(() => resolveConfig({ maxImageBytes: 1 })).toThrowError(/maxImageBytes/)
-    expect(() => resolveConfig({ maxImagePixels: 0 })).toThrowError(/maxImagePixels/)
     expect(() => resolveConfig({ concurrency: 0 })).toThrowError(/concurrency/)
   })
 
@@ -142,6 +102,23 @@ describe('resolveConfig', () => {
       runtime: { mode: 'external', agentArkToolkitPath: '/tmp/toolkit', python: 'python3.12' } as never,
     })
     expect(config).not.toHaveProperty('runtime')
+    expect(config.provider.baseUrl).toBe(ARK_BASE_URL)
+  })
+
+  it('ignores the removed image-understanding options', () => {
+    const config = resolveConfig({
+      provider: { model: 'doubao-seed-2-0-lite-260215', protocol: 'anthropic' } as never,
+      language: 'en',
+      maxImageBytes: 4194304,
+      maxImagePixels: 20000000,
+      imageInputVariants: { enabled: false } as never,
+    } as never)
+    expect(config).not.toHaveProperty('language')
+    expect(config).not.toHaveProperty('maxImageBytes')
+    expect(config).not.toHaveProperty('maxImagePixels')
+    expect(config).not.toHaveProperty('imageInputVariants')
+    expect(config.provider).not.toHaveProperty('model')
+    expect(config.provider).not.toHaveProperty('protocol')
     expect(config.provider.baseUrl).toBe(ARK_BASE_URL)
   })
 })

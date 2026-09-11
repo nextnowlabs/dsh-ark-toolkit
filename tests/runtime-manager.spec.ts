@@ -13,13 +13,13 @@ afterEach(async () => {
 function fakeRuntime(config: ResolvedArkToolkitConfig): ArkToolkitRuntime {
   return {
     runtimeInfo: { pluginVersion: 'fixture', runtime: 'pure-node' as const },
-    runtimeName: config.provider.model,
+    runtimeName: config.provider.credential,
   } as unknown as ArkToolkitRuntime
 }
 
-function config(model: string) {
+function config(credential: string) {
   return {
-    provider: { baseUrl: 'https://vision.example/v1', credential: 'VISION_API_KEY', model },
+    provider: { baseUrl: 'https://ark.example/v1', credential },
   }
 }
 
@@ -29,34 +29,33 @@ describe('ArkToolkitRuntimeManager', () => {
     contexts.push(ctx)
     const prepared: string[] = []
     const factory: RuntimeGenerationFactory = async (_ctx, resolved) => {
-      prepared.push(resolved.provider.model)
-      if (resolved.provider.model === 'broken') throw new Error('fixture runtime unavailable')
+      prepared.push(String(resolved.provider.credential))
+      if (String(resolved.provider.credential) === 'BROKEN_KEY') throw new Error('fixture runtime unavailable')
       return fakeRuntime(resolved)
     }
     const manager = new ArkToolkitRuntimeManager(ctx, factory)
-    await manager.initialize(config('first'))
+    await manager.initialize(config('FIRST_KEY'))
     const first = manager.current()
 
-    await expect(manager.reconfigure(config('broken'))).rejects.toThrow('fixture runtime unavailable')
+    await expect(manager.reconfigure(config('BROKEN_KEY'))).rejects.toThrow('fixture runtime unavailable')
     expect(manager.current()).toBe(first)
     expect(manager.status()).toMatchObject({ ready: true, generation: 1, lastError: 'fixture runtime unavailable' })
-    expect(prepared).toEqual(['first', 'broken'])
+    expect(prepared).toEqual(['FIRST_KEY', 'BROKEN_KEY'])
   })
 
-  it('treats transparent-routing visibility as display-only so toggling it does not rebuild the runtime', async () => {
+  it('reuses the serving generation when a reconfigure resolves to an identical config', async () => {
     const ctx = new Context()
     contexts.push(ctx)
     const factory = vi.fn(async (_ctx: Context, resolved: ResolvedArkToolkitConfig) => fakeRuntime(resolved))
     const manager = new ArkToolkitRuntimeManager(ctx, factory)
-    await manager.initialize(config('first'))
+    await manager.initialize(config('FIRST_KEY'))
     expect(factory).toHaveBeenCalledTimes(1)
 
-    const changed = await manager.reconfigure({ ...config('first'), imageInputVariants: { hidden: true } })
+    const changed = await manager.reconfigure(config('FIRST_KEY'))
 
     expect(changed).toBe(false)
     expect(factory).toHaveBeenCalledTimes(1)
     expect(manager.status()).toMatchObject({ ready: true, generation: 1 })
-    expect(manager.status().activeConfig?.imageInputVariants.hidden).toBe(true)
   })
 
   it('prevents a slower obsolete Settings prepare from overwriting a newer one', async () => {
@@ -65,18 +64,18 @@ describe('ArkToolkitRuntimeManager', () => {
     let releaseSlow: (() => void) | undefined
     const slow = new Promise<void>((resolve) => { releaseSlow = resolve })
     const factory: RuntimeGenerationFactory = async (_ctx, resolved) => {
-      if (resolved.provider.model === 'slow') await slow
+      if (String(resolved.provider.credential) === 'SLOW_KEY') await slow
       return fakeRuntime(resolved)
     }
     const manager = new ArkToolkitRuntimeManager(ctx, factory)
-    await manager.initialize(config('first'))
+    await manager.initialize(config('FIRST_KEY'))
 
-    const older = manager.reconfigure(config('slow'))
-    await manager.reconfigure(config('newest'))
+    const older = manager.reconfigure(config('SLOW_KEY'))
+    await manager.reconfigure(config('NEWEST_KEY'))
     releaseSlow?.()
     await older
 
-    expect(manager.status().activeConfig?.provider.model).toBe('newest')
+    expect(manager.status().activeConfig?.provider.credential).toBe('NEWEST_KEY')
     expect((manager.current().runtimeInfo as { pluginVersion: string }).pluginVersion).toBe('fixture')
   })
 })
