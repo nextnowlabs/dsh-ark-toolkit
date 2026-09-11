@@ -356,10 +356,22 @@ npm(publishArgs)
 // 6. Commit the version bump and tag it.
 console.log(`[publish] committing and tagging v${nextVersion} ...`)
 run('git', ['add', 'package.json'])
-run('git', ['commit', '-m', `chore(release): v${nextVersion}`])
+// This repository keeps package.json and the first CHANGELOG heading in
+// lockstep (verify:portable asserts it), so a release is usually prepared by
+// setting the target version alongside the feature work: the bump below then
+// changes nothing and a plain `git commit` fails with "nothing to commit"
+// AFTER the tarball is already on the registry. Tag the existing commit in
+// that case instead of reporting a failed release for a successful publish.
+const stagedReleaseFiles = run('git', ['diff', '--cached', '--name-only']).stdout
+if (stagedReleaseFiles.length > 0) {
+  run('git', ['commit', '-m', `chore(release): v${nextVersion}`])
+} else {
+  console.log(`[publish] package.json already declared ${nextVersion}; tagging the current commit instead of creating an empty release commit.`)
+}
 
 if (flags.gitTag) {
-  // Create the tag pointing at the release commit (force-safe: only right after commit).
+  // Create the tag pointing at the release commit: the commit just created, or
+  // the already-prepared commit that declares this version.
   run('git', ['tag', `v${nextVersion}`])
 } else {
   console.log('[publish] --no-git-tag: skipping git tag creation.')
