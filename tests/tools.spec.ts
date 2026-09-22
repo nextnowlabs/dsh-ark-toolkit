@@ -10,7 +10,6 @@ import ToolRuntime, { defineTool } from '@deepseek-ai/dsh-tools'
 import SkillRegistry from '@deepseek-ai/dsh-skill'
 import * as ToolSkill from '@deepseek-ai/dsh-tool-skill'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
-import Settings, { type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 import type { Credentials } from '@deepseek-ai/dsh-credentials'
 import * as ArkToolkit from '../src/index.ts'
 import {
@@ -30,20 +29,6 @@ function fakeCredentials(): Credentials {
       return { value: 'test-ark-key', source: 'env' }
     },
   } as unknown as Credentials
-}
-
-class MemorySettings extends Settings {
-  readonly writable = true
-  private document: Record<string, unknown> = {}
-
-  protected override load(): Promise<Record<string, unknown>> {
-    return Promise.resolve(this.document)
-  }
-
-  protected override persist(ns: SettingsNamespace, section: Record<string, unknown>): Promise<void> {
-    this.document = { ...this.document, [ns]: section }
-    return Promise.resolve()
-  }
 }
 
 const contexts: Context[] = []
@@ -160,7 +145,6 @@ async function setupContext() {
   await ctx.plugin(SkillRegistry)
   await ctx.plugin(ToolSkill)
   await ctx.plugin(LocalSubprocessRuntime)
-  await ctx.plugin(MemorySettings)
   ctx.provide('credentials', fakeCredentials())
   const fiber = await ctx.plugin(ArkToolkit, {
     provider: {
@@ -405,7 +389,6 @@ describe('dsh-ark-toolkit plugin lifecycle', () => {
     await ctx.plugin(SkillRegistry)
     await ctx.plugin(ToolSkill)
     await ctx.plugin(LocalSubprocessRuntime)
-    await ctx.plugin(MemorySettings)
     ctx.provide('credentials', fakeCredentials())
     await expect(ctx.plugin(ArkToolkit, {
       provider: { baseUrl: 'not-a-url', credential: 'ARK_API_KEY' },

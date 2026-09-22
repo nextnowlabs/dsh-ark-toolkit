@@ -1,27 +1,24 @@
 /**
- * Optional Web-profile routes: signed Artifact delivery plus a same-origin
- * Settings/health endpoint. The browser never receives credential values and
- * connection tests run only after an explicit POST action.
+ * Optional Web-profile routes: signed Artifact delivery plus the same-origin
+ * endpoint carrying this plugin's *actions* — health checks and plugin updates.
+ *
+ * Configuration and credentials are deliberately absent. DSH `0.1.7` reads and
+ * writes both over its own Remote domains (`ctx.configForms` and
+ * `remote.credentials`), which are revision-fenced and redact secrets at the
+ * wire boundary; a private route duplicating them would be a second, weaker
+ * write path to the same document.
  * @module dsh-ark-toolkit/web
  */
 
+import { mkdir } from 'node:fs/promises'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
-import type { CredentialInfo, CredentialRef } from '@deepseek-ai/dsh-credentials'
-import { credentialRef } from '@deepseek-ai/dsh-credentials'
-import { SettingsConflictError, type SettingsDescriptor, type SettingsNamespace } from '@deepseek-ai/dsh-settings'
 // Type-only imports activate the optional webServer and subprocess Context declarations.
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type {} from '@deepseek-ai/dsh-subprocess'
 import { ArtifactAccessController, ARTIFACT_ROUTE_PREFIX } from './artifact-access.ts'
-import {
-  resolveConfig,
-  ARK_TOOLKIT_SETTINGS_NAMESPACE,
-  type ResolvedArkToolkitConfig,
-  type ArkToolkitConfig,
-} from './config.ts'
 import type { ArkToolkitHealthResult } from './runtime.ts'
 import {
   PluginUpdateError,
@@ -30,40 +27,16 @@ import {
   type PluginUpdateCheck,
   type PluginUpdateResult,
 } from './plugin-update.ts'
-import {
-  ArkToolkitRuntimeManager,
-  type PreparedRuntimeGeneration,
-  type RuntimeManagerStatus,
-} from './runtime-manager.ts'
+import type { ArkToolkitRuntimeManager, RuntimeManagerStatus } from './runtime-manager.ts'
 import { PLUGIN_VERSION } from './version.ts'
 import { sameOriginPost } from './web-request.ts'
 
-/** Exact route used by the browser Settings page. */
+/** Exact route the browser page posts its actions to. */
 export const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
 
-/** Public Settings snapshot; credential values are deliberately impossible here. */
+/** Public action snapshot; credential values are deliberately impossible here. */
 export interface ArkToolkitSettingsSnapshot {
   schemaVersion: 1
-  writable: boolean
-  settings: {
-    value: ArkToolkitConfig
-    user?: unknown
-    base?: unknown
-    revision: number
-    applies: 'live'
-  }
-  credential: {
-    ref: string
-    configured: boolean
-    source?: string
-    writable: boolean
-  }
-  credentialTts: {
-    ref: string
-    configured: boolean
-    source?: string
-    writable: boolean
-  }
   runtime: RuntimeManagerStatus
   release: {
     pluginVersion: string
@@ -72,22 +45,9 @@ export interface ArkToolkitSettingsSnapshot {
   artifactRouteAvailable: boolean
 }
 
-interface SaveRequest {
-  action: 'save'
-  expectedRevision: number
-  value: ArkToolkitConfig
-}
-
 interface HealthRequest {
   action: 'health'
   testConnection: boolean
-}
-
-interface CredentialRequest {
-  action: 'credential'
-  expectedRevision: number
-  ref: CredentialRef
-  value: string
 }
 
 interface CheckUpdateRequest {
@@ -99,7 +59,7 @@ interface ApplyUpdateRequest {
   expectedVersion: string
 }
 
-type SettingsRequest = SaveRequest | HealthRequest | CredentialRequest | CheckUpdateRequest | ApplyUpdateRequest
+type SettingsRequest = HealthRequest | CheckUpdateRequest | ApplyUpdateRequest
 
 interface JsonError {
   ok: false
@@ -117,9 +77,6 @@ type JsonResponse<T> = JsonSuccess<T> | JsonError
 export interface WebRuntimeManager {
   readonly ready: boolean
   current(): ReturnType<ArkToolkitRuntimeManager['current']>
-  prepareCandidate(raw: ArkToolkitConfig): Promise<PreparedRuntimeGeneration>
-  activateCandidate(candidate: PreparedRuntimeGeneration): void
-  recordFailure(error: unknown): void
   status(): RuntimeManagerStatus
 }
 
@@ -131,19 +88,8 @@ export interface WebPluginUpdater {
   installAndRestart(expectedVersion: string): Promise<PluginUpdateResult>
 }
 
-/** Callback invoked when a Settings save makes the first runtime available. */
-export type RuntimeActivated = () => void
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-class CredentialReferenceConflictError extends Error {}
-
-function descriptorOf(ctx: Context): SettingsDescriptor {
-  const descriptor = ctx.settings.describe().find(row => row.ns === ARK_TOOLKIT_SETTINGS_NAMESPACE)
-  if (descriptor === undefined) throw new Error('ark-toolkit Settings namespace is not registered')
-  return descriptor
 }
 
 function responseJson<T>(res: ServerResponse, status: number, body: JsonResponse<T>): void {
@@ -182,38 +128,6 @@ function parseRequest(value: unknown): SettingsRequest {
     if (typeof value.testConnection !== 'boolean') throw new TypeError('health.testConnection must be boolean')
     return { action: 'health', testConnection: value.testConnection }
   }
-  if (value.action === 'save') {
-    if (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0) {
-      throw new TypeError('save.expectedRevision must be a non-negative integer')
-    }
-    if (!isRecord(value.value)) throw new TypeError('save.value must be an object')
-    return {
-      action: 'save',
-      expectedRevision: value.expectedRevision as number,
-      value: value.value as ArkToolkitConfig,
-    }
-  }
-  if (value.action === 'credential') {
-    if (!Number.isSafeInteger(value.expectedRevision) || (value.expectedRevision as number) < 0) {
-      throw new TypeError('credential.expectedRevision must be a non-negative integer')
-    }
-    if (typeof value.ref !== 'string') throw new TypeError('credential.ref must be a string')
-    if (typeof value.value !== 'string') throw new TypeError('credential.value must be a string')
-    const secret = value.value.trim()
-    if (secret.length === 0) throw new TypeError('API key cannot be blank')
-    const first = secret[0]
-    const quoted = secret.length > 1 && (first === '"' || first === '\'' || first === '`') && secret.endsWith(first)
-    const environmentLine = /^[A-Z][A-Z0-9_]*=[^=]/u.test(secret)
-    if (quoted || environmentLine || !/^[\x21-\x7E]+$/u.test(secret)) {
-      throw new TypeError('paste only the API key, without a variable name, quotes, spaces, or line breaks')
-    }
-    return {
-      action: 'credential',
-      expectedRevision: value.expectedRevision as number,
-      ref: credentialRef(value.ref),
-      value: secret,
-    }
-  }
   if (value.action === 'check-update') return { action: 'check-update' }
   if (value.action === 'apply-update') {
     if (typeof value.expectedVersion !== 'string' || value.expectedVersion.trim().length === 0) {
@@ -237,7 +151,6 @@ export class ArkToolkitWebBackend {
     private readonly ctx: Context,
     private readonly manager: WebRuntimeManager,
     private readonly artifacts: ArtifactAccessController,
-    private readonly onRuntimeActivated: RuntimeActivated,
     updater?: WebPluginUpdater,
   ) {
     this.updater = updater ?? new ArkToolkitPluginUpdateService(ctx, PLUGIN_VERSION, {
@@ -250,44 +163,11 @@ export class ArkToolkitWebBackend {
     this.updater.configureWebServer?.(host, port)
   }
 
-  private async credential(config: ResolvedArkToolkitConfig): Promise<CredentialInfo> {
-    return this.ctx.credentials.describe(credentialRef(String(config.provider.credential)))
-  }
-
-  private async credentialTts(config: ResolvedArkToolkitConfig): Promise<CredentialInfo> {
-    return this.ctx.credentials.describe(credentialRef(String(config.provider.tts.credential)))
-  }
-
-  /** Build the current settings/runtime/credential snapshot without secrets. */
+  /** Build the current runtime/update snapshot without secrets. */
   async snapshot(): Promise<ArkToolkitSettingsSnapshot> {
-    const descriptor = descriptorOf(this.ctx)
-    const value = descriptor.value as ArkToolkitConfig
-    const resolved = resolveConfig(value)
-    const credential = await this.credential(resolved)
-    const credentialTts = await this.credentialTts(resolved)
     const update = await this.updater.capability()
     return {
       schemaVersion: 1,
-      writable: this.ctx.settings.writable,
-      settings: {
-        value,
-        ...(descriptor.user === undefined ? {} : { user: descriptor.user }),
-        ...(descriptor.base === undefined ? {} : { base: descriptor.base }),
-        revision: descriptor.revision,
-        applies: 'live',
-      },
-      credential: {
-        ref: String(resolved.provider.credential),
-        configured: credential.configured,
-        ...(credential.source === undefined ? {} : { source: credential.source }),
-        writable: credential.writable,
-      },
-      credentialTts: {
-        ref: String(resolved.provider.tts.credential),
-        configured: credentialTts.configured,
-        ...(credentialTts.source === undefined ? {} : { source: credentialTts.source }),
-        writable: credentialTts.writable,
-      },
       runtime: this.manager.status(),
       release: {
         pluginVersion: PLUGIN_VERSION,
@@ -295,49 +175,6 @@ export class ArkToolkitWebBackend {
       },
       artifactRouteAvailable: this.artifacts.routeAvailable,
     }
-  }
-
-  private async save(request: SaveRequest): Promise<ArkToolkitSettingsSnapshot> {
-    if (!this.ctx.settings.writable) throw new Error('settings provider is read-only')
-    let candidate: PreparedRuntimeGeneration
-    try {
-      candidate = await this.manager.prepareCandidate(request.value)
-    } catch (error) {
-      this.manager.recordFailure(error)
-      throw error
-    }
-    await this.ctx.settings.replace(
-      ARK_TOOLKIT_SETTINGS_NAMESPACE,
-      request.value as object,
-      request.expectedRevision,
-    )
-    this.manager.activateCandidate(candidate)
-    this.onRuntimeActivated()
-    return this.snapshot()
-  }
-
-  private async saveCredential(request: CredentialRequest): Promise<ArkToolkitSettingsSnapshot> {
-    const descriptor = descriptorOf(this.ctx)
-    if (descriptor.revision !== request.expectedRevision) {
-      throw new SettingsConflictError(
-        ARK_TOOLKIT_SETTINGS_NAMESPACE as SettingsNamespace,
-        request.expectedRevision,
-        descriptor.revision,
-      )
-    }
-    const resolved = resolveConfig(descriptor.value as ArkToolkitConfig)
-    const arkRef = credentialRef(String(resolved.provider.credential))
-    const ttsRef = credentialRef(String(resolved.provider.tts.credential))
-    const target = request.ref === arkRef ? arkRef
-      : request.ref === ttsRef ? ttsRef
-        : undefined
-    if (target === undefined) {
-      throw new CredentialReferenceConflictError(
-        `credential reference "${request.ref}" does not match the configured "${arkRef}" or "${ttsRef}"; reload Settings and try again`,
-      )
-    }
-    await this.ctx.credentials.set(target, request.value)
-    return this.snapshot()
   }
 
   private async health(request: HealthRequest, req: IncomingMessage): Promise<ArkToolkitHealthResult> {
@@ -348,8 +185,12 @@ export class ArkToolkitWebBackend {
     req.socket.once('close', abort)
     try {
       const runtime = this.manager.current()
-      // Health only needs a scratch workspace to validate output staging.
+      // Health only needs a scratch workspace to validate output staging, and
+      // the artifact policy resolves the workspace before it stages anything —
+      // so the scratch directory has to exist, or the artifact-directory probe
+      // reports a failure that says nothing about the workspace in use.
       const workspace = join(tmpdir(), `dsh-ark-toolkit-health-${process.pid}`)
+      await mkdir(workspace, { recursive: true })
       return await runtime.health(request.testConnection, {
         signal: controller.signal,
         workspace,
@@ -367,8 +208,8 @@ export class ArkToolkitWebBackend {
       try {
         responseJson(res, 200, { ok: true, value: await this.snapshot() })
       } catch (error) {
-        this.ctx.logger.warn('dsh-ark-toolkit Settings snapshot failed: %s', publicMessage(error))
-        requestError(res, 503, 'settings-unavailable', 'Ark Toolkit Settings are unavailable')
+        this.ctx.logger.warn('dsh-ark-toolkit action snapshot failed: %s', publicMessage(error))
+        requestError(res, 503, 'actions-unavailable', 'Ark Toolkit runtime status is unavailable')
       }
       return
     }
@@ -393,12 +234,6 @@ export class ArkToolkitWebBackend {
         case 'health':
           responseJson(res, 200, { ok: true, value: await this.health(parsed, req) })
           break
-        case 'save':
-          responseJson(res, 200, { ok: true, value: await this.save(parsed) })
-          break
-        case 'credential':
-          responseJson(res, 200, { ok: true, value: await this.saveCredential(parsed) })
-          break
         case 'check-update':
           responseJson(res, 200, { ok: true, value: await this.updater.check() })
           break
@@ -407,23 +242,15 @@ export class ArkToolkitWebBackend {
           break
       }
     } catch (error) {
-      const settingsConflict = error instanceof SettingsConflictError
-      const credentialConflict = error instanceof CredentialReferenceConflictError
       const updateError = error instanceof PluginUpdateError
-      const code = settingsConflict
-        ? 'settings-conflict'
-        : credentialConflict
-          ? 'credential-conflict'
-          : updateError
-            ? error.code
-          : parsed.action === 'health'
-            ? 'health-failed'
-            : parsed.action === 'credential'
-              ? 'credential-rejected'
-              : 'settings-rejected'
+      const code = updateError
+        ? error.code
+        : parsed.action === 'health'
+          ? 'health-failed'
+          : 'settings-rejected'
       const updateConflict = updateError && ['update-in-progress', 'update-stale', 'update-unavailable', 'already-current'].includes(error.code)
       const updateGateway = updateError && error.code === 'update-check-failed'
-      const status = settingsConflict || credentialConflict || updateConflict
+      const status = updateConflict
         ? 409
         : parsed.action === 'health'
           ? 503

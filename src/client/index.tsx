@@ -1,40 +1,66 @@
 /**
- * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the bundle
- * configuration card on the bundle's page in the Plugins panel, with health
- * checks, connection tests, and safe Artifact previews.
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the plugin's own
+ * configuration page in the Plugins panel, with health checks, connection
+ * tests, plugin updates, and safe Artifact previews.
+ *
+ * DSH `0.1.7` made one plugin entry's `config` its settings, reachable from the
+ * browser through `ctx.configForms` and written through the Remote settings
+ * namespace. This client therefore keeps no configuration route of its own:
+ * the page stages drafts, the form model turns them into path-addressed
+ * mutations, and credentials ride the credentials domain.
  */
 
 import {
-  useEffect,
+  useCallback,
   useState,
   useSyncExternalStore,
   type ReactNode,
 } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
-import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives'
+import {
+  Button,
+  Input,
+  SettingsForm,
+  SettingsSecretField,
+  SettingsValueField,
+  type SettingsFormLabels,
+  type SettingsFormShell,
+} from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
+import type { ConfigForm, ConfigFormSnapshot } from '@deepseek-ai/dsh-client-ui-settings/client'
+import type {} from '@deepseek-ai/dsh-client-ui-plugin-manager/client'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
 import type {} from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-credentials/types'
 import type {} from '@deepseek-ai/dsh-settings/types'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
-import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 
+/** This bundle's locale namespace. */
 const NS = 'ark-toolkit'
-/** This bundle's package name; the key the Plugins page dispatches for its config slot. */
+/**
+ * Id of the profile entry this page configures, declared by this bundle's own
+ * `cordis.patch.yml`. DSH `0.1.7` addresses configuration forms by profile
+ * entry id, so this literal is the plugin's settings namespace; it is also the
+ * key the Host reports on `settings/document-updated`. The locale namespace
+ * above simply happens to use the same word.
+ */
+const ENTRY_ID = 'ark-toolkit'
+/** Where this plugin's page sits among the Plugins panel's official items. */
+const PAGE_ORDER = 60
+/** This bundle's package name; the tag the injected style sheet carries. */
 const ARK_TOOLKIT_PACKAGE = '@nextnowlabs/dsh-ark-toolkit'
-const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
+/** Host route carrying the actions that are not configuration writes. */
+const ACTIONS_ROUTE = '/_dsh/ark-toolkit/settings'
 const PRESENTATION_META_KEY = '$dshArkToolkit'
-const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
-// Keep these browser defaults aligned with src/defaults.ts without importing server-side config.
-const ARK_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3'
+// Keep these browser defaults aligned with src/defaults.ts without importing
+// server-side config. The credential names are the only two the page falls back
+// to when the section names none; the model id is a read-only fact because the
+// seedream aliases are resolved by the tool, not by this page.
 const ARK_CREDENTIAL = 'ARK_API_KEY'
 const ARK_SEEDREAM_MODEL = 'doubao-seedream-5-0-260128'
-const TTS_BASE_URL = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse'
 const TTS_CREDENTIAL = 'VOLCENGINE_TTS_KEY'
-const TTS_RESOURCE = 'seed-tts-2.0'
-const TTS_VOICE = 'zh_female_shuangkuaisisi_uranus_bigtts'
 const ARK_TUTORIAL_URL = 'https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao.md'
 
 const en = {
@@ -153,6 +179,23 @@ const en = {
   statusWarning: 'Warning',
   statusError: 'Error',
   statusNotTested: 'Not tested',
+  unavailable: 'This profile does not serve the Ark Toolkit configuration entry.',
+  saveFailed: 'The Host did not accept the staged changes.',
+  overridden: 'overridden',
+  reset: 'reset',
+  invalidNumber: 'Enter a whole number.',
+  baseUrlHint: 'Ark API base URL; /images/generations is appended.',
+  userAgentHint: 'Outbound User-Agent for Ark and Volcengine requests.',
+  ttsBaseUrlHint: 'Volcengine Speech TTS V3 endpoint.',
+  ttsResourceHint: 'TTS resource / app id, e.g. seed-tts-2.0.',
+  ttsVoiceHint: 'Default voice id. A tool call may override it per request.',
+  timeoutHint: 'Per-call upstream budget in milliseconds (1000-600000).',
+  concurrencyHint: 'In-flight Ark tool executions per session (1-16).',
+  credentialRefHint: 'DSH Credential reference holding the Ark API key. The key itself is stored in DSH Credentials and is never shown again after saving.',
+  ttsCredentialRefHint: 'DSH Credential reference holding the TTS token, independent of the Ark API key.',
+  modelReadOnly: 'Model',
+  modelReadOnlyHint: 'Seedream aliases are resolved by the tool; this page does not change them.',
+  apiKeyHidden: 'The API key is stored in DSH Credentials and is never shown again after saving.',
   positiveInteger: '{field} must be a positive integer.',
   healthCredentialMissing: 'Credential {credential} is not configured.',
   healthCredentialReady: 'Credential {credential} is available.',
@@ -289,6 +332,23 @@ const zh: Record<LocaleKey, string> = {
   statusWarning: '注意',
   statusError: '异常',
   statusNotTested: '未检查',
+  unavailable: '当前 Profile 未提供 Ark Toolkit 的配置行。',
+  saveFailed: 'Host 没有接受暂存的修改。',
+  overridden: '已覆盖',
+  reset: '还原',
+  invalidNumber: '请填写整数。',
+  baseUrlHint: '方舟 API 基地址，插件会拼接 /images/generations。',
+  userAgentHint: '发往方舟与火山引擎请求的 User-Agent。',
+  ttsBaseUrlHint: '火山引擎语音技术 TTS V3 端点。',
+  ttsResourceHint: 'TTS 资源 / App ID，例如 seed-tts-2.0。',
+  ttsVoiceHint: '默认音色 ID；工具调用可以按次覆盖。',
+  timeoutHint: '单次远程调用预算（毫秒，1000-600000）。',
+  concurrencyHint: '每个会话内并发执行的 Ark 工具数量（1-16）。',
+  credentialRefHint: '保存方舟 API Key 的 DSH Credential 名。密钥本身存在 DSH Credentials 里，保存后不再回显。',
+  ttsCredentialRefHint: '保存 TTS Token 的 DSH Credential 名，与方舟 API Key 相互独立。',
+  modelReadOnly: '模型',
+  modelReadOnlyHint: 'Seedream 别名由工具解析，本页不修改。',
+  apiKeyHidden: 'API Key 保存在 DSH Credentials 中，保存后不再回显。',
   positiveInteger: '{field}必须填写正整数。',
   healthCredentialMissing: '尚未配置凭据 {credential}。',
   healthCredentialReady: '已找到凭据 {credential}。',
@@ -322,25 +382,10 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface SlotMap {
     /** Keyed atomic Tool call view, dispatched by wire Tool name. */
     'tool.call.toolview': { kind: 'keyed'; scope: 'session'; owner: ToolCallOwnerProps }
-    /**
-     * This bundle's own configuration, keyed by its package name and rendered
-     * on the bundle's page in the Plugins panel. DSH `0.1.6` replaced the
-     * former `settings.plugin.item` seat (a card in the retired
-     * 设置 → 插件 → 插件配置 tab) with the plugin-manager page's bundle slot,
-     * so the card moved here; the page draws the title, icon, and crumb itself
-     * and asks for `page` (the form) or `summary` (its one-liner).
-     */
-    'plugins.bundle.config': { kind: 'keyed'; scope: 'root'; owner: PluginConfigViewProps }
-  }
-
-  /** Owner share of one configuration view; the page supplies the requested view. */
-  interface PluginConfigViewProps {
-    /** `summary` renders the one-liner alone; `page` renders the form. */
-    readonly view: 'summary' | 'page'
   }
 
   interface LocaleNamespaceMap {
-    /** DSH Ark Toolkit Tool cards and Settings copy. */
+    /** DSH Ark Toolkit Tool cards and configuration-page copy. */
     'ark-toolkit': LocaleKey
   }
 }
@@ -433,12 +478,14 @@ type PluginUpdateResult = {
   retryAfterMs?: undefined
 }
 
+/**
+ * What this plugin's Host route reports: the serving runtime and the update
+ * capability. Configuration and credentials are deliberately absent — the page
+ * reads those through the Remote settings and credentials domains, which are
+ * the Host's own revision-fenced surfaces.
+ */
 interface SettingsSnapshot {
   schemaVersion: 1
-  writable: boolean
-  settings: { value: SettingsValue; revision: number; applies: 'live' }
-  credential: { ref: string; configured: boolean; source?: string; writable: boolean }
-  credentialTts: { ref: string; configured: boolean; source?: string; writable: boolean }
   runtime: {
     ready: boolean
     generation: number
@@ -645,7 +692,7 @@ function ArtifactView({ block, openFile, toolName, t = key => en[key] }: ViewPro
 }
 
 async function apiRequest<T>(init?: RequestInit): Promise<T> {
-  const response = await fetch(SETTINGS_ROUTE, { credentials: 'same-origin', ...init })
+  const response = await fetch(ACTIONS_ROUTE, { credentials: 'same-origin', ...init })
   const body = await response.json() as ApiSuccess<T> | ApiFailure
   if (!response.ok || !body.ok) {
     const failure = body as ApiFailure
@@ -654,320 +701,523 @@ async function apiRequest<T>(init?: RequestInit): Promise<T> {
   return body.value
 }
 
-interface SettingsState {
-  status: 'idle' | 'loading' | 'ready' | 'error'
-  snapshot?: SettingsSnapshot | undefined
+/** Health/update action state: everything this page does that is not a config write. */
+interface HostActionState {
   health?: HealthResult | undefined
   update?: PluginUpdateCheck | undefined
   restart?: PluginUpdateResult | undefined
-  action?: 'save' | 'health' | 'connection' | 'check-update' | 'apply-update' | undefined
-  message?: string | undefined
+  action?: 'health' | 'connection' | 'check-update' | 'apply-update' | undefined
+  message?: 'restarting' | 'manual-restart-required' | undefined
   error?: string | undefined
+  /** Restart-watch failure, kept as a dictionary key so the page translates it. */
+  restartError?: 'restartTimedOut' | 'restartRolledBack' | undefined
 }
 
-/** Small external store shared by the Settings route and pushed invalidations. */
-export class ArkSettingsController {
-  private state: SettingsState = { status: 'idle' }
-  private listeners = new Set<() => void>()
-  private generation = 0
+/** One control as the platform fields render it. */
+interface StagedField {
+  text: string
+  overridden: boolean
+  invalid: boolean
+}
+
+/** What the credentials domain last answered for one reference. */
+interface CredentialView {
+  ref: string
+  configured: boolean
+  source?: string | undefined
+  writable: boolean
+}
+
+/** The runtime facts the Host reports for the serving generation. */
+interface RuntimeStatus {
+  ready: boolean
+  generation: number
+  lastError?: string | undefined
+}
+
+/** Everything this page renders, rebuilt whenever the form or an action changes. */
+interface PageState extends SettingsFormShell {
+  status: 'loading' | 'ready' | 'unavailable'
+  release: { pluginVersion: string; update: PluginUpdateCapability }
+  runtime: RuntimeStatus
+  credential: CredentialView
+  credentialTts: CredentialView
+  fields: Record<string, StagedField>
+  keyError?: LocaleKey | undefined
+  host: HostActionState
+}
+
+/**
+ * Where one editable field lives inside the entry's config section, and the copy
+ * that names it. Paths are addressed exactly as the section nests them, because
+ * the Remote settings namespace mutates by path.
+ */
+interface FieldDef {
+  readonly path: readonly string[]
+  readonly labelKey: LocaleKey
+  readonly hintKey: LocaleKey
+  readonly numeric?: boolean
+}
+
+const ARK_FIELDS: readonly FieldDef[] = [
+  { path: ['provider', 'baseUrl'], labelKey: 'baseUrl', hintKey: 'baseUrlHint' },
+  { path: ['provider', 'credential'], labelKey: 'credential', hintKey: 'credentialRefHint' },
+  { path: ['provider', 'userAgent'], labelKey: 'userAgent', hintKey: 'userAgentHint' },
+]
+
+const TTS_FIELDS: readonly FieldDef[] = [
+  { path: ['provider', 'tts', 'baseUrl'], labelKey: 'ttsBaseUrl', hintKey: 'ttsBaseUrlHint' },
+  { path: ['provider', 'tts', 'credential'], labelKey: 'ttsCredential', hintKey: 'ttsCredentialRefHint' },
+  { path: ['provider', 'tts', 'resource'], labelKey: 'ttsResource', hintKey: 'ttsResourceHint' },
+  { path: ['provider', 'tts', 'voice'], labelKey: 'ttsVoice', hintKey: 'ttsVoiceHint' },
+]
+
+const LIMIT_FIELDS: readonly FieldDef[] = [
+  { path: ['timeoutMs'], labelKey: 'timeout', hintKey: 'timeoutHint', numeric: true },
+  { path: ['concurrency'], labelKey: 'concurrency', hintKey: 'concurrencyHint', numeric: true },
+]
+
+const EDITABLE_FIELDS: readonly FieldDef[] = [...ARK_FIELDS, ...TTS_FIELDS, ...LIMIT_FIELDS]
+
+/** Card-local draft keys for the two write-only credential controls. */
+const ARK_KEY_FIELD = 'arkApiKey'
+const TTS_KEY_FIELD = 'ttsApiKey'
+
+/** Item key of one section field's draft, which is also its `FieldDef` lookup key. */
+function pathKey(path: readonly string[]): string {
+  return path.join('.')
+}
+
+const FIELD_BY_KEY = new Map(EDITABLE_FIELDS.map(def => [pathKey(def.path), def]))
+
+/** Read one nested path out of a section, or undefined when the path is absent. */
+function readPath(value: unknown, path: readonly string[]): unknown {
+  let node: unknown = value
+  for (const key of path) {
+    if (!isRecord(node)) return undefined
+    node = node[key]
+  }
+  return node
+}
+
+/** Whether a layer carries an entry at this exact path; presence is what marks an override. */
+function hasPath(value: unknown, path: readonly string[]): boolean {
+  let node: unknown = value
+  for (const key of path) {
+    if (!isRecord(node) || !Object.hasOwn(node, key)) return false
+    node = node[key]
+  }
+  return true
+}
+
+/**
+ * One staged field edit, in the shape the shared configuration form mutates by.
+ * A staged value is always a string or a whole number, because every field this
+ * page edits is either free text or an integer.
+ */
+type FieldOp = { op: 'set'; path: string[]; value: string | number } | { op: 'unset'; path: string[] }
+
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
+}
+
+/**
+ * The Ark Toolkit page's controller: the staged drafts over this plugin's own
+ * profile entry, the credentials its section references, and the Host actions
+ * (health checks and plugin updates) that are not configuration writes.
+ *
+ * Drafts are staged and written only on save, because every settings write is a
+ * durable revision-fenced document mutation: a control that committed as it
+ * settled would turn one edit into a write the user never asked for.
+ */
+export class ArkToolkitPageController {
+  private readonly scope: ConfigForm<SettingsValue>
+  private readonly unsubscribe: () => void
+  private readonly listeners = new Set<() => void>()
+  private state: PageState
+  private readonly drafts = new Map<string, string>()
+  private saving = false
+  private failed = false
+  private credential: CredentialView = { ref: '', configured: false, writable: true }
+  private credentialTts: CredentialView = { ref: '', configured: false, writable: true }
+  private keyError: LocaleKey | undefined
+  private host: HostActionState = {}
+  private restartPoll: AbortController | undefined
+
+  constructor(private readonly ctx: ClientContext) {
+    this.scope = ctx.configForms.get<SettingsValue>(ENTRY_ID)
+    this.state = this.projection()
+    this.unsubscribe = this.scope.subscribe(() => { this.publish() })
+    this.publish()
+    void this.loadHost()
+    void this.readCredentials()
+  }
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener)
     return () => { this.listeners.delete(listener) }
   }
 
-  snapshot = (): SettingsState => this.state
+  snapshot = (): PageState => this.state
 
-  private set(next: SettingsState): void {
+  private publish(): void {
+    const next = this.projection()
     this.state = next
     for (const listener of this.listeners) listener()
   }
 
-  async load(): Promise<void> {
-    const generation = ++this.generation
-    this.set({ ...this.state, status: 'loading', error: undefined, message: undefined })
+  /** Rebuild the whole page state from the form snapshot, the credentials, and the Host actions. */
+  private projection(): PageState {
+    const snapshot = this.scope.getSnapshot()
+    const fields: Record<string, StagedField> = {}
+    for (const def of EDITABLE_FIELDS) fields[pathKey(def.path)] = this.fieldOf(def, snapshot)
+    // The write-only credential controls stage in the same map: their value
+    // never rides a response, so they have nothing to seed from but the draft.
+    for (const field of [ARK_KEY_FIELD, TTS_KEY_FIELD]) {
+      fields[field] = { text: this.drafts.get(field) ?? '', overridden: false, invalid: false }
+    }
+    const ops = this.plannedOps()
+    return {
+      ...this.shell(snapshot, ops),
+      status: snapshot.status,
+      release: this.release,
+      runtime: this.runtime,
+      credential: this.credential,
+      credentialTts: this.credentialTts,
+      fields,
+      ...(this.keyError === undefined ? {} : { keyError: this.keyError }),
+      host: this.host,
+    }
+  }
+
+  private shell(snapshot: ConfigFormSnapshot<SettingsValue>, ops: readonly FieldOp[]): SettingsFormShell {
+    const invalid = EDITABLE_FIELDS.some((def) => {
+      const staged = this.drafts.get(pathKey(def.path))
+      if (staged === undefined) return false
+      const field = this.fieldOf(def, snapshot)
+      return field.invalid
+    })
+    const secrets = this.plannedSecrets()
+    return {
+      available: snapshot.status === 'ready',
+      writable: snapshot.writable,
+      dirty: ops.length > 0 || secrets.length > 0,
+      invalid,
+      saving: this.saving,
+      failed: this.failed,
+    }
+  }
+
+  /** One control's staged text, whether a save would leave an override, and whether it is invalid. */
+  private fieldOf(def: FieldDef, snapshot: ConfigFormSnapshot<SettingsValue>): StagedField {
+    const key = pathKey(def.path)
+    const current = this.formatValue(readPath(snapshot.value, def.path))
+    const staged = this.drafts.get(key)
+    if (staged === undefined) {
+      return { text: current, overridden: hasPath(snapshot.user, def.path), invalid: false }
+    }
+    const parsed = this.parseField(def, staged)
+    if (parsed === undefined) return { text: staged, overridden: hasPath(snapshot.user, def.path), invalid: true }
+    return { text: staged, overridden: parsed !== 'clear' && parsed.value !== readPath(snapshot.value, def.path), invalid: false }
+  }
+
+  private formatValue(value: unknown): string {
+    if (value === undefined || value === null) return ''
+    return typeof value === 'string' ? value : String(value)
+  }
+
+  /** Turn one draft into a write, a clear, or a rejection. */
+  private parseField(def: FieldDef, text: string): { value: string | number } | 'clear' | undefined {
+    if (text.trim().length === 0) return 'clear'
+    if (def.numeric !== true) return { value: text.trim() }
+    const value = Number(text.trim())
+    if (!Number.isSafeInteger(value) || value <= 0) return undefined
+    return { value }
+  }
+
+  /** Every section edit a save would write. An unparseable draft contributes nothing and blocks the save. */
+  private plannedOps(): FieldOp[] {
+    const snapshot = this.scope.getSnapshot()
+    const ops: FieldOp[] = []
+    for (const [key, text] of this.drafts) {
+      const def = FIELD_BY_KEY.get(key)
+      if (def === undefined) continue
+      const parsed = this.parseField(def, text)
+      if (parsed === undefined) continue
+      if (parsed === 'clear') {
+        if (hasPath(snapshot.user, def.path)) ops.push({ op: 'unset', path: [...def.path] })
+        continue
+      }
+      if (parsed.value === readPath(snapshot.value, def.path)) continue
+      ops.push({ op: 'set', path: [...def.path], value: parsed.value })
+    }
+    return ops
+  }
+
+  /** Every credential literal a save would write, addressed by the reference in force. */
+  private plannedSecrets(): Array<{ field: string; ref: string; value: string }> {
+    const plan: Array<{ field: string; ref: string; value: string }> = []
+    for (const [field, ref] of [[ARK_KEY_FIELD, this.arkRef()], [TTS_KEY_FIELD, this.ttsRef()]] as const) {
+      const value = this.drafts.get(field)?.trim() ?? ''
+      if (value.length > 0) plan.push({ field, ref, value })
+    }
+    return plan
+  }
+
+  /** The Ark credential reference this section names, staged value first. */
+  private arkRef(): string {
+    return this.refOf(['provider', 'credential'], ARK_CREDENTIAL)
+  }
+
+  /** The TTS credential reference this section names, staged value first. */
+  private ttsRef(): string {
+    return this.refOf(['provider', 'tts', 'credential'], TTS_CREDENTIAL)
+  }
+
+  private refOf(path: readonly string[], fallback: string): string {
+    const staged = this.drafts.get(pathKey(path))?.trim()
+    if (staged !== undefined && staged.length > 0) return staged
+    const current = readPath(this.scope.getSnapshot().value, path)
+    return typeof current === 'string' && current.trim().length > 0 ? current.trim() : fallback
+  }
+
+  /** Stage draft text for one control. */
+  edit(field: string, text: string): void {
+    this.drafts.set(field, text)
+    this.failed = false
+    if (field === ARK_KEY_FIELD || field === TTS_KEY_FIELD) this.keyError = undefined
+    this.publish()
+  }
+
+  /** Stage a clear, so saving lets the field re-inherit the composition layer. */
+  resetField(field: string): void {
+    this.drafts.set(field, '')
+    this.failed = false
+    this.publish()
+  }
+
+  /** Drop every staged edit. */
+  discard(): void {
+    this.drafts.clear()
+    this.keyError = undefined
+    this.failed = false
+    this.publish()
+  }
+
+  /**
+   * Write every staged edit: the section mutations first, so a changed
+   * credential reference is in force, then the credential literals themselves.
+   */
+  async save(): Promise<void> {
+    if (this.saving) return
+    const ops = this.plannedOps()
+    const secrets = this.plannedSecrets()
+    if (ops.length === 0 && secrets.length === 0) return
+    this.saving = true
+    this.failed = false
+    this.keyError = undefined
+    this.publish()
+    try {
+      if (ops.length > 0) {
+        const accepted = await this.scope.mutate(ops, this.scope.getSnapshot().revision)
+        if (!accepted) {
+          this.failed = true
+          return
+        }
+        for (const key of this.drafts.keys()) if (FIELD_BY_KEY.has(key)) this.drafts.delete(key)
+      }
+      for (const secret of secrets) {
+        const rejection = keyRejection(secret.value)
+        if (rejection !== undefined) {
+          this.keyError = rejection
+          this.failed = true
+          continue
+        }
+        const response = await this.ctx.remote.credentials.set(secret.ref, secret.value)
+        if (!response.ok) {
+          this.failed = true
+          continue
+        }
+        this.drafts.delete(secret.field)
+      }
+    } catch (error) {
+      this.failed = true
+      this.host = { ...this.host, error: messageOf(error) }
+    } finally {
+      this.saving = false
+      await this.readCredentials()
+      this.publish()
+    }
+  }
+
+  /** Read the runtime facts and update capability the Host route reports. */
+  private async loadHost(): Promise<void> {
     try {
       const snapshot = await apiRequest<SettingsSnapshot>()
-      if (generation !== this.generation) return
-      this.set({
-        status: 'ready',
-        snapshot,
-        health: this.state.health,
-        update: this.state.update,
-        restart: this.state.restart,
-      })
+      this.release = snapshot.release
+      this.runtime = snapshot.runtime
+      this.host = { ...this.host, error: undefined }
     } catch (error) {
-      if (generation !== this.generation) return
-      this.set({ ...this.state, status: 'error', error: error instanceof Error ? error.message : String(error) })
+      this.host = { ...this.host, error: messageOf(error) }
     }
+    this.publish()
   }
 
-  refreshIfLoaded(): void {
-    if (this.state.status === 'idle' || this.state.action === 'save') return
-    void this.load()
+  private release: PageState['release'] = { pluginVersion: '', update: { supported: false } }
+  private runtime: RuntimeStatus = { ready: false, generation: 0 }
+
+  /**
+   * Ask the credentials domain about both references the section names.
+   *
+   * Every answer is published only while it still describes the reference in
+   * force: an edit can change the reference between a request and its response,
+   * and two reads can settle out of order.
+   */
+  private async readCredentials(): Promise<void> {
+    await Promise.all([
+      this.readCredential(this.arkRef(), 'ark'),
+      this.readCredential(this.ttsRef(), 'tts'),
+    ])
   }
 
-  async save(
-    value: SettingsValue,
-    expectedRevision: number,
-    credentialValue: string | undefined,
-    credentialTtsValue: string | undefined,
-    writeSettings: boolean,
-  ): Promise<boolean> {
-    this.set({ ...this.state, action: 'save', error: undefined, message: undefined })
-    let snapshot = this.state.snapshot
-    try {
-      if (writeSettings) {
-        snapshot = await apiRequest<SettingsSnapshot>({
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'save', expectedRevision, value }),
-        })
-      }
-      if (snapshot === undefined) throw new Error('Ark Toolkit Settings are unavailable')
-      if (credentialValue !== undefined) {
-        try {
-          snapshot = await apiRequest<SettingsSnapshot>({
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'credential',
-              expectedRevision: snapshot.settings.revision,
-              ref: snapshot.credential.ref,
-              value: credentialValue,
-            }),
-          })
-        } catch (error) {
-          this.set({
-            status: 'ready',
-            snapshot,
-            health: this.state.health,
-            update: this.state.update,
-            restart: this.state.restart,
-            error: error instanceof Error ? error.message : String(error),
-          })
-          return false
-        }
-      }
-      if (credentialTtsValue !== undefined) {
-        try {
-          snapshot = await apiRequest<SettingsSnapshot>({
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'credential',
-              expectedRevision: snapshot.settings.revision,
-              ref: snapshot.credentialTts.ref,
-              value: credentialTtsValue,
-            }),
-          })
-        } catch (error) {
-          this.set({
-            status: 'ready',
-            snapshot,
-            health: this.state.health,
-            update: this.state.update,
-            restart: this.state.restart,
-            error: error instanceof Error ? error.message : String(error),
-          })
-          return false
-        }
-      }
-      this.set({
-        status: 'ready',
-        snapshot,
-        health: this.state.health,
-        update: this.state.update,
-        restart: this.state.restart,
-        message: 'saved',
-      })
-      return true
-    } catch (error) {
-      this.set({ ...this.state, action: undefined, error: error instanceof Error ? error.message : String(error) })
-      return false
-    } finally {
-      this.set({ ...this.state, action: undefined })
+  private async readCredential(ref: string, which: 'ark' | 'tts'): Promise<void> {
+    const response = await this.ctx.remote.credentials.describe([ref])
+    const current = which === 'ark' ? this.arkRef() : this.ttsRef()
+    if (!response.ok || ref !== current) return
+    const view = response.value[ref]
+    const next: CredentialView = {
+      ref,
+      configured: view?.configured ?? false,
+      writable: view?.writable ?? true,
+      ...(view?.source === undefined ? {} : { source: view.source }),
     }
+    const previous = which === 'ark' ? this.credential : this.credentialTts
+    if (previous.ref === next.ref && previous.configured === next.configured
+      && previous.writable === next.writable && previous.source === next.source) return
+    if (which === 'ark') this.credential = next
+    else this.credentialTts = next
+    this.publish()
+  }
+
+  /**
+   * Re-read after the Host reports a change to one reference.
+   * @param ref - the credential reference the Host reports as changed.
+   */
+  refreshCredential(ref: string): void {
+    if (ref === this.arkRef()) void this.readCredential(ref, 'ark')
+    if (ref === this.ttsRef()) void this.readCredential(ref, 'tts')
   }
 
   async runHealth(mode: 'health' | 'connection'): Promise<void> {
-    this.set({ ...this.state, action: mode, error: undefined, message: undefined })
+    this.host = { ...this.host, action: mode, error: undefined, message: undefined }
+    this.publish()
     try {
       const health = await apiRequest<HealthResult>({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'health', testConnection: mode === 'connection' }),
       })
-      this.set({ ...this.state, action: undefined, health })
+      this.host = { ...this.host, action: undefined, health }
     } catch (error) {
-      this.set({ ...this.state, action: undefined, error: error instanceof Error ? error.message : String(error) })
+      this.host = { ...this.host, action: undefined, error: messageOf(error) }
     }
+    this.publish()
   }
 
   async checkUpdate(): Promise<void> {
-    this.set({ ...this.state, action: 'check-update', error: undefined, message: undefined })
+    this.host = { ...this.host, action: 'check-update', error: undefined, message: undefined }
+    this.publish()
     try {
       const update = await apiRequest<PluginUpdateCheck>({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'check-update' }),
       })
-      this.set({ ...this.state, action: undefined, update })
+      this.host = { ...this.host, action: undefined, update }
     } catch (error) {
-      this.set({ ...this.state, action: undefined, error: error instanceof Error ? error.message : String(error) })
+      this.host = { ...this.host, action: undefined, error: messageOf(error) }
     }
+    this.publish()
   }
 
   async applyUpdate(expectedVersion: string): Promise<void> {
-    this.set({ ...this.state, action: 'apply-update', error: undefined, message: undefined })
+    this.host = { ...this.host, action: 'apply-update', error: undefined, message: undefined }
+    this.publish()
     try {
       const result = await apiRequest<PluginUpdateResult>({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'apply-update', expectedVersion }),
       })
-      this.set({
-        ...this.state,
+      this.host = {
+        ...this.host,
         action: undefined,
         restart: result,
         message: result.restarting ? 'restarting' : 'manual-restart-required',
-      })
+      }
+      if (result.restarting) this.watchRestart(result)
     } catch (error) {
-      this.set({ ...this.state, action: undefined, error: error instanceof Error ? error.message : String(error) })
+      this.host = { ...this.host, action: undefined, error: messageOf(error) }
     }
+    this.publish()
   }
 
-  reportRestartTimeout(message: string): void {
-    this.set({ ...this.state, restart: undefined, message: undefined, error: message })
+  /**
+   * Poll the Host until the replacement process serves the new version, and
+   * reload the page once it does. A profile that came back on the old version
+   * rolled the update back; the deadline covers a restart that never lands.
+   */
+  private watchRestart(restart: PluginUpdateResult & { restarting: true }): void {
+    this.restartPoll?.abort()
+    const controller = new AbortController()
+    this.restartPoll = controller
+    const signal = controller.signal
+    void (async () => {
+      await wait(restart.retryAfterMs)
+      const deadline = Date.now() + 390_000
+      let outageSeen = false
+      while (!signal.aborted && Date.now() < deadline) {
+        try {
+          const current = await apiRequest<SettingsSnapshot>()
+          if (current.release.pluginVersion === restart.toVersion) {
+            window.location.reload()
+            return
+          }
+          if (outageSeen && current.release.pluginVersion === restart.fromVersion) {
+            this.reportRestartTimeout('restartRolledBack')
+            return
+          }
+        } catch {
+          // The expected outage while the replacement process starts.
+          outageSeen = true
+        }
+        await wait(1_000)
+      }
+      if (!signal.aborted) this.reportRestartTimeout('restartTimedOut')
+    })()
+  }
+
+  private reportRestartTimeout(key: 'restartTimedOut' | 'restartRolledBack'): void {
+    this.host = { ...this.host, restart: undefined, message: undefined, restartError: key }
+    this.publish()
+  }
+
+  /** Release the form subscription and any restart poll. */
+  dispose(): void {
+    this.restartPoll?.abort()
+    this.unsubscribe()
   }
 }
 
-interface Draft {
-  baseUrl: string
-  credential: string
-  userAgent: string
-  ttsBaseUrl: string
-  ttsCredential: string
-  ttsResource: string
-  ttsVoice: string
-  timeoutMs: string
-  concurrency: string
-}
-
-function draftOf(value: SettingsValue): Draft {
+/** Copy the page frame renders, from this plugin's dictionary. */
+function formLabels(t: Translate): SettingsFormLabels {
   return {
-    baseUrl: value.provider?.baseUrl ?? ARK_BASE_URL,
-    credential: value.provider?.credential ?? ARK_CREDENTIAL,
-    userAgent: value.provider?.userAgent ?? DEFAULT_USER_AGENT,
-    ttsBaseUrl: value.provider?.tts?.baseUrl ?? TTS_BASE_URL,
-    ttsCredential: value.provider?.tts?.credential ?? TTS_CREDENTIAL,
-    ttsResource: value.provider?.tts?.resource ?? TTS_RESOURCE,
-    ttsVoice: value.provider?.tts?.voice ?? TTS_VOICE,
-    timeoutMs: String(value.timeoutMs ?? 600000),
-    concurrency: String(value.concurrency ?? 4),
+    unavailable: t('unavailable'),
+    readOnly: t('readOnly'),
+    saveFailed: t('saveFailed'),
+    save: t('save'),
+    saving: t('saving'),
   }
-}
-
-function positiveInteger(raw: string, label: string, t: Translate): number {
-  const value = Number(raw)
-  if (!Number.isSafeInteger(value) || value <= 0) throw new Error(t('positiveInteger', { field: label }))
-  return value
-}
-
-function apiKeyFailure(value: string, t: Translate): string | undefined {
-  if (value.length === 0) return undefined
-  const trimmed = value.trim()
-  if (trimmed.length === 0) return t('apiKeyBlank')
-  const quoted = trimmed.length > 1 && ['"', '\'', '`'].includes(trimmed[0] ?? '') && trimmed.endsWith(trimmed[0] ?? '')
-  const environmentLine = /^[A-Z][A-Z0-9_]*=[^=]/u.test(trimmed)
-  if (quoted || environmentLine || !/^[\x21-\x7E]+$/u.test(trimmed)) return t('apiKeyInvalid')
-  return undefined
-}
-
-function valueOf(draft: Draft, t: Translate): SettingsValue {
-  return {
-    provider: {
-      baseUrl: draft.baseUrl.trim(),
-      credential: draft.credential.trim(),
-      userAgent: draft.userAgent.trim(),
-      tts: {
-        baseUrl: draft.ttsBaseUrl.trim(),
-        credential: draft.ttsCredential.trim(),
-        resource: draft.ttsResource.trim(),
-        voice: draft.ttsVoice.trim(),
-      },
-    },
-    timeoutMs: positiveInteger(draft.timeoutMs, t('timeout'), t),
-    concurrency: positiveInteger(draft.concurrency, t('concurrency'), t),
-  }
-}
-
-function settingsDraftChanged(draft: Draft, saved: SettingsValue, t: Translate): boolean {
-  try {
-    return JSON.stringify(valueOf(draft, t)) !== JSON.stringify(valueOf(draftOf(saved), t))
-  } catch {
-    return true
-  }
-}
-
-interface SettingsInjected {
-  controller: ArkSettingsController
-  t: Translate
-}
-
-type SettingsCardProps = SettingsInjected & {
-  /** Which view the Plugins page asks for; the bundle slot always asks for `page`. */
-  view?: 'summary' | 'page' | undefined
-}
-
-function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string | undefined }) {
-  return <label className="dvt-field"><span>{label}</span>{children}{hint === undefined ? null : <small>{hint}</small>}</label>
-}
-
-/**
- * This bundle's configuration on its page in the Plugins panel, registered
- * under the bundle's package name. The card keeps its own collapsible head
- * because that head carries the credential-state pill and the collapse
- * control; the page draws the plugin title, icon, and crumb above it. The body
- * keeps the staged form, health checks, and update controls.
- */
-function SettingsCard({ controller, t, view = 'page' }: SettingsCardProps) {
-  const [open, setOpen] = useState(false)
-  const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot)
-  const snapshot = state.snapshot
-  const status = snapshot === undefined
-    ? undefined
-    : !snapshot.runtime.ready
-      ? { label: t('runtimeUnavailable'), tone: 'error' }
-      : snapshot.credential.configured
-        ? { label: t('configured'), tone: 'ok' }
-        : { label: t('missing'), tone: 'error' }
-  // The bundle slot only ever dispatches `page`; the one-liner stays available
-  // so the same registration satisfies both halves of the slot contract.
-  if (view === 'summary') return status === undefined ? null : <>{status.label}</>
-  return (
-    <div className="dvt-plugin-card" data-open={open || undefined}>
-      <button
-        type="button"
-        className="dvt-card-head"
-        aria-expanded={open}
-        aria-label={`${t(open ? 'collapse' : 'expand')}: ${t('settingsTitle')}`}
-        onClick={() => { setOpen(value => !value) }}
-      >
-        <span className="dvt-card-head-text">
-          <strong>{t('settingsTitle')}</strong>
-          <small>{t('settingsIntro')}</small>
-        </span>
-        {status === undefined ? null : <span className="dvt-card-pill" data-status={status.tone}>{status.label}</span>}
-        <span className="dvt-card-chevron" aria-hidden="true">⌄</span>
-      </button>
-      {/* Keep the body mounted while collapsed so staged edits and the restart
-          poll survive a collapse, matching the platform cards. */}
-      <div className="dvt-card-body" hidden={!open}>
-        <LoadedSettings controller={controller} t={t} />
-      </div>
-    </div>
-  )
 }
 
 const HEALTH_NAME_KEYS: Record<string, LocaleKey> = {
@@ -1035,139 +1285,204 @@ function wait(delayMs: number): Promise<void> {
   return new Promise(resolve => { setTimeout(resolve, delayMs) })
 }
 
-function LoadedSettings({ controller, t }: SettingsInjected) {
+/**
+ * Validate one pasted credential literal. The control cannot show the stored
+ * value, so the one paste worth refusing up front is a whole `KEY=value` line,
+ * a quoted literal, or anything outside printable ASCII — the class of paste
+ * that would store a key the service can never accept.
+ */
+function keyRejection(text: string): LocaleKey | undefined {
+  const value = text.trim()
+  if (value.length === 0) return 'apiKeyBlank'
+  const first = value[0] ?? ''
+  const quoted = value.length > 1 && (first === '"' || first === '\'' || first === '`') && value.endsWith(first)
+  const environmentLine = /^[A-Z][A-Z0-9_]*=[^=]/u.test(value)
+  if (quoted || environmentLine || !/^[\x21-\x7E]+$/u.test(value)) return 'apiKeyInvalid'
+  return undefined
+}
+
+/** The credentials injected into the page's controls. */
+interface PageInjected {
+  controller: ArkToolkitPageController
+  edit: (field: string, text: string) => void
+  resetField: (field: string) => void
+  save: () => void
+  discard: () => void
+}
+
+type ArkToolkitPageProps = PropsRuntime<'plugins.item'> & PropsLocale<typeof NS> & PageInjected
+
+/** One labelled control built from a `FieldDef` and its staged state. */
+function ValueField({ def, state, disabled, t, onEdit, onReset }: {
+  def: FieldDef
+  state: StagedField
+  disabled: boolean
+  t: Translate
+  onEdit: (text: string) => void
+  onReset: () => void
+}) {
+  return (
+    <SettingsValueField
+      id={`plugin-config-ark-${pathKey(def.path)}`}
+      label={t(def.labelKey)}
+      hint={t(def.hintKey)}
+      text={state.text}
+      overridden={state.overridden}
+      invalid={state.invalid}
+      overriddenLabel={t('overridden')}
+      resetLabel={t('reset')}
+      invalidLabel={t('invalidNumber')}
+      disabled={disabled}
+      onEdit={onEdit}
+      onReset={onReset}
+      {...(def.numeric === true ? { numeric: true } : {})}
+    />
+  )
+}
+
+/**
+ * This plugin's own page in the Plugins panel. The page draws the title, icon,
+ * and crumb; this component draws the form, the health checks, and the update
+ * controls.
+ */
+function ArkToolkitPage(props: ArkToolkitPageProps) {
+  const { controller, t } = props
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot)
-  const snapshot = state.snapshot
-  const [draft, setDraft] = useState<Draft | undefined>(undefined)
-  const [apiKey, setApiKey] = useState('')
-  const [ttsKey, setTtsKey] = useState('')
-  const [draftError, setDraftError] = useState<string | undefined>(undefined)
   const [copiedCommand, setCopiedCommand] = useState(false)
-
-  useEffect(() => { if (state.status === 'idle') void controller.load() }, [controller, state.status])
-  useEffect(() => {
-    if (snapshot !== undefined) setDraft(draftOf(snapshot.settings.value))
-  }, [snapshot])
-  useEffect(() => {
-    const restart = state.restart
-    if (restart === undefined || !restart.restarting) return
-    let cancelled = false
-    void (async () => {
-      await wait(restart.retryAfterMs)
-      const deadline = Date.now() + 390_000
-      let outageSeen = false
-      while (!cancelled && Date.now() < deadline) {
-        try {
-          const current = await apiRequest<SettingsSnapshot>()
-          if (current.release.pluginVersion === restart.toVersion) {
-            window.location.reload()
-            return
-          }
-          if (outageSeen && current.release.pluginVersion === restart.fromVersion) {
-            controller.reportRestartTimeout(t('restartRolledBack'))
-            return
-          }
-        } catch {
-          // The expected outage while the replacement process starts.
-          outageSeen = true
-        }
-        await wait(1_000)
-      }
-      if (!cancelled) controller.reportRestartTimeout(t('restartTimedOut'))
-    })()
-    return () => { cancelled = true }
-  }, [controller, state.restart, t])
-
-  if (state.status === 'idle' || (state.status === 'loading' && snapshot === undefined)) {
-    return <div className="dvt-settings"><div className="dvt-loading">{t('testing')}</div></div>
-  }
-  if (snapshot === undefined || draft === undefined) {
-    return <div className="dvt-settings"><div className="dvt-alert error">{state.error ?? t('runtimeUnavailable')}</div><Button variant="outline" onClick={() => { void controller.load() }}>{t('retry')}</Button></div>
-  }
-
-  const update = <K extends keyof Draft>(key: K, value: Draft[K]): void => setDraft(current => current === undefined ? current : { ...current, [key]: value })
-  const save = (): void => {
-    try {
-      const keyFailure = apiKeyFailure(apiKey, t)
-      if (keyFailure !== undefined) {
-        setDraftError(keyFailure)
-        return
-      }
-      const credentialValue = apiKey.length === 0 ? undefined : apiKey.trim()
-      const credentialTtsValue = ttsKey.length === 0 ? undefined : ttsKey.trim()
-      setDraftError(undefined)
-      void controller.save(
-        valueOf(draft, t),
-        snapshot.settings.revision,
-        credentialValue,
-        credentialTtsValue,
-        snapshot.writable,
-      ).then(saved => { if (saved) { setApiKey(''); setTtsKey('') } })
-    } catch (error) {
-      setDraftError(error instanceof Error ? error.message : String(error))
-    }
-  }
-  const busy = state.action !== undefined
-  const credentialMatchesSnapshot = draft.credential.trim() === snapshot.credential.ref
-  const ttsCredentialMatchesSnapshot = draft.ttsCredential.trim() === snapshot.credentialTts.ref
-  const keyLocked = credentialMatchesSnapshot
-    && !snapshot.credential.writable
-  const ttsKeyLocked = ttsCredentialMatchesSnapshot
-    && !snapshot.credentialTts.writable
-  const canSave = snapshot.writable || (apiKey.length > 0 && !keyLocked) || (ttsKey.length > 0 && !ttsKeyLocked)
-  const runtimeErrorTitle = snapshot.runtime.ready ? t('runtimeCandidateRejected') : t('runtimeUnavailable')
-  const pluginUpdate = state.update
-  const updateCapability = pluginUpdate ?? snapshot.release.update
-  const latestVersion = pluginUpdate?.latestVersion
-  const updateReason = updateCapability.reason === undefined ? undefined : t(UPDATE_REASON_KEYS[updateCapability.reason])
-  const updateCheckSupported = updateCapability.checkSupported ?? updateCapability.supported
-  const updateHasUnsavedChanges = apiKey.length > 0 || ttsKey.length > 0 || settingsDraftChanged(draft, snapshot.settings.value, t)
-  const manualUpdateProfile = updateCapability.profile ?? 'web'
-  const manualUpdateCommand = `dsh plugin --profile ${manualUpdateProfile} add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/`
-  const copyManualUpdate = (): void => {
-    void navigator.clipboard?.writeText(manualUpdateCommand)
+  const copy = useCallback((text: string) => {
+    void navigator.clipboard?.writeText(text)
       .then(() => {
         setCopiedCommand(true)
-        window.setTimeout(() => setCopiedCommand(false), 2_000)
+        window.setTimeout(() => { setCopiedCommand(false) }, 2_000)
       })
       .catch(() => {})
+  }, [])
+
+  // The Plugins page owns the view discriminator: `summary` is its card's
+  // one-liner, `page` is the form it opens.
+  if (props.view === 'summary') return t('settingsIntro')
+
+  const host = state.host
+  const busy = host.action !== undefined || state.saving
+  const update = host.update
+  const capability = update ?? state.release.update
+  const latestVersion = update?.latestVersion
+  const updateReason = capability.reason === undefined ? undefined : t(UPDATE_REASON_KEYS[capability.reason])
+  const updateCheckSupported = capability.checkSupported ?? capability.supported
+  const profile = capability.profile ?? 'web'
+  const manualCommand = `dsh plugin --profile ${profile} add @nextnowlabs/dsh-ark-toolkit@latest --registry=https://registry.npmjs.org/`
+  const disabled = !state.writable
+  const credentialHint = (view: CredentialView, base: string): string => {
+    if (!view.writable) return t('apiKeyLocked')
+    if (view.source === undefined) return base
+    return `${base} ${t('sourceHint', { source: t('source'), value: credentialSource(view.source, t) })}`
   }
-  const applyUpdate = (): void => {
-    if (latestVersion === undefined) return
-    if (!window.confirm(t('updateConfirm', { version: latestVersion }))) return
-    void controller.applyUpdate(latestVersion)
-  }
+  const arkKeyState = state.fields[ARK_KEY_FIELD] ?? { text: '', overridden: false, invalid: false }
+  const ttsKeyState = state.fields[TTS_KEY_FIELD] ?? { text: '', overridden: false, invalid: false }
 
   return (
-    <div className="dvt-settings">
+    <SettingsForm
+      labels={formLabels(t)}
+      state={state}
+      onSave={props.save}
+      onDiscard={props.discard}
+    >
       <div className="dvt-alert notice">{t('externalNotice')}</div>
-      {!snapshot.writable ? <div className="dvt-alert warning">{t('readOnly')}</div> : null}
-      {draftError === undefined ? null : <div className="dvt-alert error">{draftError}</div>}
-      {state.error === undefined ? null : <div className="dvt-alert error">{state.error}</div>}
-      {state.message === 'saved' ? <div className="dvt-alert success">{t('saved')}</div> : null}
-      {state.message === 'restarting' && state.restart !== undefined ? <div className="dvt-alert success">{t('restarting', { version: state.restart.toVersion })}</div> : null}
-      {state.message === 'manual-restart-required' && state.restart !== undefined ? <div className="dvt-alert success">{t('manualRestartRequired', { version: state.restart.toVersion })}</div> : null}
-      {snapshot.runtime.lastError === undefined ? null : <div className="dvt-alert error"><strong>{runtimeErrorTitle}</strong><span>{snapshot.runtime.lastError}</span></div>}
+      {host.error === undefined ? null : <div className="dvt-alert error">{host.error}</div>}
+      {state.keyError === undefined ? null : <div className="dvt-alert error">{t(state.keyError)}</div>}
+      {host.restartError === undefined ? null : <div className="dvt-alert error">{t(host.restartError)}</div>}
+      {host.message === 'restarting' && host.restart !== undefined ? <div className="dvt-alert success">{t('restarting', { version: host.restart.toVersion })}</div> : null}
+      {host.message === 'manual-restart-required' && host.restart !== undefined ? <div className="dvt-alert success">{t('manualRestartRequired', { version: host.restart.toVersion })}</div> : null}
+      {state.runtime.lastError === undefined ? null : <div className="dvt-alert error"><strong>{t('runtimeCandidateRejected')}</strong><span>{state.runtime.lastError}</span></div>}
 
-      <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('ark')}</h3><p>{t('arkHint')}</p></div><span className={`dvt-badge ${snapshot.credential.configured ? 'ok' : 'error'}`}>{snapshot.credential.configured ? t('configured') : t('missing')}</span></div>
+      <section className="dvt-panel">
+        <div className="dvt-panel-title">
+          <div><h3>{t('ark')}</h3><p>{t('arkHint')}</p></div>
+          <span className={`dvt-badge ${state.credential.configured ? 'ok' : 'error'}`}>{state.credential.configured ? t('configured') : t('missing')}</span>
+        </div>
         <p className="dvt-tutorial-link"><a href={ARK_TUTORIAL_URL} target="_blank" rel="noreferrer">{t('arkTutorial')}</a></p>
         <div className="dvt-form-grid">
-          <Field label={t('apiKey')} hint={keyLocked ? t('apiKeyLocked') : snapshot.credential.source === undefined ? t('apiKeyHint') : `${t('apiKeyHint')} ${t('sourceHint', { source: t('source'), value: credentialSource(snapshot.credential.source, t) })}`}><Input aria-label={t('apiKey')} type="password" autoComplete="new-password" disabled={busy || keyLocked} placeholder={snapshot.credential.configured ? t('apiKeyPlaceholderConfigured') : t('apiKeyPlaceholderMissing')} value={apiKey} onChange={(event) => { setApiKey(event.target.value); setDraftError(undefined) }} /></Field>
+          {ARK_FIELDS.map((def) => (
+            <ValueField
+              key={pathKey(def.path)}
+              def={def}
+              state={state.fields[pathKey(def.path)] ?? { text: '', overridden: false, invalid: false }}
+              disabled={disabled}
+              t={t}
+              onEdit={(text) => { props.edit(pathKey(def.path), text) }}
+              onReset={() => { props.resetField(pathKey(def.path)) }}
+            />
+          ))}
         </div>
+        <SettingsSecretField
+          id="plugin-config-ark-api-key"
+          label={t('apiKey')}
+          hint={credentialHint(state.credential, t('apiKeyHidden'))}
+          text={arkKeyState.text}
+          configured={state.credential.configured}
+          stateLabel={state.credential.configured ? t('configured') : t('missing')}
+          disabled={disabled || !state.credential.writable}
+          onEdit={(text) => { props.edit(ARK_KEY_FIELD, text) }}
+        />
       </section>
 
-      <section className="dvt-panel dvt-essential"><div className="dvt-panel-title"><div><h3>{t('tts')}</h3><p>{t('ttsHint')}</p></div><span className={`dvt-badge ${snapshot.credentialTts.configured ? 'ok' : 'error'}`}>{snapshot.credentialTts.configured ? t('configured') : t('missing')}</span></div>
+      <section className="dvt-panel">
+        <div className="dvt-panel-title">
+          <div><h3>{t('tts')}</h3><p>{t('ttsHint')}</p></div>
+          <span className={`dvt-badge ${state.credentialTts.configured ? 'ok' : 'error'}`}>{state.credentialTts.configured ? t('configured') : t('missing')}</span>
+        </div>
         <div className="dvt-form-grid">
-          <Field label={t('ttsVoice')}><Input value={draft.ttsVoice} onChange={(event) => { update('ttsVoice', event.target.value) }} /></Field>
-          <Field label={t('ttsKey')} hint={ttsKeyLocked ? t('apiKeyLocked') : snapshot.credentialTts.source === undefined ? t('ttsKeyHint') : `${t('ttsKeyHint')} ${t('sourceHint', { source: t('source'), value: credentialSource(snapshot.credentialTts.source, t) })}`}><Input aria-label={t('ttsKey')} type="password" autoComplete="new-password" disabled={busy || ttsKeyLocked} placeholder={snapshot.credentialTts.configured ? t('apiKeyPlaceholderConfigured') : t('apiKeyPlaceholderMissing')} value={ttsKey} onChange={(event) => { setTtsKey(event.target.value); setDraftError(undefined) }} /></Field>
+          {TTS_FIELDS.map((def) => (
+            <ValueField
+              key={pathKey(def.path)}
+              def={def}
+              state={state.fields[pathKey(def.path)] ?? { text: '', overridden: false, invalid: false }}
+              disabled={disabled}
+              t={t}
+              onEdit={(text) => { props.edit(pathKey(def.path), text) }}
+              onReset={() => { props.resetField(pathKey(def.path)) }}
+            />
+          ))}
+        </div>
+        <SettingsSecretField
+          id="plugin-config-ark-tts-key"
+          label={t('ttsKey')}
+          hint={credentialHint(state.credentialTts, t('ttsKeyHint'))}
+          text={ttsKeyState.text}
+          configured={state.credentialTts.configured}
+          stateLabel={state.credentialTts.configured ? t('configured') : t('missing')}
+          disabled={disabled || !state.credentialTts.writable}
+          onEdit={(text) => { props.edit(TTS_KEY_FIELD, text) }}
+        />
+      </section>
+
+      <section className="dvt-panel">
+        <div className="dvt-panel-title"><h3>{t('limits')}</h3></div>
+        <div className="dvt-form-grid">
+          {LIMIT_FIELDS.map((def) => (
+            <ValueField
+              key={pathKey(def.path)}
+              def={def}
+              state={state.fields[pathKey(def.path)] ?? { text: '', overridden: false, invalid: false }}
+              disabled={disabled}
+              t={t}
+              onEdit={(text) => { props.edit(pathKey(def.path), text) }}
+              onReset={() => { props.resetField(pathKey(def.path)) }}
+            />
+          ))}
         </div>
       </section>
 
-      <div className="dvt-save-row"><Button variant="primary" disabled={!canSave || busy} onClick={save}>{state.action === 'save' ? t('saving') : t('save')}</Button><Button variant="outline" disabled={busy} onClick={() => { void controller.load() }}>{t('reload')}</Button></div>
-
-      <section className="dvt-panel"><div className="dvt-panel-title"><div><h3>{t('health')}</h3><p>{t('connectionHint')}</p></div><div className="dvt-actions"><Button size="sm" variant="outline" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('health') }}>{state.action === 'health' ? t('testing') : t('runHealth')}</Button><Button size="sm" variant="primary" disabled={busy || !snapshot.runtime.ready} onClick={() => { void controller.runHealth('connection') }}>{state.action === 'connection' ? t('testing') : t('testConnection')}</Button></div></div>
+      <section className="dvt-panel">
+        <div className="dvt-panel-title">
+          <div><h3>{t('health')}</h3><p>{t('connectionHint')}</p></div>
+          <div className="dvt-actions">
+            <Button size="sm" variant="outline" disabled={busy || !state.runtime.ready} onClick={() => { void controller.runHealth('health') }}>{host.action === 'health' ? t('testing') : t('runHealth')}</Button>
+            <Button size="sm" variant="primary" disabled={busy || !state.runtime.ready} onClick={() => { void controller.runHealth('connection') }}>{host.action === 'connection' ? t('testing') : t('testConnection')}</Button>
+          </div>
+        </div>
         <p className="dvt-muted">{t('saveBeforeTesting')}</p>
-        {state.health === undefined ? <p className="dvt-muted">{t('notTested')}</p> : <div className="dvt-health-grid">{Object.entries(state.health.checks).map(([name, check]) => (
+        {host.health === undefined ? <p className="dvt-muted">{t('notTested')}</p> : <div className="dvt-health-grid">{Object.entries(host.health.checks).map(([name, check]) => (
           <div key={name} data-status={check.status}><span>{t(HEALTH_NAME_KEYS[name] ?? 'health')}</span><strong>{t(HEALTH_STATUS_KEYS[check.status])}</strong><p>{healthDetail(check.detail, t)}</p></div>
         ))}</div>}
       </section>
@@ -1175,54 +1490,41 @@ function LoadedSettings({ controller, t }: SettingsInjected) {
       <section className="dvt-panel dvt-update-panel">
         <div className="dvt-panel-title">
           <div><h3>{t('updates')}</h3><p>{t('updatesHint')}</p></div>
-          <span className={`dvt-badge ${pluginUpdate?.updateAvailable ? 'warning' : pluginUpdate !== undefined && pluginUpdate.supported ? 'ok' : ''}`}>
-            {pluginUpdate?.updateAvailable ? t('updateAvailable') : pluginUpdate !== undefined && pluginUpdate.supported ? t('upToDate') : t('pluginVersion')}
+          <span className={`dvt-badge ${update?.updateAvailable ? 'warning' : update !== undefined && update.supported ? 'ok' : ''}`}>
+            {update?.updateAvailable ? t('updateAvailable') : update !== undefined && update.supported ? t('upToDate') : t('pluginVersion')}
           </span>
         </div>
         <div className="dvt-update-grid">
-          <div><span>{t('updateInstalled')}</span><strong>{snapshot.release.pluginVersion}</strong></div>
+          <div><span>{t('updateInstalled')}</span><strong>{state.release.pluginVersion}</strong></div>
           <div><span>{t('updateLatest')}</span><strong>{latestVersion ?? '—'}</strong></div>
-          <div><span>{t('updateProfile')}</span><strong>{updateCapability.profile ?? '—'}</strong></div>
+          <div><span>{t('updateProfile')}</span><strong>{capability.profile ?? '—'}</strong></div>
         </div>
-        {!updateCapability.supported ? <div className="dvt-alert warning"><strong>{t('updateUnsupported')}</strong><span>{updateReason}</span></div> : null}
-        {updateCapability.supported && updateHasUnsavedChanges ? <div className="dvt-alert warning">{t('updateSaveFirst')}</div> : null}
-        {pluginUpdate?.supported && pluginUpdate.updateAvailable && latestVersion !== undefined ? <p className="dvt-muted">{t('updateAvailableDetail', { version: latestVersion })}</p> : null}
-        {pluginUpdate?.supported && !pluginUpdate.updateAvailable && latestVersion !== undefined ? <p className="dvt-muted">{t('upToDateDetail', { version: latestVersion })}</p> : null}
+        {!capability.supported ? <div className="dvt-alert warning"><strong>{t('updateUnsupported')}</strong><span>{updateReason}</span></div> : null}
+        {capability.supported && state.dirty ? <div className="dvt-alert warning">{t('updateSaveFirst')}</div> : null}
+        {update?.supported && update.updateAvailable && latestVersion !== undefined ? <p className="dvt-muted">{t('updateAvailableDetail', { version: latestVersion })}</p> : null}
+        {update?.supported && !update.updateAvailable && latestVersion !== undefined ? <p className="dvt-muted">{t('upToDateDetail', { version: latestVersion })}</p> : null}
         <p className="dvt-muted">{t('manualUpdateHint')}</p>
-        <div className="dvt-manual-update"><code>{manualUpdateCommand}</code><Button size="sm" variant="outline" onClick={copyManualUpdate}>{copiedCommand ? t('copied') : t('copy')}</Button></div>
+        <div className="dvt-manual-update"><code>{manualCommand}</code><Button size="sm" variant="outline" onClick={() => { copy(manualCommand) }}>{copiedCommand ? t('copied') : t('copy')}</Button></div>
         <div className="dvt-actions">
-          <Button variant="outline" disabled={busy || !updateCheckSupported || state.restart !== undefined} onClick={() => { void controller.checkUpdate() }}>{state.action === 'check-update' ? t('checkingUpdate') : t('checkUpdate')}</Button>
-          {pluginUpdate?.supported && pluginUpdate.updateAvailable && latestVersion !== undefined ? <Button variant="primary" disabled={busy || state.restart !== undefined || updateHasUnsavedChanges} onClick={applyUpdate}>{state.action === 'apply-update' ? t('updatingPlugin') : t('updateNow')}</Button> : null}
+          <Button variant="outline" disabled={busy || !updateCheckSupported || host.restart !== undefined} onClick={() => { void controller.checkUpdate() }}>{host.action === 'check-update' ? t('checkingUpdate') : t('checkUpdate')}</Button>
+          {update?.supported && update.updateAvailable && latestVersion !== undefined ? <Button variant="primary" disabled={busy || host.restart !== undefined || state.dirty} onClick={() => { if (window.confirm(t('updateConfirm', { version: latestVersion }))) void controller.applyUpdate(latestVersion) }}>{host.action === 'apply-update' ? t('updatingPlugin') : t('updateNow')}</Button> : null}
         </div>
       </section>
 
       <details className="dvt-advanced">
         <summary><span><strong>{t('advanced')}</strong><small>{t('advancedHint')}</small></span><span className="dvt-details-chevron" aria-hidden="true">⌄</span></summary>
         <div className="dvt-advanced-body">
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('ark')}</h3></div><div className="dvt-form-grid">
-            <Field label={t('credential')} hint={t('credentialHint')}><Input aria-label={t('credential')} readOnly value={draft.credential} /></Field>
-            <Field label={t('baseUrl')}><Input readOnly value={draft.baseUrl} /></Field>
-            <Field label={t('model')} hint={t('modelHint')}><Input readOnly value={ARK_SEEDREAM_MODEL} /></Field>
-            <Field label={t('userAgent')}><Input readOnly value={draft.userAgent} /></Field>
-          </div></section>
-
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('tts')}</h3></div><div className="dvt-form-grid">
-            <Field label={t('ttsBaseUrl')}><Input readOnly value={draft.ttsBaseUrl} /></Field>
-            <Field label={t('ttsCredential')}><Input aria-label={t('ttsCredential')} readOnly value={draft.ttsCredential} /></Field>
-            <Field label={t('ttsResource')}><Input value={draft.ttsResource} onChange={(event) => { update('ttsResource', event.target.value) }} /></Field>
-          </div></section>
-
-          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('limits')}</h3></div><div className="dvt-form-grid">
-            <Field label={t('timeout')}><Input inputMode="numeric" value={draft.timeoutMs} onChange={(event) => { update('timeoutMs', event.target.value) }} /></Field>
-            <Field label={t('concurrency')}><Input inputMode="numeric" value={draft.concurrency} onChange={(event) => { update('concurrency', event.target.value) }} /></Field>
+          <section className="dvt-panel"><div className="dvt-panel-title"><h3>{t('modelReadOnly')}</h3></div><div className="dvt-form-grid">
+            <label className="dvt-field"><span>{t('model')}</span><Input readOnly value={ARK_SEEDREAM_MODEL} /><small>{t('modelReadOnlyHint')}</small></label>
+            <label className="dvt-field"><span>{t('pluginVersion')}</span><Input readOnly value={state.release.pluginVersion} /></label>
           </div></section>
         </div>
       </details>
 
       <footer className="dvt-settings-footer">
-        <div className="dvt-release"><span>{t('pluginVersion')} <strong>{snapshot.release.pluginVersion}</strong></span><span>{t('activeGeneration')} <strong>{t('activeGenerationValue', { generation: snapshot.runtime.generation })}</strong></span></div>
+        <div className="dvt-release"><span>{t('pluginVersion')} <strong>{state.release.pluginVersion}</strong></span><span>{t('activeGeneration')} <strong>{t('activeGenerationValue', { generation: state.runtime.generation })}</strong></span></div>
       </footer>
-    </div>
+    </SettingsForm>
   )
 }
 
@@ -1230,13 +1532,12 @@ const CSS = `
 .dvt-tool{margin:4px 0;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;box-shadow:var(--dsw-shadow-lv1)}
 .dvt-tool-head{width:100%;min-height:38px;display:flex;align-items:center;gap:7px;padding:8px 10px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;font:inherit}.dvt-tool-head:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}.dvt-tool-icon{width:20px;height:20px;display:grid;place-items:center;border-radius:6px;color:var(--dsw-alias-state-business-primary);background:color-mix(in srgb,var(--dsw-alias-state-business-primary) 12%,transparent);flex:none}.dvt-tool-title{font-size:12px;font-weight:650;white-space:nowrap}.dvt-tool-sep{opacity:.35}.dvt-tool-summary{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;color:var(--dsw-alias-label-secondary)}.dvt-tool-status{margin-left:auto;font-size:11px;color:var(--dsw-alias-label-secondary);max-width:45%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.dvt-tool[data-state=error] .dvt-tool-status{color:var(--dsw-alias-state-error-primary)}.dvt-chevron{margin-left:auto;transition:transform .16s ease;opacity:.55}.dvt-chevron[data-open=true]{transform:rotate(180deg)}.dvt-tool-body{padding:0 10px 10px}.dvt-stack{display:grid;gap:10px}.dvt-muted{margin:0;color:var(--dsw-alias-label-secondary);font-size:12px;line-height:1.5}
 .dvt-artifact{border:1px solid var(--dsw-alias-border-l1);border-radius:10px;overflow:hidden;background:var(--dsw-alias-bg-layer-1)}.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%) 50%/18px 18px;border:0}.dvt-svg{height:280px}.dvt-artifact-meta{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 10px}.dvt-artifact-meta>div:first-child{min-width:0;display:grid;gap:2px}.dvt-artifact-meta strong{font-size:12px;overflow:hidden;text-overflow:ellipsis}.dvt-artifact-meta span,.dvt-artifact-meta small{font-size:10px;color:var(--dsw-alias-label-secondary)}.dvt-actions{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground);text-decoration:none;font-size:12px;font-weight:600}.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}.dvt-download:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:2px}.dvt-artifact>.dvt-muted{padding:0 10px 10px}
-.dvt-tutorial-link{margin:0;font-size:12px;line-height:1.5}.dvt-tutorial-link a{color:var(--dsw-alias-state-business-primary);text-decoration:none;font-weight:600}.dvt-tutorial-link a:hover{text-decoration:underline}.dvt-manual-update{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}.dvt-manual-update code{flex:1;min-width:0;overflow:auto;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-primary)}.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden;color:var(--dsw-alias-label-primary);box-sizing:border-box}.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent;color:inherit;font:inherit;text-align:left;cursor:pointer}.dvt-card-head:focus-visible{outline:2px solid var(--dsw-alias-state-business-primary);outline-offset:-2px}.dvt-card-head-text{display:grid;gap:2px;flex:1;min-width:0}.dvt-card-head-text strong{font-size:13px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.dvt-card-head-text small{font-size:12px;color:var(--dsw-alias-label-secondary);line-height:1.5}.dvt-card-pill{display:inline-flex;align-items:center;gap:6px;padding:2px 10px;border-radius:999px;background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary);font-size:11px;font-weight:600;white-space:nowrap}.dvt-card-pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}.dvt-card-pill[data-status=error]{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-card-chevron{font-size:14px;opacity:.55;transition:transform .15s ease}.dvt-plugin-card[data-open] .dvt-card-chevron{transform:rotate(180deg)}.dvt-card-body{padding:0 14px 14px;min-width:0}
-.dvt-panel{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);padding:14px 15px;display:grid;gap:12px}.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.dvt-panel-title h3{margin:0;font-size:13px}.dvt-panel-title p{margin:3px 0 0;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-secondary)}.dvt-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);font-size:11px;font-weight:600;white-space:nowrap}.dvt-badge.ok{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-badge.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-badge.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 14%,transparent);color:var(--dsw-alias-state-warn-label)}
-.dvt-settings{display:grid;gap:12px}.dvt-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.dvt-field{display:grid;gap:5px;font-size:12px}.dvt-field>span{font-weight:600}.dvt-field small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary)}.dvt-save-row{display:flex;gap:8px;flex-wrap:wrap}.dvt-alert{padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5;display:grid;gap:3px}.dvt-alert.notice{background:var(--dsw-alias-bg-layer-2)}.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}.dvt-alert.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.dvt-alert.success{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}
+.dvt-tutorial-link{margin:0;font-size:12px;line-height:1.5}.dvt-tutorial-link a{color:var(--dsw-alias-state-business-primary);text-decoration:none;font-weight:600}.dvt-tutorial-link a:hover{text-decoration:underline}.dvt-manual-update{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2)}.dvt-manual-update code{flex:1;min-width:0;overflow:auto;white-space:nowrap;font-size:11px;color:var(--dsw-alias-label-primary)}.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between;gap:14px}.dvt-panel-title h3{margin:0;font-size:13px}.dvt-panel-title p{margin:3px 0 0;font-size:11px;line-height:1.5;color:var(--dsw-alias-label-secondary)}.dvt-badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);font-size:11px;font-weight:600;white-space:nowrap}.dvt-badge.ok{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent);color:var(--dsw-alias-state-success-primary)}.dvt-badge.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent);color:var(--dsw-alias-state-error-primary)}.dvt-badge.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 14%,transparent);color:var(--dsw-alias-state-warn-label)}
+.dvt-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}.dvt-field{display:grid;gap:5px;font-size:12px}.dvt-field>span{font-weight:600}.dvt-field small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary)}.dvt-alert{padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.5;display:grid;gap:3px}.dvt-alert.notice{background:var(--dsw-alias-bg-layer-2)}.dvt-alert.warning{background:color-mix(in srgb,var(--dsw-alias-state-warn-primary) 12%,transparent)}.dvt-alert.error{background:color-mix(in srgb,var(--dsw-alias-state-error-primary) 10%,transparent)}.dvt-alert.success{background:color-mix(in srgb,var(--dsw-alias-state-success-primary) 12%,transparent)}
 .dvt-update-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}.dvt-update-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);display:grid;gap:3px}.dvt-update-grid span{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--dsw-alias-label-secondary)}.dvt-update-grid strong{font-size:13px}
 .dvt-settings-footer{display:flex;justify-content:space-between;gap:14px;font-size:11px;color:var(--dsw-alias-label-secondary)}
-.dvt-release{display:flex;gap:14px;flex-wrap:wrap}.dvt-release span{white-space:nowrap}.dvt-essential{border-color:color-mix(in srgb,var(--dsw-alias-state-business-primary) 30%,var(--dsw-alias-border-l1));box-shadow:var(--dsw-shadow-lv1),0 0 0 3px color-mix(in srgb,var(--dsw-alias-state-business-primary) 5%,transparent)}.dvt-advanced{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dvt-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;cursor:pointer;list-style:none}.dvt-advanced>summary::-webkit-details-marker{display:none}.dvt-advanced>summary>span:first-child{display:grid;gap:3px}.dvt-advanced>summary strong{font-size:13px}.dvt-advanced>summary small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary);font-weight:400}.dvt-details-chevron{font-size:15px;opacity:.55;transition:transform .16s ease}.dvt-advanced[open] .dvt-details-chevron{transform:rotate(180deg)}.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:0 12px 12px}.dvt-advanced-body>.dvt-panel{box-shadow:none}
-.dvt-health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.dvt-health-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-border-l4)}.dvt-health-grid>div[data-status=ok]{border-left-color:var(--dsw-alias-state-success-primary)}.dvt-health-grid>div[data-status=warning],.dvt-health-grid>div[data-status=not_tested]{border-left-color:var(--dsw-alias-state-warn-primary)}.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}.dvt-health-grid span{font-size:10px;text-transform:capitalize}.dvt-health-grid strong{float:right;font-size:9px;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}.dvt-health-grid p{clear:both;margin:5px 0 0;font-size:10px;line-height:1.4;color:var(--dsw-alias-label-secondary)}.dvt-loading{padding:24px;border-radius:12px;background:var(--dsw-alias-bg-layer-2);font-size:12px;color:var(--dsw-alias-label-secondary)}
+.dvt-release{display:flex;gap:14px;flex-wrap:wrap}.dvt-release span{white-space:nowrap}.dvt-advanced{border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden}.dvt-advanced>summary{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:14px 15px;cursor:pointer;list-style:none}.dvt-advanced>summary::-webkit-details-marker{display:none}.dvt-advanced>summary>span:first-child{display:grid;gap:3px}.dvt-advanced>summary strong{font-size:13px}.dvt-advanced>summary small{font-size:10px;line-height:1.45;color:var(--dsw-alias-label-secondary);font-weight:400}.dvt-details-chevron{font-size:15px;opacity:.55;transition:transform .16s ease}.dvt-advanced[open] .dvt-details-chevron{transform:rotate(180deg)}.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;padding:0 12px 12px}.dvt-advanced-body>.dvt-panel{box-shadow:none}
+.dvt-health-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px}.dvt-health-grid>div{padding:9px 10px;border-radius:9px;background:var(--dsw-alias-bg-layer-2);border-left:3px solid var(--dsw-alias-border-l4)}.dvt-health-grid>div[data-status=ok]{border-left-color:var(--dsw-alias-state-success-primary)}.dvt-health-grid>div[data-status=warning],.dvt-health-grid>div[data-status=not_tested]{border-left-color:var(--dsw-alias-state-warn-primary)}.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}.dvt-health-grid span{font-size:10px;text-transform:capitalize}.dvt-health-grid strong{float:right;font-size:9px;text-transform:uppercase;color:var(--dsw-alias-label-secondary)}.dvt-health-grid p{clear:both;margin:5px 0 0;font-size:10px;line-height:1.4;color:var(--dsw-alias-label-secondary)}
 @media(max-width:720px){.dvt-settings-footer{display:grid}.dvt-release{width:auto}.dvt-form-grid,.dvt-update-grid{grid-template-columns:1fr}.dvt-artifact-meta{align-items:flex-start;flex-direction:column}.dvt-panel-title{flex-direction:column}}
 `
 
@@ -1253,9 +1554,14 @@ function installStyles(): () => void {
 }
 
 /** Required client services. */
-export const inject = ['slots', 'locale', 'remote']
+/**
+ * Required client services: the slot registry, the locale registry, the Remote
+ * domain (with its `credentials` namespace), and the shared configuration forms
+ * keyed by profile entry id.
+ */
+export const inject = ['slots', 'locale', 'remote', 'remote.credentials', 'configForms']
 
-/** Register dedicated Tool views and the Ark Toolkit plugin-configuration card. */
+/** Register dedicated Tool views and this plugin's configuration page. */
 export function apply(ctx: ClientContext): void {
   ctx.effect(installStyles, 'dsh-ark-toolkit: styles')
   ctx.effect(() => ctx.locale.register(NS, { en, zh }), 'dsh-ark-toolkit: locale')
@@ -1271,30 +1577,28 @@ export function apply(ctx: ClientContext): void {
     }
   })
 
-  const controller = new ArkSettingsController()
-  ctx.effect(() => {
-    // Both signals arrive over the Remote transport: a committed Settings
-    // document (any namespace) and a changed Credential reference. Comparing
-    // against the served credential names keeps unrelated stores quiet.
-    const disposers = [
-      ctx.remote.$on('settings/document-updated', (namespace: string) => {
-        if (namespace === NS) controller.refreshIfLoaded()
-      }),
-      ctx.remote.$on('credentials/reference-updated', (ref: string) => {
-        const current = controller.snapshot().snapshot
-        const updated = String(ref)
-        if (current?.credential.ref === updated || current?.credentialTts.ref === updated) controller.refreshIfLoaded()
-      }),
-      ctx.on('connection/reset', () => { controller.refreshIfLoaded() }),
-    ]
-    return () => { for (const dispose of disposers) dispose() }
-  }, 'dsh-ark-toolkit: Settings invalidations')
-  // The Plugins panel renders one bundle page per installed bundle and
-  // dispatches `plugins.bundle.config` with `entryKey = <package name>`, so the
-  // card is keyed by this bundle's package name (not the settings namespace).
-  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
-    name: 'plugins.bundle.config',
-    key: ARK_TOOLKIT_PACKAGE,
-    inject: () => ({ controller, t }),
-  }, SettingsCard))
+  const controller = new ArkToolkitPageController(ctx)
+  ctx.effect(() => () => { controller.dispose() }, 'dsh-ark-toolkit: form subscription')
+  // A credential literal can be replaced from somewhere else without the entry's
+  // configuration changing at all, so the badges follow the reference the Host
+  // reports as changed rather than waiting for a settings event.
+  ctx.effect(() => ctx.remote.$on('credentials/reference-updated', (ref: string) => {
+    controller.refreshCredential(String(ref))
+  }), 'dsh-ark-toolkit: credential invalidations')
+  // The page exists only while the Host serves this plugin's entry, so a
+  // deployment that never composed it shows no trace of the page.
+  ctx.effect(() => ctx.configForms.whileServed([ENTRY_ID], () => ctx.slots.inject('plugins.item', () => ctx.slots.register({
+    name: 'plugins.item',
+    id: ENTRY_ID,
+    order: PAGE_ORDER,
+    label: () => t('settingsTitle'),
+    locale: NS,
+    inject: () => ({
+      controller,
+      edit: (field: string, text: string) => { controller.edit(field, text) },
+      resetField: (field: string) => { controller.resetField(field) },
+      save: () => { void controller.save() },
+      discard: () => { controller.discard() },
+    }),
+  }, ArkToolkitPage))), 'dsh-ark-toolkit: configuration page')
 }

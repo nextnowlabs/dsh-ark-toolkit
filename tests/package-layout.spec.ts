@@ -49,14 +49,16 @@ describe('package layout contract', () => {
     expect(PACKAGE.dsh?.client?.inject).toEqual(expect.arrayContaining([
       '@deepseek-ai/dsh-api-remotes',
       '@deepseek-ai/dsh-client-ui-tool',
-      // DSH 0.1.6 moved plugin configuration from the retired
-      // `settings.plugin.item` seat to the Plugins page's
-      // `plugins.bundle.config`, whose owner is the plugin-manager package.
+      // DSH 0.1.7 renders a plugin's own configuration as a `plugins.item`
+      // page owned by the plugin-manager package, reads and writes it through
+      // the settings package's `ctx.configForms`, and renders the controls from
+      // the primitives package. All three must be mounted before this page.
       '@deepseek-ai/dsh-client-ui-plugin-manager',
+      '@deepseek-ai/dsh-client-ui-settings',
+      '@deepseek-ai/dsh-client-ui-primitives',
+      '@deepseek-ai/dsh-client-ui-slots',
       '@deepseek-ai/dsh-client-locale',
     ]))
-    // The old settings-tab seat is gone; the client no longer binds it.
-    expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-settings')
     // Image-understanding leftovers must not creep back into the bundle.
     expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-input-trigger')
     expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-runtime')
@@ -89,7 +91,7 @@ describe('package layout contract', () => {
 
   it('pins the dependency install scripts allowed in standalone CI', async () => {
     const workspace = await readFile(join(ROOT, 'pnpm-workspace.yaml'), 'utf8')
-    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.6-alpha.2': true")
+    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.7-alpha.1': true")
     expect(workspace).toContain("'node-pty@1.2.0-beta.15': true")
     expect(workspace).not.toMatch(/^\s{2}(?:'@deepseek-ai\/dsh-subprocess-local'|node-pty):/mu)
   })
@@ -98,6 +100,13 @@ describe('package layout contract', () => {
     expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/dsh-agent')
     expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/cordis')
     expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/schemastery')
+    // DSH 0.1.7 announces a committed volatile configuration change on
+    // `loader/volatile-update`, whose event type the Loader package declares;
+    // it must stay declared rather than borrowed transitively.
+    expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/cordis-plugin-loader')
+    // The client half binds these packages' slot and service contracts.
+    expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/dsh-client-ui-plugin-manager')
+    expect(PACKAGE.peerDependencies).toHaveProperty('@deepseek-ai/dsh-client-ui-settings')
     expect(PACKAGE.peerDependencies).not.toHaveProperty('cordis')
     expect(PACKAGE.peerDependencies).not.toHaveProperty('schemastery')
     for (const section of [PACKAGE.dependencies ?? {}, PACKAGE.peerDependencies ?? {}, PACKAGE.devDependencies ?? {}]) {
@@ -110,7 +119,7 @@ describe('package layout contract', () => {
   it('targets the published DSH prerelease line without retired package names', () => {
     const peers = PACKAGE.peerDependencies ?? {}
     for (const [name, spec] of Object.entries(peers)) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.6-alpha.2')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.7-alpha.1')
     }
     // Image understanding is gone: no attachment/input-trigger/vision packages.
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-attachment')

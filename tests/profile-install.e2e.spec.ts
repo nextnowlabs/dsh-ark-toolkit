@@ -16,12 +16,12 @@ const ARK_TOOLKIT_ACTIVATE = 'ark_toolkit_activate'
 /**
  * DSH releases ship both a CLI version and package versions. The acceptance
  * run pins the exact prerelease the plugin targets: `0.1.6-alpha.1` and
- * `0.1.6-alpha.2` are NOT interchangeable (`dsh-client-ui-slots`,
+ * `0.1.7-alpha.1` are NOT interchangeable (`dsh-client-ui-slots`,
  * `dsh-subprocess`, and the session projection surface all moved inside the
  * line), so accepting a sibling build would let a stale CLI silently skip the
  * real Profile path.
  */
-const COMPATIBLE_DSH_VERSIONS = ['0.1.6-alpha.2'] as const
+const COMPATIBLE_DSH_VERSIONS = ['0.1.7-alpha.1'] as const
 const REQUIRED_DSH_VERSION = COMPATIBLE_DSH_VERSIONS.join(' or ')
 const ARK_TOOL_NAMES = [
   'ark_generate_image',

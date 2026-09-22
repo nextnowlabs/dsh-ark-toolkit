@@ -4,7 +4,7 @@ import { createElement, type ComponentType } from 'react'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client'
-import { apply, decodeArkResult, inject, ArkSettingsController } from '../src/client/index.tsx'
+import { apply, decodeArkResult, inject } from '../src/client/index.tsx'
 
 afterEach(() => {
   cleanup()
@@ -30,10 +30,127 @@ function settled(meta: unknown, isError = false, toolName = 'ark_generate_image'
   } as unknown as ToolCallBlock
 }
 
-function fakeClientContext() {
-  const registrations: Array<{ options: Record<string, unknown>; component: ComponentType<Record<string, unknown>> }> = []
+interface Registered {
+  options: Record<string, unknown>
+  component: ComponentType<Record<string, unknown>>
+  face: () => Record<string, unknown>
+}
+
+/** One entry's configuration as the Host mirror serves it to this client. */
+interface FakeFormState {
+  value: Record<string, unknown>
+  user: Record<string, unknown> | undefined
+  base: Record<string, unknown> | undefined
+  revision: number
+  writable: boolean
+  status: 'ready' | 'unavailable'
+}
+
+/** Copy of the entry section a fresh profile serves, with one user override. */
+function servedValue(): Record<string, unknown> {
+  return {
+    provider: {
+      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      credential: 'ARK_API_KEY',
+      userAgent: 'fixture-agent/1.0',
+      tts: {
+        baseUrl: 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse',
+        credential: 'VOLCENGINE_TTS_KEY',
+        resource: 'seed-tts-2.0',
+        voice: 'zh_female_shuangkuaisisi_uranus_bigtts',
+      },
+    },
+    timeoutMs: 61000,
+    concurrency: 4,
+  }
+}
+
+function applySet(section: Record<string, unknown>, path: readonly string[], value: unknown): void {
+  let node = section
+  for (const key of path.slice(0, -1)) {
+    const next = node[key]
+    if (typeof next !== 'object' || next === null) node[key] = {}
+    node = node[key] as Record<string, unknown>
+  }
+  node[path[path.length - 1] ?? ''] = value
+}
+
+function applyUnset(section: Record<string, unknown>, path: readonly string[]): void {
+  let node: Record<string, unknown> = section
+  for (const key of path.slice(0, -1)) {
+    const next = node[key]
+    if (typeof next !== 'object' || next === null) return
+    node = next as Record<string, unknown>
+  }
+  Reflect.deleteProperty(node, path[path.length - 1] ?? '')
+}
+
+/**
+ * The shared configuration form for one entry, as `ctx.configForms.get` serves
+ * it: a snapshot the page reads and a path-addressed mutation it writes.
+ */
+function fakeConfigForms(overrides: Partial<FakeFormState> = {}) {
+  const state: FakeFormState = {
+    value: servedValue(),
+    user: undefined,
+    base: undefined,
+    revision: 1,
+    writable: true,
+    status: 'ready',
+    ...overrides,
+  }
+  const listeners = new Set<() => void>()
+  const publish = (): void => { for (const listener of listeners) listener() }
+  const mutate = vi.fn(async (ops: ReadonlyArray<{ op: string; path: readonly string[]; value?: unknown }>) => {
+    for (const op of ops) {
+      if (op.op === 'set') applySet(state.value, op.path, op.value)
+      else applyUnset(state.value, op.path)
+    }
+    state.user = state.user ?? {}
+    state.revision += 1
+    publish()
+    return true
+  })
+  return {
+    state,
+    mutate,
+    publish,
+    scope: {
+      getSnapshot: () => ({
+        status: state.status,
+        value: state.value,
+        base: state.base,
+        user: state.user,
+        revision: state.revision,
+        writable: state.writable,
+        mode: 'host' as const,
+      }),
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => { listeners.delete(listener) }
+      },
+      mutate,
+    },
+  }
+}
+
+/** The credentials domain as `ctx.remote.credentials` exposes it. */
+function fakeCredentials(views: Record<string, { configured: boolean; source?: string; writable: boolean }> = {}) {
+  const describe = vi.fn(async (refs: string[]) => ({
+    ok: true as const,
+    value: Object.fromEntries(refs.map(ref => [ref, views[ref] ?? { configured: false, writable: true }])),
+  }))
+  const set = vi.fn(async () => ({ ok: true as const, value: undefined }))
+  return { describe, set }
+}
+
+function fakeClientContext(
+  forms: ReturnType<typeof fakeConfigForms> = fakeConfigForms(),
+  credentials: ReturnType<typeof fakeCredentials> = fakeCredentials(),
+  options: { served?: boolean } = {},
+) {
+  const registrations: Registered[] = []
   const effects: Array<() => void> = []
-  const on = vi.fn(() => () => {})
   const slots = {
     inject: vi.fn((_name: string, callback: () => unknown) => {
       const result = callback()
@@ -43,8 +160,12 @@ function fakeClientContext() {
         effects.push(result as () => void)
       }
     }),
-    register: vi.fn((options: Record<string, unknown>, component: ComponentType<Record<string, unknown>>) => {
-      registrations.push({ options, component })
+    register: vi.fn((entry: Record<string, unknown>, component: ComponentType<Record<string, unknown>>) => {
+      registrations.push({
+        options: entry,
+        component,
+        face: () => (typeof entry.inject === 'function' ? (entry.inject as () => Record<string, unknown>)() : {}),
+      })
       return () => {}
     }),
   }
@@ -54,48 +175,23 @@ function fakeClientContext() {
       register: vi.fn(() => () => {}),
       bind: vi.fn(() => (key: string) => key),
     },
-    remote: { $on: vi.fn(() => () => {}) },
+    remote: { $on: vi.fn(() => () => {}), credentials },
+    configForms: {
+      get: vi.fn(() => forms.scope),
+      whileServed: vi.fn((namespaces: readonly string[], register: () => () => void) => (
+        options.served === false ? () => {} : register()
+      )),
+    },
     effect: vi.fn((setup: () => void | (() => void)) => {
       const dispose = setup()
       if (typeof dispose === 'function') effects.push(dispose)
     }),
-    on,
+    on: vi.fn(() => () => {}),
     inject: vi.fn((services: string[], callback: (scope: unknown) => void) => {
       if (services.every(service => service in ctx)) callback(ctx)
     }),
   }
-  return { ctx, slots, registrations, effects, on }
-}
-
-function settingsSnapshot(runtime: { ready: boolean; lastError?: string } = { ready: true }) {
-  return {
-    schemaVersion: 1,
-    writable: true,
-    settings: {
-      value: {
-        provider: {
-          baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
-          credential: 'ARK_API_KEY',
-          userAgent: 'fixture-agent/1.0',
-        },
-        timeoutMs: 61000,
-        concurrency: 4,
-      },
-      revision: 1,
-      applies: 'live',
-    },
-    credential: { ref: 'ARK_API_KEY', configured: false, writable: true },
-    credentialTts: { ref: 'VOLCENGINE_TTS_KEY', configured: false, writable: true },
-    runtime: {
-      ...runtime,
-      generation: 1,
-    },
-    release: {
-      pluginVersion: '0.1.0',
-      update: { supported: true, profile: 'web', dependencySpec: '0.1.0' },
-    },
-    artifactRouteAvailable: true,
-  }
+  return { ctx, slots, registrations, effects, forms, credentials }
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -103,6 +199,19 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+/** The Host action snapshot: the runtime and the update capability, nothing else. */
+function actionSnapshot(runtime: { ready: boolean; generation: number; lastError?: string } = { ready: true, generation: 1 }) {
+  return {
+    schemaVersion: 1,
+    runtime,
+    release: {
+      pluginVersion: '0.1.0',
+      update: { supported: true, profile: 'web', dependencySpec: '0.1.0' },
+    },
+    artifactRouteAvailable: true,
+  }
 }
 
 function artifact(
@@ -126,72 +235,26 @@ function artifact(
 }
 
 /** Resolve one registered keyed component by its slot key. */
-function componentOf(registrations: ReturnType<typeof fakeClientContext>['registrations'], key: string) {
+function componentOf(registrations: Registered[], key: string) {
   const found = registrations.find(entry => entry.options.key === key)
   if (found === undefined) throw new Error(`${key} component was not registered`)
   return found.component
 }
 
+/** The plugin's own configuration page, registered as a `plugins.item` entry. */
+function pageOf(registrations: Registered[]): Registered {
+  const found = registrations.find(entry => entry.options.name === 'plugins.item')
+  if (found === undefined) throw new Error('the configuration page was not registered')
+  return found
+}
+
+/** Render the page with the props the Plugins panel gives it. */
+function renderPage(registrations: Registered[], view: 'page' | 'summary' = 'page') {
+  const page = pageOf(registrations)
+  return render(createElement(page.component, { view, t: (key: string) => key, ...page.face() }))
+}
+
 describe('Ark Toolkit client plugin', () => {
-  it('registers every dedicated Tool view and the Settings card', () => {
-    expect(inject).toEqual(['slots', 'locale', 'remote'])
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const remote = ctx.remote as { $on: ReturnType<typeof vi.fn> }
-    expect(remote.$on).toHaveBeenCalledWith('settings/document-updated', expect.any(Function))
-    expect(remote.$on).toHaveBeenCalledWith('credentials/reference-updated', expect.any(Function))
-    expect(ctx.on).toHaveBeenCalledWith('connection/reset', expect.any(Function))
-
-    const toolKeys = registrations
-      .filter(entry => entry.options.name === 'tool.call.toolview')
-      .map(entry => entry.options.key)
-    expect(toolKeys).toEqual([
-      'ark_generate_image',
-      'ark_speak',
-    ])
-    // Keyed by the bundle's package name: the Plugins page dispatches
-    // `plugins.bundle.config` with `entryKey = pkg.name`.
-    expect(registrations.find(entry => entry.options.name === 'plugins.bundle.config')?.options).toMatchObject({
-      key: '@nextnowlabs/dsh-ark-toolkit',
-    })
-  })
-
-  it('refreshes the Settings card only for its own namespace and credential references', () => {
-    const { ctx } = fakeClientContext()
-    apply(ctx as never)
-    const remote = ctx.remote as { $on: ReturnType<typeof vi.fn> }
-    const settingsListener = remote.$on.mock.calls.find(call => call[0] === 'settings/document-updated')?.[1] as (ns: string) => void
-    const credentialListener = remote.$on.mock.calls.find(call => call[0] === 'credentials/reference-updated')?.[1] as (ref: string) => void
-    // Unloaded controller: every refresh is a cheap no-op, so this only proves
-    // the listeners are wired and never throw on unrelated names.
-    expect(() => { settingsListener('other-plugin') }).not.toThrow()
-    expect(() => { settingsListener('ark-toolkit') }).not.toThrow()
-    expect(() => { credentialListener('OTHER_KEY') }).not.toThrow()
-    expect(() => { credentialListener('ARK_API_KEY') }).not.toThrow()
-  })
-
-  it('uses Harness theme tokens for every theme-dependent color', () => {
-    const { ctx } = fakeClientContext()
-    apply(ctx as never)
-
-    const styles = document.querySelector<HTMLStyleElement>('style[data-plugin-css="@nextnowlabs/dsh-ark-toolkit/client"]')
-    const css = styles?.textContent ?? ''
-    expect(css).toContain('.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%)')
-    expect(css).toContain('.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)')
-    expect(css).toContain('.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}')
-    expect(css).toContain('.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}')
-    expect(css).toContain('.dvt-plugin-card{list-style:none;margin:0;display:grid;border:1px solid var(--dsw-alias-border-l1);border-radius:14px;background:var(--dsw-alias-bg-layer-1);overflow:hidden')
-    expect(css).toContain('.dvt-card-head{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;border:0;background:transparent')
-    expect(css).toContain('.dvt-settings{display:grid;gap:12px}')
-    expect(css).toContain('.dvt-panel{')
-    expect(css).toContain('.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between')
-    expect(css).toContain('.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr)')
-    expect(css).not.toContain('dvt-paste-')
-    expect(css).not.toMatch(/--dsw-alias-(?:fg-primary|fg-muted|border-subtle)/u)
-    expect(css).not.toMatch(/var\(--dsw-[^,)]+,/u)
-    expect(css).not.toMatch(/#[\da-f]{3,8}\b|rgba?\(/iu)
-  })
-
   it('prefers canonical presentation metadata and falls back to JSON result text', () => {
     const canonical = { prompt: 'a cat', images: [] }
     expect(decodeArkResult(settled(canonical))).toBe(canonical)
@@ -265,87 +328,229 @@ describe('Ark Toolkit client plugin', () => {
     expect(screen.getByRole('link', { name: 'download' }).getAttribute('href')).toBe('/audio-download')
   })
 
-  it('puts the required service fields first and the plugin identity at the bottom', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
-
+  it('registers both dedicated Tool views and this plugin\'s own Plugins-panel page', () => {
+    expect(inject).toEqual(['slots', 'locale', 'remote', 'remote.credentials', 'configForms'])
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    const view = render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
+    const remote = ctx.remote as unknown as { $on: ReturnType<typeof vi.fn> }
+    // The credential badge follows the Host's own invalidation signal; a
+    // committed settings change reaches the page through the shared form
+    // mirror, so no settings listener is registered here at all.
+    expect(remote.$on).toHaveBeenCalledWith('credentials/reference-updated', expect.any(Function))
+    expect(remote.$on).not.toHaveBeenCalledWith('settings/document-updated', expect.any(Function))
 
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    await screen.findAllByText('0.1.0')
-    expect(screen.getByLabelText('apiKey')).toBeTruthy()
-    const root = view.container.querySelector('.dvt-settings')
-    const essential = view.container.querySelector('.dvt-essential')
-    const advanced = view.container.querySelector('.dvt-advanced')
-    const footer = view.container.querySelector('.dvt-settings-footer')
-    expect(root?.firstElementChild).not.toBe(footer)
-    expect(root?.querySelector('.dvt-essential')).toBe(essential)
-    expect(root?.lastElementChild).toBe(footer)
-    expect(advanced).not.toBeNull()
-    expect(advanced?.contains(screen.getByLabelText('credential'))).toBe(true)
-    // The bundle-config card renders inside the plugin page's <section>, not a
-    // <ul>, so its root is a plain block element.
-    expect(view.container.querySelector('.dvt-plugin-card')?.tagName).toBe('DIV')
-    expect(view.container.querySelector('.dvt-card-head')).not.toBeNull()
+    const toolKeys = registrations
+      .filter(entry => entry.options.name === 'tool.call.toolview')
+      .map(entry => entry.options.key)
+    expect(toolKeys).toEqual([
+      'ark_generate_image',
+      'ark_speak',
+    ])
+    // DSH 0.1.7 addresses a plugin's page and its configuration by profile entry
+    // id, so the page is a `plugins.item` list entry keyed by that id.
+    expect(pageOf(registrations).options).toMatchObject({
+      id: 'ark-toolkit',
+      locale: 'ark-toolkit',
+      order: expect.any(Number),
+    })
+    expect(registrations.some(entry => entry.options.name === 'plugins.bundle.config')).toBe(false)
   })
 
-  it('renders the Settings card collapsed with the credential state in the header', async () => {
-    const initial = settingsSnapshot()
-    initial.credential = { ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: initial })))
-
-    const { ctx, registrations } = fakeClientContext()
+  it('shows the page only while the Host serves this plugin\'s entry', () => {
+    const { ctx, registrations } = fakeClientContext(fakeConfigForms(), fakeCredentials(), { served: false })
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    const view = render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    const head = await screen.findByRole('button', { name: 'expand: settingsTitle' })
-    expect(head.getAttribute('aria-expanded')).toBe('false')
-    const body = view.container.querySelector('.dvt-card-body')
-    expect(body?.hasAttribute('hidden')).toBe(true)
-    const pill = view.container.querySelector('.dvt-card-pill')
-    expect(pill?.textContent).toBe('configured')
-    expect(pill?.getAttribute('data-status')).toBe('ok')
-
-    fireEvent.click(head)
-    expect(head.getAttribute('aria-expanded')).toBe('true')
-    expect(body?.hasAttribute('hidden')).toBe(false)
-    await screen.findByLabelText('apiKey')
-    expect(screen.getByRole('button', { name: 'collapse: settingsTitle' })).toBeTruthy()
+    expect(registrations.some(entry => entry.options.name === 'plugins.item')).toBe(false)
   })
 
-  it('answers the bundle slot summary view with the credential one-liner', async () => {
-    const initial = settingsSnapshot()
-    initial.credential = { ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: initial })))
+  it('uses Harness theme tokens for every theme-dependent color', () => {
+    const { ctx } = fakeClientContext()
+    apply(ctx as never)
+
+    const styles = document.querySelector<HTMLStyleElement>('style[data-plugin-css="@nextnowlabs/dsh-ark-toolkit/client"]')
+    const css = styles?.textContent ?? ''
+    expect(css).toContain('.dvt-preview{display:block;width:100%;max-height:360px;object-fit:contain;background:repeating-conic-gradient(var(--dsw-alias-bg-module-platform) 0 25%,var(--dsw-alias-bg-layer-1) 0 50%)')
+    expect(css).toContain('.dvt-download{display:inline-flex;align-items:center;height:28px;padding:0 12px;border-radius:999px;background:var(--dsw-alias-button-primary-fill);color:var(--dsw-alias-label-primary-foreground)')
+    expect(css).toContain('.dvt-download:hover{background:var(--dsw-alias-button-primary-hover)}')
+    expect(css).toContain('.dvt-health-grid>div[data-status=error]{border-left-color:var(--dsw-alias-state-error-primary)}')
+    expect(css).toContain('.dvt-panel{')
+    expect(css).toContain('.dvt-panel-title{display:flex;align-items:flex-start;justify-content:space-between')
+    expect(css).toContain('.dvt-advanced-body{display:grid;grid-template-columns:minmax(0,1fr)')
+    expect(css).not.toContain('dvt-paste-')
+    expect(css).not.toMatch(/--dsw-alias-(?:fg-primary|fg-muted|border-subtle)/u)
+    expect(css).not.toMatch(/var\(--dsw-[^,)]+,/u)
+    expect(css).not.toMatch(/#[\da-f]{3,8}\b|rgba?\(/iu)
+  })
+
+  it('answers the summary view with the page one-liner', () => {
+    const { ctx, registrations } = fakeClientContext()
+    apply(ctx as never)
+    const view = renderPage(registrations, 'summary')
+    expect(view.container.textContent).toBe('settingsIntro')
+  })
+
+  it('stages edits and writes them as one path-addressed mutation on save', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const { ctx, registrations, forms } = fakeClientContext()
+    apply(ctx as never)
+    renderPage(registrations)
+
+    const concurrency = screen.getByLabelText('concurrency') as HTMLInputElement
+    fireEvent.change(concurrency, { target: { value: '7' } })
+    const baseUrl = screen.getByLabelText('baseUrl') as HTMLInputElement
+    fireEvent.change(baseUrl, { target: { value: 'https://ark.example/v1' } })
+
+    // Staged, not written: a control that committed as it settled would turn one
+    // edit into a document mutation the user never asked for.
+    expect(forms.mutate).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => { expect(forms.mutate).toHaveBeenCalledTimes(1) })
+    const [ops, expectedRevision] = forms.mutate.mock.calls[0] ?? []
+    // One revision-fenced write for the whole form, addressed by nested path.
+    expect(ops).toHaveLength(2)
+    expect(ops).toEqual(expect.arrayContaining([
+      { op: 'set', path: ['provider', 'baseUrl'], value: 'https://ark.example/v1' },
+      { op: 'set', path: ['concurrency'], value: 7 },
+    ]))
+    expect(expectedRevision).toBe(1)
+    await waitFor(() => { expect(concurrency.value).toBe('7') })
+  })
+
+  it('clears a field back to the composition layer with an unset path op', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const { ctx, registrations, forms } = fakeClientContext(fakeConfigForms({ user: { concurrency: 4 } }))
+    apply(ctx as never)
+    renderPage(registrations)
+
+    fireEvent.change(screen.getByLabelText('concurrency'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => { expect(forms.mutate).toHaveBeenCalledTimes(1) })
+    expect(forms.mutate.mock.calls[0]?.[0]).toEqual([{ op: 'unset', path: ['concurrency'] }])
+  })
+
+  it('blocks the save on an invalid number instead of dropping the edit', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const { ctx, registrations, forms } = fakeClientContext()
+    apply(ctx as never)
+    renderPage(registrations)
+
+    fireEvent.change(screen.getByLabelText('timeout'), { target: { value: '12.5' } })
+    expect(screen.getByText('invalidNumber')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    await waitFor(() => { expect(forms.mutate).not.toHaveBeenCalled() })
+  })
+
+  it('writes the credential literal through the credentials domain, never the settings section', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const credentials = fakeCredentials({ ARK_API_KEY: { configured: true, source: 'file', writable: true } })
+    const { ctx, registrations, forms } = fakeClientContext(fakeConfigForms(), credentials)
+    apply(ctx as never)
+    renderPage(registrations)
+
+    await waitFor(() => { expect(credentials.describe).toHaveBeenCalled() })
+    const keyInput = screen.getByLabelText('apiKey') as HTMLInputElement
+    fireEvent.change(keyInput, { target: { value: 'sk-browser-entry' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => { expect(credentials.set).toHaveBeenCalledWith('ARK_API_KEY', 'sk-browser-entry') })
+    // The literal never rides a settings mutation.
+    for (const call of forms.mutate.mock.calls) {
+      expect(JSON.stringify(call[0])).not.toContain('sk-browser-entry')
+    }
+    await waitFor(() => { expect((screen.getByLabelText('apiKey') as HTMLInputElement).value).toBe('') })
+  })
+
+  it('refuses a wrapped or environment-assignment key paste and clears the notice on the next edit', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const credentials = fakeCredentials()
+    const { ctx, registrations } = fakeClientContext(fakeConfigForms(), credentials)
+    apply(ctx as never)
+    renderPage(registrations)
+
+    const keyInput = screen.getByLabelText('apiKey')
+    fireEvent.change(keyInput, { target: { value: 'ARK_API_KEY=sk-value' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    await screen.findByText('apiKeyInvalid')
+    expect(credentials.set).not.toHaveBeenCalled()
+
+    fireEvent.change(keyInput, { target: { value: 'sk-value' } })
+    expect(screen.queryByText('apiKeyInvalid')).toBeNull()
+  })
+
+  it('addresses the TTS credential independently of the Ark key', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const credentials = fakeCredentials({ VOLCENGINE_TTS_KEY: { configured: false, writable: true } })
+    const { ctx, registrations } = fakeClientContext(fakeConfigForms(), credentials)
+    apply(ctx as never)
+    renderPage(registrations)
+
+    await waitFor(() => { expect(credentials.describe).toHaveBeenCalledWith(['VOLCENGINE_TTS_KEY']) })
+    fireEvent.change(screen.getByLabelText('ttsKey'), { target: { value: 'tts-token' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+
+    await waitFor(() => { expect(credentials.set).toHaveBeenCalledWith('VOLCENGINE_TTS_KEY', 'tts-token') })
+  })
+
+  it('disables every control for a read-only document and for a locked credential', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const credentials = fakeCredentials({ ARK_API_KEY: { configured: true, source: 'file', writable: false } })
+    const { ctx, registrations } = fakeClientContext(fakeConfigForms({ writable: false }), credentials)
+    apply(ctx as never)
+    renderPage(registrations)
+
+    expect((screen.getByLabelText('baseUrl') as HTMLInputElement).disabled).toBe(true)
+    await waitFor(() => { expect((screen.getByLabelText('apiKey') as HTMLInputElement).disabled).toBe(true) })
+    expect(screen.getByText('readOnly')).toBeTruthy()
+  })
+
+  it('keeps the drafts and reports the failure when the Host refuses a write', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
+    const forms = fakeConfigForms()
+    forms.mutate.mockResolvedValueOnce(false)
+    const { ctx, registrations } = fakeClientContext(forms)
+    apply(ctx as never)
+    renderPage(registrations)
+
+    fireEvent.change(screen.getByLabelText('concurrency'), { target: { value: '9' } })
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+
+    await screen.findByText('saveFailed')
+    expect((screen.getByLabelText('concurrency') as HTMLInputElement).value).toBe('9')
+  })
+
+  it('runs the local health check and the explicit Ark connection test through the actions route', async () => {
+    const health = {
+      pluginVersion: '0.1.0',
+      checks: {
+        credential: { status: 'ok', detail: 'credential ARK_API_KEY is resolvable' },
+        ttsCredential: { status: 'ok', detail: 'credential VOLCENGINE_TTS_KEY is resolvable' },
+        artifactDirectory: { status: 'ok', detail: 'Artifact directory is writable: /tmp/x' },
+        service: { status: 'ok', detail: 'Service responded at https://ark.example/v1/models (HTTP 200)' },
+      },
+      healthy: true,
+      connectionTested: true,
+    }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, value: actionSnapshot() }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, value: health }))
+    vi.stubGlobal('fetch', fetchMock)
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    const controller = new ArkSettingsController()
-    await controller.load()
-    const view = render(createElement(settings.component, {
-      controller,
-      t: (key: string) => key,
-      view: 'summary',
-    }))
+    renderPage(registrations)
 
-    // The Plugins page dispatches only `page` for a bundle config; the summary
-    // half of the contract answers with its one-liner and no card chrome.
-    expect(view.container.textContent).toBe('configured')
-    expect(view.container.querySelector('.dvt-plugin-card')).toBeNull()
+    fireEvent.click(await screen.findByRole('button', { name: 'testConnection' }))
+    await screen.findByText('healthServiceResponded')
+    // Both the Ark and the TTS credential resolve against the same fixture.
+    expect(screen.getAllByText('healthCredentialReady')).toHaveLength(2)
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit
+    expect(JSON.parse(String(request.body))).toEqual({
+      action: 'health',
+      testConnection: true,
+    })
   })
 
   it('checks for a plugin release and requires confirmation before update and restart', async () => {
@@ -358,30 +563,27 @@ describe('Ark Toolkit client plugin', () => {
       updateAvailable: true,
       checkedAt: '2026-08-16T12:00:00.000Z',
     }
+    // A restart that never lands inside the deadline: the page reports the
+    // timeout instead of reloading.
     const restart = {
       fromVersion: '0.1.0',
       toVersion: '0.2.0',
       profile: 'web',
       restarting: true,
-      retryAfterMs: 60_000,
+      retryAfterMs: 0,
     }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: update }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: restart }))
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const body = init?.body === undefined ? undefined : JSON.parse(String(init.body)) as { action?: string }
+      if (body?.action === 'check-update') return Promise.resolve(jsonResponse({ ok: true, value: update }))
+      if (body?.action === 'apply-update') return Promise.resolve(jsonResponse({ ok: true, value: restart }))
+      return Promise.resolve(jsonResponse({ ok: true, value: actionSnapshot() }))
+    })
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
+    renderPage(registrations)
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     await screen.findByText('updateAvailableDetail')
@@ -389,28 +591,19 @@ describe('Ark Toolkit client plugin', () => {
     await screen.findByText('restarting')
 
     expect(window.confirm).toHaveBeenCalledTimes(1)
-    expect(JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit).body))).toEqual({ action: 'check-update' })
-    expect(JSON.parse(String((fetchMock.mock.calls[2]?.[1] as RequestInit).body))).toEqual({
-      action: 'apply-update',
-      expectedVersion: '0.2.0',
-    })
+    const actions = fetchMock.mock.calls.map(call => JSON.parse(String((call[1] as RequestInit | undefined)?.body ?? '{}')) as { action?: string; expectedVersion?: string })
+    expect(actions).toContainEqual({ action: 'check-update' })
+    expect(actions).toContainEqual({ action: 'apply-update', expectedVersion: '0.2.0' })
   })
 
   it('links the Volcengine Ark tutorial and exposes a copyable manual update command', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: actionSnapshot() })))
     const writeText = vi.fn().mockResolvedValue(undefined)
     Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
+    renderPage(registrations)
 
     const tutorial = await screen.findByRole('link', { name: 'arkTutorial' })
     expect(tutorial.getAttribute('href')).toBe('https://github.com/nextnowlabs/dsh-ark-toolkit/blob/main/docs/ark-doubao.md')
@@ -419,7 +612,7 @@ describe('Ark Toolkit client plugin', () => {
     const code = screen.getByText(command)
     expect(code.tagName).toBe('CODE')
     fireEvent.click(screen.getByRole('button', { name: 'copy' }))
-    await waitFor(() => expect(writeText).toHaveBeenCalledWith(command))
+    await waitFor(() => { expect(writeText).toHaveBeenCalledWith(command) })
 
     await screen.findByRole('button', { name: 'copied' })
   })
@@ -441,57 +634,44 @@ describe('Ark Toolkit client plugin', () => {
       restarting: false,
       manualRestartRequired: true,
     }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: update }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: installed }))
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const body = init?.body === undefined ? undefined : JSON.parse(String(init.body)) as { action?: string }
+      if (body?.action === 'check-update') return Promise.resolve(jsonResponse({ ok: true, value: update }))
+      if (body?.action === 'apply-update') return Promise.resolve(jsonResponse({ ok: true, value: installed }))
+      return Promise.resolve(jsonResponse({ ok: true, value: actionSnapshot() }))
+    })
     vi.stubGlobal('fetch', fetchMock)
     vi.spyOn(window, 'confirm').mockReturnValue(true)
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
+    renderPage(registrations)
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     fireEvent.click(await screen.findByRole('button', { name: 'updateNow' }))
     await screen.findByText('manualRestartRequired')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
   })
 
-  it('blocks plugin installation while Settings or the API key field has unsaved changes', async () => {
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
-      .mockResolvedValueOnce(jsonResponse({
-        ok: true,
-        value: {
-          supported: true,
-          profile: 'web',
-          dependencySpec: '0.1.0',
-          currentVersion: '0.1.0',
-          latestVersion: '0.2.0',
-          updateAvailable: true,
-          checkedAt: '2026-08-16T12:00:00.000Z',
-        },
-      }))
+  it('blocks plugin installation while a draft or an API key is staged', async () => {
+    const update = {
+      supported: true,
+      profile: 'web',
+      dependencySpec: '0.1.0',
+      currentVersion: '0.1.0',
+      latestVersion: '0.2.0',
+      updateAvailable: true,
+      checkedAt: '2026-08-16T12:00:00.000Z',
+    }
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => {
+      const body = init?.body === undefined ? undefined : JSON.parse(String(init.body)) as { action?: string }
+      if (body?.action === 'check-update') return Promise.resolve(jsonResponse({ ok: true, value: update }))
+      return Promise.resolve(jsonResponse({ ok: true, value: actionSnapshot() }))
+    })
     vi.stubGlobal('fetch', fetchMock)
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
+    renderPage(registrations)
 
     fireEvent.click(await screen.findByRole('button', { name: 'checkUpdate' }))
     const updateButton = await screen.findByRole('button', { name: 'updateNow' }) as HTMLButtonElement
@@ -508,175 +688,30 @@ describe('Ark Toolkit client plugin', () => {
     expect(updateButton.disabled).toBe(true)
   })
 
-  it('locks the API key input for a read-only credential', async () => {
-    const initial = settingsSnapshot()
-    initial.credential = {
-      ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false,
-    }
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValueOnce(jsonResponse({ ok: true, value: initial })))
-
+  it('surfaces the refused runtime generation the Host kept serving', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      ok: true,
+      value: actionSnapshot({ ready: true, generation: 1, lastError: 'provider.baseUrl must be an http(s) URL' }),
+    })))
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
+    renderPage(registrations)
 
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
-    expect(keyInput.disabled).toBe(true)
-  })
-
-  it('runs the local health check and the explicit Ark connection test', async () => {
-    const health = {
-      pluginVersion: '0.1.0',
-      checks: {
-        credential: { status: 'ok', detail: 'credential ARK_API_KEY is resolvable' },
-        ttsCredential: { status: 'ok', detail: 'credential VOLCENGINE_TTS_KEY is resolvable' },
-        artifactDirectory: { status: 'ok', detail: 'Artifact directory is writable: /tmp/x' },
-        service: { status: 'ok', detail: 'Service responded at https://ark.example/v1/models (HTTP 200)' },
-      },
-      healthy: true,
-      connectionTested: true,
-    }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: settingsSnapshot() }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: health }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'testConnection' }))
-    await screen.findByText('healthServiceResponded')
-    // Both the Ark and the TTS credential resolve against the same fixture.
-    expect(screen.getAllByText('healthCredentialReady')).toHaveLength(2)
-    const request = fetchMock.mock.calls[1]?.[1] as RequestInit
-    expect(JSON.parse(String(request.body))).toEqual({
-      action: 'health',
-      testConnection: true,
-    })
-  })
-
-  it('saves Settings first, then stores the typed API key without sending it in Settings', async () => {
-    const initial = settingsSnapshot()
-    const savedSettings = {
-      ...initial,
-      settings: { ...initial.settings, revision: 2 },
-    }
-    const savedCredential = {
-      ...savedSettings,
-      credential: { ...savedSettings.credential, configured: true, source: 'file' },
-    }
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: initial }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: savedSettings }))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: savedCredential }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    const keyInput = await screen.findByLabelText('apiKey') as HTMLInputElement
-    fireEvent.change(keyInput, { target: { value: 'sk-browser-entry' } })
-    fireEvent.click(screen.getByRole('button', { name: 'save' }))
-
-    await screen.findByText('saved')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
-    const settingsBody = JSON.parse(String((fetchMock.mock.calls[1]?.[1] as RequestInit | undefined)?.body)) as Record<string, unknown>
-    const credentialBody = JSON.parse(String((fetchMock.mock.calls[2]?.[1] as RequestInit | undefined)?.body)) as Record<string, unknown>
-    expect(settingsBody.action).toBe('save')
-    expect(JSON.stringify(settingsBody)).not.toContain('sk-browser-entry')
-    expect(credentialBody).toEqual({
-      action: 'credential', expectedRevision: 2, ref: 'ARK_API_KEY', value: 'sk-browser-entry',
-    })
-    expect(keyInput.value).toBe('')
-  })
-
-  it('clears a key validation message as soon as the user edits the field', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    const keyInput = await screen.findByLabelText('apiKey')
-    fireEvent.change(keyInput, { target: { value: '   ' } })
-    fireEvent.click(screen.getByRole('button', { name: 'save' }))
-    expect(screen.getByText('apiKeyBlank')).toBeTruthy()
-
-    fireEvent.change(keyInput, { target: { value: '' } })
-    expect(screen.queryByText('apiKeyBlank')).toBeNull()
-  })
-
-  it('reloads the authoritative same-revision settings after a runtime candidate is rejected', async () => {
-    const initial = settingsSnapshot()
-    const rejected = settingsSnapshot({
-      ready: true,
-      lastError: 'provider.baseUrl must be an http(s) URL',
-    })
-    const fetchMock = vi.fn()
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: initial }))
-      .mockResolvedValueOnce(jsonResponse({
-        ok: false,
-        error: { code: 'INVALID_CONFIG', message: 'provider.baseUrl must be an http(s) URL' },
-      }, 400))
-      .mockResolvedValueOnce(jsonResponse({ ok: true, value: rejected }))
-    vi.stubGlobal('fetch', fetchMock)
-
-    const { ctx, registrations } = fakeClientContext()
-    apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
-    if (settings === undefined) throw new Error('Settings card was not registered')
-    render(createElement(settings.component, {
-      controller: new ArkSettingsController(),
-      t: (key: string) => key,
-    }))
-
-    fireEvent.click(await screen.findByRole('button', { name: 'expand: settingsTitle' }))
-
-    const concurrency = await screen.findByLabelText('concurrency')
-    fireEvent.change(concurrency, { target: { value: '7' } })
-    fireEvent.click(screen.getByRole('button', { name: 'save' }))
     await screen.findByText('provider.baseUrl must be an http(s) URL')
-    const saveRequest = fetchMock.mock.calls[1]?.[1] as RequestInit
-    expect(JSON.parse(String(saveRequest.body))).toMatchObject({
-      value: {
-        concurrency: 7,
-      },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: 'reload' }))
-    await waitFor(() => {
-      expect((screen.getByLabelText('baseUrl') as HTMLInputElement).value).toBe('https://ark.cn-beijing.volces.com/api/v3')
-    })
     expect(screen.getByText('runtimeCandidateRejected')).toBeTruthy()
-    expect(screen.queryByText('runtimeUnavailable')).toBeNull()
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('reports an unavailable runtime instead of promising a probe', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({
+      ok: true,
+      value: actionSnapshot({ ready: false, generation: 0 }),
+    })))
+    const { ctx, registrations } = fakeClientContext()
+    apply(ctx as never)
+    renderPage(registrations)
+
+    await waitFor(() => {
+      expect((screen.getByRole('button', { name: 'runHealth' }) as HTMLButtonElement).disabled).toBe(true)
+    })
   })
 })

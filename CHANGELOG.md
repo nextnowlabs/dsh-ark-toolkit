@@ -2,6 +2,32 @@
 
 All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
+## [0.1.2] - 2026-09-22
+
+### BREAKING
+
+- **跟进 DSH `0.1.7-alpha.1`。** 全部 `@deepseek-ai/dsh-*` peer/dev 依赖升级到 `0.1.7-alpha.1`（`@deepseek-ai/cordis` 升到 `^4.0.3`，`@deepseek-ai/schemastery` 升到 `^3.18.3`），新增 `@deepseek-ai/cordis-plugin-loader@^1.0.4` 作为 peer 依赖（提供 `loader/volatile-update` 事件的类型声明），以及 `@deepseek-ai/dsh-client-ui-settings`、`@deepseek-ai/dsh-client-ui-plugin-manager` 两个客户端 peer（配置页与共享配置表单的提供方）。**插件配置不再有独立命名空间**：DSH `0.1.7` 删除了 `ctx.settings.register()` / `SettingsScope`（`get`/`watch`/`update`/`replace`）与 `settings.yaml`，改为「插件在 profile 补丁里的那一行 `config` 就是它的设置」，按 **profile entry id**（本插件为 `ark-toolkit`）读写。因此 `ARK_TOOLKIT_SETTINGS_NAMESPACE` 更名为 `ARK_TOOLKIT_ENTRY_ID`（与客户端页面的 `ENTRY_ID` 是同一行 id 的两份声明，两半分开编译、必须逐字一致）；旧 `settings.yaml` 里的 `ark-toolkit` 段需要迁移到 profile 补丁该行的 `config`（DSH 自带的迁移逻辑会读一次 `settings.yaml` 并改名为 `settings.yaml.imported`，未被任何插件接受的段只留在改名后的文件里）。
+
+### Changed
+
+- **配置改为响应式 `volatile` 引用，改配置不再重挂载插件。** `Config` 的每个字段都声明 `.volatile()`：DSH 只接受落在 volatile 节点之下的表单写入（否则报 `Config field ... is not volatile`），并把提交后的值就地写进插件持有的引用，而不是卸载重载插件。插件据此在 `loader/volatile-update` 上重建 runtime：先完整准备新一代，成功后原子切换，失败则保留上一代并在日志里说明原因。新增 `readArkToolkitConfig()` 用于把引用读成普通快照。
+- **`settings` 从硬依赖变为可选注入。** Ark 工具的可用性不再取决于 profile 是否挂载 settings 服务——配置本来就来自 Loader entry；只有 **插件** 面板里的配置卡片在没有 settings 时降级。`ctx.settings.configure({ auto: false }, ctx.fiber)` 声明本 bundle 自带配置卡片，避免与通用表单重复。
+- **配置页改用平台原语：`plugins.item` 页面 + `ctx.configForms`。** 配置界面从「bundle 页面里的自制卡片」改为**本插件在「设置 → 插件」里的独立页面**（`plugins.item` 列表槽，`id` 为 profile entry id `ark-toolkit`，`whileServed` 保证宿主未加载该行时整页不出现），表单用平台的 `SettingsForm` / `SettingsValueField` / `SettingsSecretField` 渲染，读写走 `ctx.configForms.get(entryId)` 的 `mutate`。字段按嵌套路径寻址（如 `['provider','tts','voice']`），一次保存=一次带 revision 栅栏的原子写入，草稿只在保存时才落盘。
+- **删掉自带的配置与凭据 HTTP 路由。** `src/web.ts` 不再提供 `action: 'save'` / `action: 'credential'`，也不再从宿主侧读写配置——DSH `0.1.7` 的 Remote `settings` 与 `credentials` 域本身就是带 revision 栅栏、密钥出站单向、且在 wire 边界脱敏的正规路径，私有路由只会是同一条文档的第二条更弱的写入口。`src/settings-form.ts` 随之删除，`src/index.ts` 只保留 `ctx.settings.configure({ auto: false }, ctx.fiber)`（声明本 bundle 自带配置页）。剩下的 `/_dsh/ark-toolkit/settings` 只承载**动作**：健康检查与插件更新。
+- **凭据徽标改由 `remote.credentials` 驱动。** API Key / TTS Token 的「已配置 / 只读 / 来源」状态通过 `ctx.remote.credentials.describe()` 读取，写入通过 `credentials.set()`；两者都在浏览器侧完成，密钥永不经过插件的自有路由。粘贴校验（`KEY=value` 整行、引号包裹、非可打印字符）保留在客户端，并在下次编辑时自动清除提示。
+- **初始配置非法时响亮失败。** 与 DSH 自家插件一致：schema 通过但 `resolveConfig` 拒绝的初始配置（如 `provider.baseUrl` 不是 http(s)）会**中止插件激活**并报出具体字段，而不是挂载一套永远跑不通的能力。只有*热更新*才走「保留上一代 + 记录错误」。
+
+### Fixed
+
+- **修复健康检查的产物目录永远报错。** Web 卡片里的健康检查使用 `$TMPDIR/dsh-ark-toolkit-health-<pid>` 作为临时工作区，但从未创建它；产物路径策略在暂存前会先解析该工作区，目录不存在即抛错，于是「产物目录」一项无论配置如何都显示 Error。现在先 `mkdir` 再探测，该项如实反映真实工作区。
+- **跟进 DSH `0.1.7` 移除 `tool-result` 内容块。** 工具结果不再是 `ContentBlock` 联合的一支，而是独立的 `ToolResultMessage`（直接携带 `toolCallId`/`isError`/`content`）。历史会话里「是否加载过 ark-skills」的判定随之简化：不再遍历消息内容找 `type === 'tool-result'` 的块，改为直接读该消息本身。旧写法在 `0.1.7` 上已无法通过类型检查，强行兼容会让「从历史恢复激活」永久失效。
+
+### Internal
+
+- **`pnpm-workspace.yaml` 同步重生成。** `allowBuilds` 更新为 `@deepseek-ai/dsh-subprocess-local@0.1.7-alpha.1`，`minimumReleaseAgeExclude` 按新 lockfile 的实际解析结果整体重生成（新增 `cordis-plugin-include`、`cosmokit`、`dsh-app-boot`、`dsh-config-editor`、`dsh-session-format-v3-to-v4` 等）；删除旧 lockfile 并用全新元数据重新解析，避免旧 metadata 缓存把自动安装的 peer 解析回 `0.1.6-alpha.2` 形成混装。
+- **测试夹具适配新模型。** `tests/client.spec.ts` 用一份内存 `ConfigForm`（`getSnapshot`/`subscribe`/`mutate`）与假 `remote.credentials` 驱动配置页，覆盖「暂存不写盘」「一次保存=一条嵌套路径 mutate」「字段清空→`unset`」「非法数字阻止保存」「宿主拒绝后保留草稿」「凭据只走 credentials 域」「只读文档禁用控件」「`whileServed` 门控」「健康检查与更新动作」等用例；`tests/client-ui-primitives-stub.tsx` 补齐 `SettingsForm` / `SettingsValueField` / `SettingsSecretField` 的 DOM 替身；`tests/web.spec.ts` 收敛为动作路由（运行时状态、健康检查、更新、来源校验），并断言配置写入**不再**经由该路由；`tests/tools.spec.ts` 删除已失效的 settings provider 夹具（插件不再需要它）；`tests/config.spec.ts` 新增 volatile 契约用例（字段必须暴露 `get()`、快照冻结、引用身份稳定、缺省节默认值齐备）。
+- **客户端类型面补齐子路径解析。** `tsconfig.client.json` 为 `@deepseek-ai/dsh-client-ui-settings/client`、`@deepseek-ai/dsh-client-ui-plugin-manager/client`、以及 `dsh-api-remotes` 转引的 `@deepseek-ai/dsh-api-gateway/client` 与 `@deepseek-ai/dsh-api-settings-controller/remote` 补上 `paths`：客户端走 node10 解析读不到包的 `exports` 子路径，缺失时类型会**静默退化**成 any（`ctx.configForms`、`ctx.remote.credentials` 都会变成不存在的属性）。
+
 ## [0.1.1] - 2026-09-22
 
 ### Changed

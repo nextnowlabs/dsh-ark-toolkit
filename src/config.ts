@@ -7,8 +7,8 @@
  * @module dsh-ark-toolkit/config
  */
 
+import type { Volatile } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
-import type Schema from '@deepseek-ai/schemastery'
 import { credentialRef, type CredentialRef } from '@deepseek-ai/dsh-credentials'
 import { ArkToolkitError } from './errors.ts'
 import {
@@ -33,8 +33,15 @@ export {
   VOLCENGINE_TTS_VOICE,
 } from './defaults.ts'
 
-/** Settings document namespace owned by this plugin (a plain string, no branded constructor). */
-export const ARK_TOOLKIT_SETTINGS_NAMESPACE = 'ark-toolkit' as const
+/**
+ * Id of the profile entry that loads this bundle, as this bundle's own
+ * `cordis.patch.yml` declares it. DSH `0.1.7` addresses a plugin's
+ * configuration by that id, so it is also the settings namespace a form write
+ * names. The browser half declares the same literal as `ENTRY_ID` — the two
+ * halves compile separately, so neither can import the other, and the two
+ * declarations must stay identical.
+ */
+export const ARK_TOOLKIT_ENTRY_ID = 'ark-toolkit'
 
 /** Browser-compatible default User-Agent shared by every outbound request. */
 export const DEFAULT_PROVIDER_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
@@ -79,8 +86,27 @@ export interface ArkToolkitConfig {
   concurrency?: number
 }
 
-/** Configuration schema with the documented defaults. */
-export const Config: Schema<ArkToolkitConfig> = z.object({
+/**
+ * Live plugin Config as `apply` receives it: every field is a stable reference
+ * the Loader updates in place, so a Settings write changes the running plugin's
+ * configuration without disposing and remounting it.
+ */
+export interface ArkToolkitConfigRefs {
+  /** Ark/TTS provider endpoints and credential references. */
+  provider: Volatile<ArkToolkitConfig['provider']>
+  /** Per-call upstream budget in milliseconds. */
+  timeoutMs: Volatile<number>
+  /** In-flight tool execution cap per session. */
+  concurrency: Volatile<number>
+}
+
+/**
+ * Configuration schema with the documented defaults. Every field is declared
+ * `volatile()`: DSH only accepts a live form write on a field beneath a
+ * volatile node, and the plugin rebuilds its runtime from the references
+ * instead of waiting for a remount.
+ */
+export const Config = z.object({
   provider: z.object({
     baseUrl: z.string().default(ARK_BASE_URL),
     credential: z.string().default(ARK_CREDENTIAL),
@@ -91,10 +117,24 @@ export const Config: Schema<ArkToolkitConfig> = z.object({
       resource: z.string().default(VOLCENGINE_TTS_RESOURCE),
       voice: z.string().default(VOLCENGINE_TTS_VOICE),
     }),
-  }),
-  timeoutMs: z.number().default(600000),
-  concurrency: z.number().default(4),
+  }).volatile(),
+  timeoutMs: z.number().default(600000).volatile(),
+  concurrency: z.number().default(4).volatile(),
 })
+
+/**
+ * Read the plain configuration currently behind every reference.
+ * @param config - live plugin Config.
+ * @returns a detached snapshot safe to validate, fingerprint, or persist.
+ */
+export function readArkToolkitConfig(config: ArkToolkitConfigRefs): ArkToolkitConfig {
+  const provider = config.provider.get()
+  return {
+    ...(provider === undefined ? {} : { provider }),
+    timeoutMs: config.timeoutMs.get(),
+    concurrency: config.concurrency.get(),
+  }
+}
 
 /** Configuration after static validation, with every default materialized. */
 export interface ResolvedArkToolkitConfig {

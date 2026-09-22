@@ -74,9 +74,9 @@ check(pkg.files?.includes('patches') === false, 'upstream patches must stay out 
 check(pkg.scripts?.['verify:portable'] === 'node scripts/verify-portable.mjs', 'verify:portable script is missing or changed')
 check(pkg.scripts?.build?.includes('node scripts/build-client.mjs') === true, 'build must bundle the Web client')
 check(pkg.dependencies?.sharp === '0.34.2', 'sharp must be pinned to the exact prebuilt-binary release')
-check(pkg.peerDependencies?.['@deepseek-ai/schemastery'] === '^3.18.1', '@deepseek-ai/schemastery must be a host-provided peer dependency')
+check(pkg.peerDependencies?.['@deepseek-ai/schemastery'] === '^3.18.3', '@deepseek-ai/schemastery must be a host-provided peer dependency')
 check(pkg.peerDependencies?.schemastery === undefined, 'unscoped schemastery peer dependency must remain absent')
-check(pkg.peerDependencies?.['@deepseek-ai/cordis'] === '^4.0.2', '@deepseek-ai/cordis must be a host-provided peer dependency')
+check(pkg.peerDependencies?.['@deepseek-ai/cordis'] === '^4.0.3', '@deepseek-ai/cordis must be a host-provided peer dependency')
 check(pkg.peerDependencies?.cordis === undefined, 'unscoped cordis peer dependency must remain absent')
 
 const dependencyGroups = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies']

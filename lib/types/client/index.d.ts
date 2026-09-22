@@ -1,9 +1,16 @@
 /**
- * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the bundle
- * configuration card on the bundle's page in the Plugins panel, with health
- * checks, connection tests, and safe Artifact previews.
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the plugin's own
+ * configuration page in the Plugins panel, with health checks, connection
+ * tests, plugin updates, and safe Artifact previews.
+ *
+ * DSH `0.1.7` made one plugin entry's `config` its settings, reachable from the
+ * browser through `ctx.configForms` and written through the Remote settings
+ * namespace. This client therefore keeps no configuration route of its own:
+ * the page stages drafts, the form model turns them into path-addressed
+ * mutations, and credentials ride the credentials domain.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
+import { type SettingsFormShell } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
 declare const en: {
     readonly settingsTitle: "Volcengine Ark Toolkit";
@@ -121,6 +128,23 @@ declare const en: {
     readonly statusWarning: "Warning";
     readonly statusError: "Error";
     readonly statusNotTested: "Not tested";
+    readonly unavailable: "This profile does not serve the Ark Toolkit configuration entry.";
+    readonly saveFailed: "The Host did not accept the staged changes.";
+    readonly overridden: "overridden";
+    readonly reset: "reset";
+    readonly invalidNumber: "Enter a whole number.";
+    readonly baseUrlHint: "Ark API base URL; /images/generations is appended.";
+    readonly userAgentHint: "Outbound User-Agent for Ark and Volcengine requests.";
+    readonly ttsBaseUrlHint: "Volcengine Speech TTS V3 endpoint.";
+    readonly ttsResourceHint: "TTS resource / app id, e.g. seed-tts-2.0.";
+    readonly ttsVoiceHint: "Default voice id. A tool call may override it per request.";
+    readonly timeoutHint: "Per-call upstream budget in milliseconds (1000-600000).";
+    readonly concurrencyHint: "In-flight Ark tool executions per session (1-16).";
+    readonly credentialRefHint: "DSH Credential reference holding the Ark API key. The key itself is stored in DSH Credentials and is never shown again after saving.";
+    readonly ttsCredentialRefHint: "DSH Credential reference holding the TTS token, independent of the Ark API key.";
+    readonly modelReadOnly: "Model";
+    readonly modelReadOnlyHint: "Seedream aliases are resolved by the tool; this page does not change them.";
+    readonly apiKeyHidden: "The API key is stored in DSH Credentials and is never shown again after saving.";
     readonly positiveInteger: "{field} must be a positive integer.";
     readonly healthCredentialMissing: "Credential {credential} is not configured.";
     readonly healthCredentialReady: "Credential {credential} is available.";
@@ -155,27 +179,9 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
             scope: 'session';
             owner: ToolCallOwnerProps;
         };
-        /**
-         * This bundle's own configuration, keyed by its package name and rendered
-         * on the bundle's page in the Plugins panel. DSH `0.1.6` replaced the
-         * former `settings.plugin.item` seat (a card in the retired
-         * 设置 → 插件 → 插件配置 tab) with the plugin-manager page's bundle slot,
-         * so the card moved here; the page draws the title, icon, and crumb itself
-         * and asks for `page` (the form) or `summary` (its one-liner).
-         */
-        'plugins.bundle.config': {
-            kind: 'keyed';
-            scope: 'root';
-            owner: PluginConfigViewProps;
-        };
-    }
-    /** Owner share of one configuration view; the page supplies the requested view. */
-    interface PluginConfigViewProps {
-        /** `summary` renders the one-liner alone; `page` renders the form. */
-        readonly view: 'summary' | 'page';
     }
     interface LocaleNamespaceMap {
-        /** DSH Ark Toolkit Tool cards and Settings copy. */
+        /** DSH Ark Toolkit Tool cards and configuration-page copy. */
         'ark-toolkit': LocaleKey;
     }
 }
@@ -188,21 +194,6 @@ interface HealthResult {
     checks: Record<string, HealthCheck>;
     healthy: boolean;
     connectionTested: boolean;
-}
-interface SettingsValue {
-    provider?: {
-        baseUrl?: string;
-        credential?: string;
-        userAgent?: string;
-        tts?: {
-            baseUrl?: string;
-            credential?: string;
-            resource?: string;
-            voice?: string;
-        };
-    };
-    timeoutMs?: number;
-    concurrency?: number;
 }
 type PluginUpdateUnavailableReason = 'profile-not-found' | 'not-direct-dependency' | 'unsupported-install-source' | 'profile-read-only' | 'pnpm-unavailable' | 'unsupported-platform' | 'restart-unmanaged' | 'restart-address-unavailable';
 interface PluginUpdateCapability {
@@ -233,69 +224,146 @@ type PluginUpdateResult = {
     manualRestartRequired: true;
     retryAfterMs?: undefined;
 };
-interface SettingsSnapshot {
-    schemaVersion: 1;
+/** Decode canonical presentation metadata with a JSON-text fallback. */
+export declare function decodeArkResult(block: ToolCallBlock): Record<string, unknown> | undefined;
+/** Health/update action state: everything this page does that is not a config write. */
+interface HostActionState {
+    health?: HealthResult | undefined;
+    update?: PluginUpdateCheck | undefined;
+    restart?: PluginUpdateResult | undefined;
+    action?: 'health' | 'connection' | 'check-update' | 'apply-update' | undefined;
+    message?: 'restarting' | 'manual-restart-required' | undefined;
+    error?: string | undefined;
+    /** Restart-watch failure, kept as a dictionary key so the page translates it. */
+    restartError?: 'restartTimedOut' | 'restartRolledBack' | undefined;
+}
+/** One control as the platform fields render it. */
+interface StagedField {
+    text: string;
+    overridden: boolean;
+    invalid: boolean;
+}
+/** What the credentials domain last answered for one reference. */
+interface CredentialView {
+    ref: string;
+    configured: boolean;
+    source?: string | undefined;
     writable: boolean;
-    settings: {
-        value: SettingsValue;
-        revision: number;
-        applies: 'live';
-    };
-    credential: {
-        ref: string;
-        configured: boolean;
-        source?: string;
-        writable: boolean;
-    };
-    credentialTts: {
-        ref: string;
-        configured: boolean;
-        source?: string;
-        writable: boolean;
-    };
-    runtime: {
-        ready: boolean;
-        generation: number;
-        activeConfig?: SettingsValue;
-        lastError?: string;
-    };
+}
+/** The runtime facts the Host reports for the serving generation. */
+interface RuntimeStatus {
+    ready: boolean;
+    generation: number;
+    lastError?: string | undefined;
+}
+/** Everything this page renders, rebuilt whenever the form or an action changes. */
+interface PageState extends SettingsFormShell {
+    status: 'loading' | 'ready' | 'unavailable';
     release: {
         pluginVersion: string;
         update: PluginUpdateCapability;
     };
-    artifactRouteAvailable: boolean;
+    runtime: RuntimeStatus;
+    credential: CredentialView;
+    credentialTts: CredentialView;
+    fields: Record<string, StagedField>;
+    keyError?: LocaleKey | undefined;
+    host: HostActionState;
 }
-/** Decode canonical presentation metadata with a JSON-text fallback. */
-export declare function decodeArkResult(block: ToolCallBlock): Record<string, unknown> | undefined;
-interface SettingsState {
-    status: 'idle' | 'loading' | 'ready' | 'error';
-    snapshot?: SettingsSnapshot | undefined;
-    health?: HealthResult | undefined;
-    update?: PluginUpdateCheck | undefined;
-    restart?: PluginUpdateResult | undefined;
-    action?: 'save' | 'health' | 'connection' | 'check-update' | 'apply-update' | undefined;
-    message?: string | undefined;
-    error?: string | undefined;
-}
-/** Small external store shared by the Settings route and pushed invalidations. */
-export declare class ArkSettingsController {
+/**
+ * The Ark Toolkit page's controller: the staged drafts over this plugin's own
+ * profile entry, the credentials its section references, and the Host actions
+ * (health checks and plugin updates) that are not configuration writes.
+ *
+ * Drafts are staged and written only on save, because every settings write is a
+ * durable revision-fenced document mutation: a control that committed as it
+ * settled would turn one edit into a write the user never asked for.
+ */
+export declare class ArkToolkitPageController {
+    private readonly ctx;
+    private readonly scope;
+    private readonly unsubscribe;
+    private readonly listeners;
     private state;
-    private listeners;
-    private generation;
+    private readonly drafts;
+    private saving;
+    private failed;
+    private credential;
+    private credentialTts;
+    private keyError;
+    private host;
+    private restartPoll;
+    constructor(ctx: ClientContext);
     subscribe: (listener: () => void) => (() => void);
-    snapshot: () => SettingsState;
-    private set;
-    load(): Promise<void>;
-    refreshIfLoaded(): void;
-    save(value: SettingsValue, expectedRevision: number, credentialValue: string | undefined, credentialTtsValue: string | undefined, writeSettings: boolean): Promise<boolean>;
+    snapshot: () => PageState;
+    private publish;
+    /** Rebuild the whole page state from the form snapshot, the credentials, and the Host actions. */
+    private projection;
+    private shell;
+    /** One control's staged text, whether a save would leave an override, and whether it is invalid. */
+    private fieldOf;
+    private formatValue;
+    /** Turn one draft into a write, a clear, or a rejection. */
+    private parseField;
+    /** Every section edit a save would write. An unparseable draft contributes nothing and blocks the save. */
+    private plannedOps;
+    /** Every credential literal a save would write, addressed by the reference in force. */
+    private plannedSecrets;
+    /** The Ark credential reference this section names, staged value first. */
+    private arkRef;
+    /** The TTS credential reference this section names, staged value first. */
+    private ttsRef;
+    private refOf;
+    /** Stage draft text for one control. */
+    edit(field: string, text: string): void;
+    /** Stage a clear, so saving lets the field re-inherit the composition layer. */
+    resetField(field: string): void;
+    /** Drop every staged edit. */
+    discard(): void;
+    /**
+     * Write every staged edit: the section mutations first, so a changed
+     * credential reference is in force, then the credential literals themselves.
+     */
+    save(): Promise<void>;
+    /** Read the runtime facts and update capability the Host route reports. */
+    private loadHost;
+    private release;
+    private runtime;
+    /**
+     * Ask the credentials domain about both references the section names.
+     *
+     * Every answer is published only while it still describes the reference in
+     * force: an edit can change the reference between a request and its response,
+     * and two reads can settle out of order.
+     */
+    private readCredentials;
+    private readCredential;
+    /**
+     * Re-read after the Host reports a change to one reference.
+     * @param ref - the credential reference the Host reports as changed.
+     */
+    refreshCredential(ref: string): void;
     runHealth(mode: 'health' | 'connection'): Promise<void>;
     checkUpdate(): Promise<void>;
     applyUpdate(expectedVersion: string): Promise<void>;
-    reportRestartTimeout(message: string): void;
+    /**
+     * Poll the Host until the replacement process serves the new version, and
+     * reload the page once it does. A profile that came back on the old version
+     * rolled the update back; the deadline covers a restart that never lands.
+     */
+    private watchRestart;
+    private reportRestartTimeout;
+    /** Release the form subscription and any restart poll. */
+    dispose(): void;
 }
 /** Required client services. */
+/**
+ * Required client services: the slot registry, the locale registry, the Remote
+ * domain (with its `credentials` namespace), and the shared configuration forms
+ * keyed by profile entry id.
+ */
 export declare const inject: string[];
-/** Register dedicated Tool views and the Ark Toolkit plugin-configuration card. */
+/** Register dedicated Tool views and this plugin's configuration page. */
 export declare function apply(ctx: ClientContext): void;
 export {};
 //# sourceMappingURL=index.d.ts.map

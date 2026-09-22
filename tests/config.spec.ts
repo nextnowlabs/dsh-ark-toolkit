@@ -3,7 +3,10 @@ import {
   ARK_BASE_URL,
   ARK_CREDENTIAL,
   ARK_SEEDREAM_MODEL,
+  ARK_TOOLKIT_ENTRY_ID,
+  Config,
   DEFAULT_PROVIDER_USER_AGENT,
+  readArkToolkitConfig,
   resolveConfig,
   resolveSeedreamModel,
   SEEDREAM_MODEL_ALIASES,
@@ -12,6 +15,67 @@ import {
   VOLCENGINE_TTS_URL,
   VOLCENGINE_TTS_VOICE,
 } from '../src/config.ts'
+
+describe('Config schema', () => {
+  it('declares every field volatile, which is what DSH accepts a live write on', () => {
+    const parsed = Config({ provider: { credential: 'MY_ARK_KEY' }, timeoutMs: 45000, concurrency: 2 })
+
+    // A non-volatile field makes DSH refuse every form write for this entry
+    // ("Config field ... is not volatile") and would silently reduce the
+    // bundle's configuration card to a read-only view.
+    expect(typeof parsed.provider.get).toBe('function')
+    expect(typeof parsed.timeoutMs.get).toBe('function')
+    expect(typeof parsed.concurrency.get).toBe('function')
+
+    expect(readArkToolkitConfig(parsed)).toMatchObject({
+      provider: {
+        baseUrl: ARK_BASE_URL,
+        credential: 'MY_ARK_KEY',
+        userAgent: DEFAULT_PROVIDER_USER_AGENT,
+        tts: { baseUrl: VOLCENGINE_TTS_URL, resource: VOLCENGINE_TTS_RESOURCE, voice: VOLCENGINE_TTS_VOICE },
+      },
+      timeoutMs: 45000,
+      concurrency: 2,
+    })
+  })
+
+  it('returns a frozen snapshot behind a reference whose identity survives reads', () => {
+    const parsed = Config({ provider: { credential: ARK_CREDENTIAL } })
+    const snapshot = readArkToolkitConfig(parsed)
+
+    // A volatile snapshot is an immutable copy: a runtime that stashed one
+    // cannot rewrite this plugin's configuration by mutating it.
+    expect(Object.isFrozen(snapshot.provider)).toBe(true)
+    expect(Object.isFrozen(snapshot.provider?.tts)).toBe(true)
+    // The reference itself is stable — that stability is what lets a Settings
+    // write change the running plugin without disposing and remounting it.
+    expect(parsed.provider).toBe(parsed.provider)
+    expect(readArkToolkitConfig(parsed).provider).toEqual(snapshot.provider)
+  })
+
+  it('materializes every documented default for an absent section', () => {
+    const snapshot = readArkToolkitConfig(Config({}))
+
+    expect(snapshot.provider).toEqual({
+      baseUrl: ARK_BASE_URL,
+      credential: ARK_CREDENTIAL,
+      userAgent: DEFAULT_PROVIDER_USER_AGENT,
+      tts: {
+        baseUrl: VOLCENGINE_TTS_URL,
+        credential: VOLCENGINE_TTS_CREDENTIAL,
+        resource: VOLCENGINE_TTS_RESOURCE,
+        voice: VOLCENGINE_TTS_VOICE,
+      },
+    })
+    expect(snapshot.timeoutMs).toBe(600000)
+    expect(snapshot.concurrency).toBe(4)
+    expect(resolveConfig(snapshot).provider.baseUrl).toBe(ARK_BASE_URL)
+  })
+
+  it('names the profile entry DSH derives from the bundle package name', () => {
+    expect(ARK_TOOLKIT_ENTRY_ID).toBe('ark-toolkit')
+  })
+})
 
 describe('resolveConfig', () => {
   it('applies the ByteDance Volcengine Ark defaults', () => {

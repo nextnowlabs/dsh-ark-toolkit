@@ -22,7 +22,7 @@ dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 >
 > 源码贡献者如需本地开发/修改插件，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`（此时使用仓库 `lib/` 构建产物，升级时 `git pull` 后重启 Profile 即可）。
 
-安装后**重启正在运行的 Profile**，在 Web 中打开 **插件** 面板，进入 `dsh-ark-toolkit` 页面并展开 Ark Toolkit 卡片。
+安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 插件**，进入 **Volcengine Ark Toolkit** 页面。
 
 插件是**原生 Node/TypeScript** 实现：文生图与语音合成都直接调用字节服务的 HTTP 接口，生成图片的尺寸探测使用 Node 原生方案（sharp），安装后即可使用。
 
@@ -52,7 +52,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 2.2 填写 API Key
 
-在 **插件** 面板 `dsh-ark-toolkit` 页面的 Ark Toolkit 卡片 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 插件 → Volcengine Ark Toolkit** 页面的 **API key** 里粘贴火山方舟 API Key，点击 **Save and apply**。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），配置里只保存 Credential 引用，密钥不会回显。
 
 保存后运行 **测试 API 连接**，确认方舟端点可达。
 
@@ -81,7 +81,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 
 ## 4. 完整配置参考（Profile patch）
 
-除在 Web Settings 里配置外，所有字段都支持在 Profile patch 中覆盖。下面是包含全部常用字段的示例：
+除在 Web Settings 里配置外，所有字段都支持在 Profile patch 中覆盖。下面是包含全部常用字段的示例（DSH 0.1.7 起，这段 `config` 就是插件设置本身，没有第二处存储）：
 
 ```yaml
 - id: ark-toolkit
@@ -117,13 +117,15 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 | `timeoutMs` | `600000` | 单次远程调用超时 |
 | `concurrency` | `4` | 会话内并发工具执行上限 |
 
+> 升级到 0.1.2 后（配合 DSH 0.1.7 及以上），插件配置**就是**上表这一行 `config`：DSH 已下线 `settings.yaml` 与插件的设置命名空间，所以配置只存在于 profile 补丁里，Web 卡片读写的就是这一段。从 0.1.1 及更早版本升级时，请把旧 `settings.yaml` 里 `ark-toolkit` 段的内容搬到本行 `config` 下（DSH 启动时会把 `settings.yaml` 读一次并改名为 `settings.yaml.imported`，未被接受的段只留在改名后的文件里）。
+
 > 升级到 0.1.0 后，旧配置里的 `provider.model`、`provider.protocol`、`language`、`maxImageBytes`、`maxImagePixels`、`imageInputVariants`、`allowedDirs` 已随图片理解能力一并移除；它们会被安全忽略，不会导致插件加载失败。
 
 ---
 
 ## 5. 验证配置
 
-- **Web：** 打开 **插件** 面板 `dsh-ark-toolkit` 页面的 Ark Toolkit 卡片，运行 **检查本地环境**（凭据与输出目录）或 **测试 API 连接**（请求方舟 `/models`）；
+- **Web：** 打开 **设置 → 插件 → Volcengine Ark Toolkit** 页面，运行 **Run health check**（凭据与输出目录）或 **Test API connection**（请求方舟 `/models`）；
 - **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务检查为 `ok`；
 - **直接调用：** 在会话里调用 `ark_generate_image` / `ark_speak` 验证生成能力。
 

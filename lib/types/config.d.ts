@@ -6,11 +6,19 @@
  * to locate.
  * @module dsh-ark-toolkit/config
  */
-import type Schema from '@deepseek-ai/schemastery';
+import type { Volatile } from '@deepseek-ai/cordis';
+import z from '@deepseek-ai/schemastery';
 import { type CredentialRef } from '@deepseek-ai/dsh-credentials';
 export { ARK_BASE_URL, ARK_CREDENTIAL, ARK_SEEDREAM_MODEL, SEEDREAM_MODEL_ALIASES, VOLCENGINE_TTS_CREDENTIAL, VOLCENGINE_TTS_RESOURCE, VOLCENGINE_TTS_URL, VOLCENGINE_TTS_VOICE, } from './defaults.ts';
-/** Settings document namespace owned by this plugin (a plain string, no branded constructor). */
-export declare const ARK_TOOLKIT_SETTINGS_NAMESPACE: "ark-toolkit";
+/**
+ * Id of the profile entry that loads this bundle, as this bundle's own
+ * `cordis.patch.yml` declares it. DSH `0.1.7` addresses a plugin's
+ * configuration by that id, so it is also the settings namespace a form write
+ * names. The browser half declares the same literal as `ENTRY_ID` — the two
+ * halves compile separately, so neither can import the other, and the two
+ * declarations must stay identical.
+ */
+export declare const ARK_TOOLKIT_ENTRY_ID = "ark-toolkit";
 /** Browser-compatible default User-Agent shared by every outbound request. */
 export declare const DEFAULT_PROVIDER_USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 /**
@@ -48,8 +56,100 @@ export interface ArkToolkitConfig {
     /** In-flight tool execution cap per session. */
     concurrency?: number;
 }
-/** Configuration schema with the documented defaults. */
-export declare const Config: Schema<ArkToolkitConfig>;
+/**
+ * Live plugin Config as `apply` receives it: every field is a stable reference
+ * the Loader updates in place, so a Settings write changes the running plugin's
+ * configuration without disposing and remounting it.
+ */
+export interface ArkToolkitConfigRefs {
+    /** Ark/TTS provider endpoints and credential references. */
+    provider: Volatile<ArkToolkitConfig['provider']>;
+    /** Per-call upstream budget in milliseconds. */
+    timeoutMs: Volatile<number>;
+    /** In-flight tool execution cap per session. */
+    concurrency: Volatile<number>;
+}
+/**
+ * Configuration schema with the documented defaults. Every field is declared
+ * `volatile()`: DSH only accepts a live form write on a field beneath a
+ * volatile node, and the plugin rebuilds its runtime from the references
+ * instead of waiting for a remount.
+ */
+export declare const Config: z<Schemastery.ObjectS<NoInfer<{
+    provider: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        baseUrl: z<string, string, "defined">;
+        credential: z<string, string, "defined">;
+        userAgent: z<string, string, "defined">;
+        tts: z<Schemastery.ObjectS<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, Schemastery.ObjectT<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, "plain">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        baseUrl: z<string, string, "defined">;
+        credential: z<string, string, "defined">;
+        userAgent: z<string, string, "defined">;
+        tts: z<Schemastery.ObjectS<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, Schemastery.ObjectT<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, "plain">;
+    }>>>, "volatile">;
+    timeoutMs: z<number, number, "volatile-defined">;
+    concurrency: z<number, number, "volatile-defined">;
+}>>, Schemastery.ObjectT<NoInfer<{
+    provider: z<NoInfer<Schemastery.ObjectS<NoInfer<{
+        baseUrl: z<string, string, "defined">;
+        credential: z<string, string, "defined">;
+        userAgent: z<string, string, "defined">;
+        tts: z<Schemastery.ObjectS<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, Schemastery.ObjectT<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, "plain">;
+    }>>>, NoInfer<Schemastery.ObjectT<NoInfer<{
+        baseUrl: z<string, string, "defined">;
+        credential: z<string, string, "defined">;
+        userAgent: z<string, string, "defined">;
+        tts: z<Schemastery.ObjectS<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, Schemastery.ObjectT<NoInfer<{
+            baseUrl: z<string, string, "defined">;
+            credential: z<string, string, "defined">;
+            resource: z<string, string, "defined">;
+            voice: z<string, string, "defined">;
+        }>>, "plain">;
+    }>>>, "volatile">;
+    timeoutMs: z<number, number, "volatile-defined">;
+    concurrency: z<number, number, "volatile-defined">;
+}>>, "plain">;
+/**
+ * Read the plain configuration currently behind every reference.
+ * @param config - live plugin Config.
+ * @returns a detached snapshot safe to validate, fingerprint, or persist.
+ */
+export declare function readArkToolkitConfig(config: ArkToolkitConfigRefs): ArkToolkitConfig;
 /** Configuration after static validation, with every default materialized. */
 export interface ResolvedArkToolkitConfig {
     provider: {

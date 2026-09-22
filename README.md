@@ -20,7 +20,7 @@
 - **豆包 Seedream 文生图。** 内置 `ark_generate_image` 工具，直接用字节 Seedream 模型生成图片并交付为 Artifact，支持 1K/2K/3K/4K 分辨率、宽高比、反向提示词与模型别名。
 - **字节 TTS 语音合成。** `ark_speak` 工具把文本变成语音（MP3/OGG/PCM/WAV），使用字节豆包语音合成模型 2.0，交付为工作区音频 Artifact（可用"打开文件"或结果里的路径访问）。
 - **原生 TypeScript，开箱即用。** 两个工具都直接调用字节服务的 HTTP 接口，图片尺寸探测使用 Node 原生方案（sharp），安装后即可使用。
-- **默认接入字节火山方舟。** 在 **插件** 面板打开 `dsh-ark-toolkit` 页面，展开 Ark Toolkit 卡片填入你自己的 Ark API Key 即可。
+- **默认接入字节火山方舟。** 在 **设置 → 插件** 里打开 `Volcengine Ark Toolkit` 页面，填入你自己的 Ark API Key 即可。
 
 > **安装即可使用。** 把火山方舟 API Key 保存为 `ARK_API_KEY` 这个 DSH Credential，把火山引擎语音合成 Token 保存为 `VOLCENGINE_TTS_KEY`。
 
@@ -69,10 +69,12 @@ dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 
 > 若默认 registry 为镜像源导致安装失败，可显式指定官方源：`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit --registry=https://registry.npmjs.org/`。
 > 源码贡献者如需本地开发，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`。
+>
+> **版本要求：DSH `0.1.7-alpha.1` 及以上。** 0.1.7 重构了插件配置（插件在 profile 补丁里的那一行 `config` 就是它的设置，按 profile entry id 读写；旧的 `settings.yaml` 与插件设置命名空间已下线），本插件 0.1.2 起跟随该模型；在 0.1.6 及更早的 DSH 上加载会报 `ctx.settings.register is not a function`。
 
 ### 2. 重启并确认
 
-重启正在运行的 Web Profile，打开 **插件** 面板中的 `dsh-ark-toolkit` 页面并展开 Ark Toolkit 卡片。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API 密钥** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后，运行 **测试 API 连接** 确认连接。
+重启正在运行的 Web Profile，在 **设置 → 插件** 里打开 **Volcengine Ark Toolkit** 页面。默认已配置字节火山方舟（Volcengine Ark）端点；在 **API key** 里填入你的 Ark Key（保存为 `ARK_API_KEY` 凭据）后点 **Save and apply**，再运行 **Test API connection** 确认连接。
 
 ### 3. 直接说你要做什么
 
@@ -129,7 +131,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 配置自己的火山方舟 API Key
 
-在 **插件** 面板的 `dsh-ark-toolkit` 页面中展开 Ark Toolkit 卡片，填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`）。Settings 只保存 Credential 引用，不会回显密钥。
+在 **设置 → 插件** 的 **Volcengine Ark Toolkit** 页面里填写你的火山方舟 API Key，插件会保存为 DSH Credential（默认名 `ARK_API_KEY`），Key 无论在页面还是配置里都不会回显。页面读写的配置就是 profile 补丁里 `id: ark-toolkit` 那一行的 `config`（DSH 0.1.7 起没有第二处存储），一次保存是一次带版本栅栏的原子写入，保存后 runtime 会就地重建，无需重启 Profile。
 
 **火山方舟图文教程：** [申请火山方舟 API Key，并用豆包 Seedream 生成图片](docs/ark-doubao.md)。教程包含账号与 Key 获取截图、Ark Toolkit 的准确配置，以及可直接使用的 cURL 示例。
 
@@ -169,7 +171,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 调用时还可以通过参数临时指定音色、格式（`mp3`/`ogg_opus`/`pcm`/`wav`）、采样率、语速、音量、音调、情感（`happy`/`sad`/`neutral`）和语言（`zh-cn`/`en`/`ja`）。完整音色列表见火山引擎官方《在线音色列表》（如 Vivi 2.0、小何 2.0、Tim 等）。
 
-插件配置卡片（**插件** 面板 → `dsh-ark-toolkit`）里还可以调整超时、并发和凭据名。
+**设置 → 插件 → Volcengine Ark Toolkit** 页面还可以调整超时、并发、凭据名与端点（折叠在 **Advanced settings** 里）。
 
 ## 常见问题
 
@@ -178,9 +180,11 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 | 方舟返回 401/403 | 确认 `ARK_API_KEY` 已保存且没有多余空格；在火山引擎控制台 **API Key 管理** 重新创建 |
 | 模型不存在或未开通 | 到火山方舟 **模型广场** 开通对应 Seedream 模型；模型 ID 以控制台为准 |
 | 火山方舟返回 429/限流 | 按错误信息等待后重试；或在火山引擎控制台查看配额并升级额度 |
-| 自定义 Credential 缺失 | 在 **插件** 面板的 `dsh-ark-toolkit` 页面里，于 Ark Toolkit 卡片填写 API Key，并确认 Credential 名称与配置一致 |
+| 自定义 Credential 缺失 | 在 **设置 → 插件 → Volcengine Ark Toolkit** 页面里填写 API Key，并确认 Credential 名称与配置一致 |
 | 产物无法预览 | 使用"打开文件"或结果中的工作区路径；预览 URL 只在 Web 路由可用时存在 |
 | 想生成图片却提示工具不存在 | 重启 Web Profile 并刷新页面，确认已加载 `/ark-skills`；卡片里应显示运行时就绪 |
+| 启动日志报 `ctx.settings.register is not a function` | 插件版本落后于 DSH：升级到 0.1.2 及以上（`dsh plugin --profile web add @nextnowlabs/dsh-ark-toolkit@latest`），它适配 DSH 0.1.7 的 entry 作用域配置模型 |
+| 页面显示"配置不可用"，但工具能用 | 该 Profile 没挂载 settings 服务，或插件不是从 profile 补丁行加载的；Ark 工具本身不依赖它，改配置请直接编辑该行的 `config` |
 
 **接入生成服务会显著增加成本吗？**
 
