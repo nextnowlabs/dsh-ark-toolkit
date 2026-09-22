@@ -2,6 +2,23 @@
 
 All notable user-facing changes to DSH Ark Toolkit are documented in this file. The project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and uses semantic version tags.
 
+## [0.1.1] - 2026-09-22
+
+### Changed
+
+- **跟进 DSH `0.1.6-alpha.2`。** 全部 `@deepseek-ai/dsh-*` peer/dev 依赖升级到 `0.1.6-alpha.2`（`@deepseek-ai/cordis` 仍为 `^4.0.2`，`@deepseek-ai/schemastery` 仍为 `^3.18.1`）。`pnpm-workspace.yaml` 的 `allowBuilds` 更新为 `koffi@3.3.1`（原 `3.2.1`），`minimumReleaseAgeExclude` 按 lockfile 的实际解析结果整体重生成（`dsh-code-runtime` 已更名为 `dsh-ptc-runtime`，新增 `dsh-compaction`、`dsh-lazy-require`、`dsh-sandbox-policy`、`dsh-session-format*` 等）；删除 lockfile 并用全新元数据重新解析，避免 pnpm 的旧 metadata 缓存把自动安装的 peer 解析回 `0.1.5-rc.2` 形成混装。
+- **插件配置卡片迁移到插件页面。** DSH `0.1.6` 下线了 **设置 → 插件 → 插件配置** 标签页与 `settings.plugin.item` 座位，第三方 bundle 的配置改由 **插件** 面板（Plugins）的 `plugins.bundle.config` 槽承载，按 bundle 的**包名**键控并渲染在插件自己的页面上。卡片随之迁移：注册键由 `ark-toolkit` 命名空间改为 `@nextnowlabs/dsh-ark-toolkit`，根元素由 `<li>` 改为块级容器（新座位由页面的 `<section>` 承载，不在 `<ul>` 里），并实现槽位契约的 `page`/`summary` 两种视图；`dsh.client.inject` 与 peerDependencies 中的 `@deepseek-ai/dsh-client-ui-settings` 由 `@deepseek-ai/dsh-client-ui-plugin-manager` 取代。凭据、健康检查、连接与模型测试、插件更新等卡片能力保持不变。
+
+### Fixed
+
+- **CI 的 Profile 验收此前从未真正生效。** 工作流设置的环境变量名是上个版本重命名遗留的 `DSH_VISION_REQUIRE_PROFILE_E2E`，而测试读取的是 `DSH_ARK_REQUIRE_PROFILE_E2E`，因此"必须跑通 Profile 验收"的守卫被静默跳过；现已对齐，并把 CI 安装的 DSH CLI 从 `0.1.2-rc.1` 升到 `0.1.6-alpha.2`。
+
+### Internal
+
+- **适配会话创建改为异步。** DSH `0.1.6` 的 `agents.register()` 改为可 await 的 Cordis effect，`agent/created` 经 serial 派发器异步投递，监听器抛错即否决 Agent 创建。插件的监听器与"从历史恢复激活"逻辑无需改动，但测试必须在 `await ctx.agents.register(agent)` 之后再断言。
+- **Profile 验收的脚本化 LLM 改用 Messages 协议。** DSH `0.1.6` 把 `llm-deepseek` 的默认协议从 `chat-completions` 改为 `messages`，验收 fixture 改为应答 `/v1/messages` 的 Anthropic 风格 SSE（`tool_use`/`text` 内容块），工具名断言改读 Messages 扁平的 `tools[].name`。
+- **Profile 依赖布局断言更新。** DSH `0.1.6` 不再把宿主作用域的包提升到 `profiles/node_modules`，断言改为"profile 自身的 node_modules 中既无裸 `schemastery`、也无 `@deepseek-ai` 目录"，继续守住"插件不夹带宿主包副本"的可移植性契约。
+
 ## [0.1.0] - 2026-09-11
 
 ### BREAKING

@@ -22,7 +22,7 @@ dsh plugin --profile headless add @nextnowlabs/dsh-ark-toolkit
 >
 > 源码贡献者如需本地开发/修改插件，可克隆仓库后用本地路径安装：`dsh plugin --profile web add "$PWD"`（此时使用仓库 `lib/` 构建产物，升级时 `git pull` 后重启 Profile 即可）。
 
-安装后**重启正在运行的 Profile**，在 Web 中打开 **设置 → 插件 → 插件配置**，展开 Ark Toolkit 卡片。
+安装后**重启正在运行的 Profile**，在 Web 中打开 **插件** 面板，进入 `dsh-ark-toolkit` 页面并展开 Ark Toolkit 卡片。
 
 插件是**原生 Node/TypeScript** 实现：文生图与语音合成都直接调用字节服务的 HTTP 接口，生成图片的尺寸探测使用 Node 原生方案（sharp），安装后即可使用。
 
@@ -52,7 +52,7 @@ API Key: 你自己的火山方舟 Key，保存为 DSH Credential `ARK_API_KEY`
 
 ### 2.2 填写 API Key
 
-在 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
+在 **插件** 面板 `dsh-ark-toolkit` 页面的 Ark Toolkit 卡片 **API 密钥** 里粘贴火山方舟 API Key，点击保存。插件把它保存为 DSH Credential（默认名 `ARK_API_KEY`），Settings 只保存 Credential 引用，不会回显密钥。
 
 保存后运行 **测试 API 连接**，确认方舟端点可达。
 
@@ -123,7 +123,7 @@ TTS 使用**独立的 Token**（App Token），与火山方舟 API Key 不同：
 
 ## 5. 验证配置
 
-- **Web：** 打开 **设置 → 插件 → 插件配置** 的 Ark Toolkit 卡片，运行 **检查本地环境**（凭据与输出目录）或 **测试 API 连接**（请求方舟 `/models`）；
+- **Web：** 打开 **插件** 面板 `dsh-ark-toolkit` 页面的 Ark Toolkit 卡片，运行 **检查本地环境**（凭据与输出目录）或 **测试 API 连接**（请求方舟 `/models`）；
 - **命令行：** 检查 Profile 的健康检查结果，确认 Credential 已配置、Artifact 目录可写、服务检查为 `ok`；
 - **直接调用：** 在会话里调用 `ark_generate_image` / `ark_speak` 验证生成能力。
 

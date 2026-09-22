@@ -19,7 +19,7 @@ DSH Ark Toolkit 的在线能力全部走字节火山方舟（Volcengine Ark）�
 
 ## 2. 在 Ark Toolkit 中配置
 
-打开 **设置 → 插件 → 插件配置** 并展开 Ark Toolkit 卡片，默认值已经指向火山方舟：
+打开 **插件** 面板中的 `dsh-ark-toolkit` 页面并展开 Ark Toolkit 卡片，默认值已经指向火山方舟：
 
 | 字段 | 值 |
 | --- | --- |

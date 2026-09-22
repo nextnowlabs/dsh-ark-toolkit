@@ -129,7 +129,9 @@ async function registerAgent(ctx: Context, name: string, session?: Session): Pro
     scope = createScope(inner, agent)
     Object.assign(agent, { ctx: scope.ctx })
   }, { inject: ['tools', 'systemPrompt'] }))
-  const unregister = ctx.agents.register(agent)
+  // DSH 0.1.6 announces `agent/created` through a serial dispatcher, so the
+  // registry handle must be awaited before the Agent is observable.
+  const unregister = await ctx.agents.register(agent)
   agentCleanups.push(async () => {
     unregister()
     await scope.dispose()

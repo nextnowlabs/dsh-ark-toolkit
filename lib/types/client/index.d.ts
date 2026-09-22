@@ -1,7 +1,7 @@
 /**
- * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the
- * plugin-configuration card (设置 → 插件 → 插件配置) with health checks,
- * connection tests, and safe Artifact previews.
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the bundle
+ * configuration card on the bundle's page in the Plugins panel, with health
+ * checks, connection tests, and safe Artifact previews.
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-ui-chat/client';
@@ -156,19 +156,23 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
             owner: ToolCallOwnerProps;
         };
         /**
-         * One plugin-configuration card inside 设置 → 插件 → 插件配置, keyed by the
-         * settings namespace the card edits. The Host serves the namespace and the
-         * tab dispatches cards only for served namespaces.
+         * This bundle's own configuration, keyed by its package name and rendered
+         * on the bundle's page in the Plugins panel. DSH `0.1.6` replaced the
+         * former `settings.plugin.item` seat (a card in the retired
+         * 设置 → 插件 → 插件配置 tab) with the plugin-manager page's bundle slot,
+         * so the card moved here; the page draws the title, icon, and crumb itself
+         * and asks for `page` (the form) or `summary` (its one-liner).
          */
-        'settings.plugin.item': {
+        'plugins.bundle.config': {
             kind: 'keyed';
             scope: 'root';
-            owner: SettingsPluginItemOwnerProps;
+            owner: PluginConfigViewProps;
         };
     }
-    /** Owner share of a plugin card; the section supplies nothing. */
-    interface SettingsPluginItemOwnerProps {
-        children?: never;
+    /** Owner share of one configuration view; the page supplies the requested view. */
+    interface PluginConfigViewProps {
+        /** `summary` renders the one-liner alone; `page` renders the form. */
+        readonly view: 'summary' | 'page';
     }
     interface LocaleNamespaceMap {
         /** DSH Ark Toolkit Tool cards and Settings copy. */

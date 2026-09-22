@@ -149,8 +149,10 @@ describe('Ark Toolkit client plugin', () => {
       'ark_generate_image',
       'ark_speak',
     ])
-    expect(registrations.find(entry => entry.options.name === 'settings.plugin.item')?.options).toMatchObject({
-      key: 'ark-toolkit',
+    // Keyed by the bundle's package name: the Plugins page dispatches
+    // `plugins.bundle.config` with `entryKey = pkg.name`.
+    expect(registrations.find(entry => entry.options.name === 'plugins.bundle.config')?.options).toMatchObject({
+      key: '@nextnowlabs/dsh-ark-toolkit',
     })
   })
 
@@ -268,7 +270,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     const view = render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -288,7 +290,9 @@ describe('Ark Toolkit client plugin', () => {
     expect(root?.lastElementChild).toBe(footer)
     expect(advanced).not.toBeNull()
     expect(advanced?.contains(screen.getByLabelText('credential'))).toBe(true)
-    expect(view.container.querySelector('.dvt-plugin-card')?.tagName).toBe('LI')
+    // The bundle-config card renders inside the plugin page's <section>, not a
+    // <ul>, so its root is a plain block element.
+    expect(view.container.querySelector('.dvt-plugin-card')?.tagName).toBe('DIV')
     expect(view.container.querySelector('.dvt-card-head')).not.toBeNull()
   })
 
@@ -299,7 +303,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     const view = render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -319,6 +323,29 @@ describe('Ark Toolkit client plugin', () => {
     expect(body?.hasAttribute('hidden')).toBe(false)
     await screen.findByLabelText('apiKey')
     expect(screen.getByRole('button', { name: 'collapse: settingsTitle' })).toBeTruthy()
+  })
+
+  it('answers the bundle slot summary view with the credential one-liner', async () => {
+    const initial = settingsSnapshot()
+    initial.credential = { ref: 'ARK_API_KEY', configured: true, source: 'file', writable: false }
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: initial })))
+
+    const { ctx, registrations } = fakeClientContext()
+    apply(ctx as never)
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
+    if (settings === undefined) throw new Error('Settings card was not registered')
+    const controller = new ArkSettingsController()
+    await controller.load()
+    const view = render(createElement(settings.component, {
+      controller,
+      t: (key: string) => key,
+      view: 'summary',
+    }))
+
+    // The Plugins page dispatches only `page` for a bundle config; the summary
+    // half of the contract answers with its one-liner and no card chrome.
+    expect(view.container.textContent).toBe('configured')
+    expect(view.container.querySelector('.dvt-plugin-card')).toBeNull()
   })
 
   it('checks for a plugin release and requires confirmation before update and restart', async () => {
@@ -347,7 +374,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -376,7 +403,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -423,7 +450,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -457,7 +484,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -490,7 +517,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -522,7 +549,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -560,7 +587,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -589,7 +616,7 @@ describe('Ark Toolkit client plugin', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({ ok: true, value: settingsSnapshot() })))
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),
@@ -624,7 +651,7 @@ describe('Ark Toolkit client plugin', () => {
 
     const { ctx, registrations } = fakeClientContext()
     apply(ctx as never)
-    const settings = registrations.find(entry => entry.options.name === 'settings.plugin.item')
+    const settings = registrations.find(entry => entry.options.name === 'plugins.bundle.config')
     if (settings === undefined) throw new Error('Settings card was not registered')
     render(createElement(settings.component, {
       controller: new ArkSettingsController(),

@@ -14,11 +14,14 @@ const repoRoot = pluginDir
 const SAMPLE_IMAGE = 'tests/fixtures/sample.png'
 const ARK_TOOLKIT_ACTIVATE = 'ark_toolkit_activate'
 /**
- * DSH releases ship both a CLI version and package versions; their `.d.ts`
- * surfaces are byte-identical within the `0.1.5-rc` line, so the acceptance
- * run accepts either candidate rather than pinning one exact prerelease.
+ * DSH releases ship both a CLI version and package versions. The acceptance
+ * run pins the exact prerelease the plugin targets: `0.1.6-alpha.1` and
+ * `0.1.6-alpha.2` are NOT interchangeable (`dsh-client-ui-slots`,
+ * `dsh-subprocess`, and the session projection surface all moved inside the
+ * line), so accepting a sibling build would let a stale CLI silently skip the
+ * real Profile path.
  */
-const COMPATIBLE_DSH_VERSIONS = ['0.1.5-rc.1', '0.1.5-rc.2'] as const
+const COMPATIBLE_DSH_VERSIONS = ['0.1.6-alpha.2'] as const
 const REQUIRED_DSH_VERSION = COMPATIBLE_DSH_VERSIONS.join(' or ')
 const ARK_TOOL_NAMES = [
   'ark_generate_image',
@@ -130,11 +133,18 @@ async function startMockArkServer() {
   }
 }
 
+/**
+ * Scripted stand-in for the DeepSeek **Messages** endpoint. DSH `0.1.6` made
+ * `messages` the default `llm-deepseek` protocol, so the fixture answers
+ * `/v1/messages` with Anthropic-style SSE blocks (`tool_use` for scripted tool
+ * calls, `text` for a final answer) instead of OpenAI chat completions.
+ */
 async function startScriptedLlmServer(steps: readonly ScriptedLlmStep[]) {
   const requests: ScriptedLlmRequest[] = []
   let stepIndex = 0
   const server = createServer((request, response) => {
-    if (request.method !== 'POST' || !request.url?.endsWith('/chat/completions')) {
+    const path = request.url ?? ''
+    if (request.method !== 'POST' || !path.startsWith('/v1/messages')) {
       response.writeHead(404, { 'content-type': 'application/json' })
       response.end('{"error":"not found"}')
       return
@@ -154,7 +164,7 @@ async function startScriptedLlmServer(steps: readonly ScriptedLlmStep[]) {
       const step = steps[stepIndex++]
       if (step === undefined) {
         response.writeHead(500, { 'content-type': 'application/json' })
-        response.end('{"error":{"message":"script exhausted","code":"SCRIPT_EXHAUSTED"}}')
+        response.end('{"error":{"message":"script exhausted","type":"api_error"}}')
         return
       }
       response.writeHead(200, {
@@ -163,35 +173,65 @@ async function startScriptedLlmServer(steps: readonly ScriptedLlmStep[]) {
         'connection': 'keep-alive',
       })
       const write = (payload: unknown): void => {
-        response.write(`data: ${typeof payload === 'string' ? payload : JSON.stringify(payload)}\n\n`)
+        response.write(`event: ${(payload as { type: string }).type}\ndata: ${JSON.stringify(payload)}\n\n`)
       }
+      const model = typeof (body as { model?: unknown }).model === 'string'
+        ? (body as { model: string }).model
+        : 'fixture-model'
+      write({
+        type: 'message_start',
+        message: {
+          id: `msg_scripted_${stepIndex}`,
+          type: 'message',
+          role: 'assistant',
+          model,
+          content: [],
+          stop_reason: null,
+          stop_sequence: null,
+          usage: { input_tokens: 3, output_tokens: 0 },
+        },
+      })
       if (step.kind === 'tool') {
         write({
-          choices: [{
-            index: 0,
-            delta: {
-              tool_calls: [{
-                index: 0,
-                id: `scripted-call-${stepIndex}`,
-                type: 'function',
-                function: { name: step.name, arguments: step.arguments },
-              }],
-            },
-            finish_reason: null,
-          }],
+          type: 'content_block_start',
+          index: 0,
+          content_block: {
+            type: 'tool_use',
+            id: `scripted-call-${stepIndex}`,
+            name: step.name,
+            input: {},
+          },
         })
         write({
-          choices: [{ index: 0, delta: { content: '' }, finish_reason: 'tool_calls' }],
-          usage: { prompt_tokens: 3, completion_tokens: 2 },
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'input_json_delta', partial_json: step.arguments },
+        })
+        write({ type: 'content_block_stop', index: 0 })
+        write({
+          type: 'message_delta',
+          delta: { stop_reason: 'tool_use', stop_sequence: null },
+          usage: { output_tokens: 2 },
         })
       } else {
-        write({ choices: [{ index: 0, delta: { content: step.text }, finish_reason: null }] })
         write({
-          choices: [{ index: 0, delta: { content: '' }, finish_reason: 'stop' }],
-          usage: { prompt_tokens: 3, completion_tokens: Array.from(step.text).length },
+          type: 'content_block_start',
+          index: 0,
+          content_block: { type: 'text', text: '' },
+        })
+        write({
+          type: 'content_block_delta',
+          index: 0,
+          delta: { type: 'text_delta', text: step.text },
+        })
+        write({ type: 'content_block_stop', index: 0 })
+        write({
+          type: 'message_delta',
+          delta: { stop_reason: 'end_turn', stop_sequence: null },
+          usage: { output_tokens: Array.from(step.text).length },
         })
       }
-      write('[DONE]')
+      write({ type: 'message_stop' })
       response.end()
     })
   })
@@ -226,11 +266,13 @@ async function startProgressiveToolServer(
 }
 
 function requestToolNames(request: ScriptedLlmRequest | undefined): string[] {
+  // Messages serializes tools flat (`{name, description, input_schema}`),
+  // unlike the chat-completions `{function: {name}}` envelope.
   const body = request?.body as {
-    tools?: Array<{ function?: { name?: unknown } }>
+    tools?: Array<{ name?: unknown }>
   } | undefined
   return body?.tools
-    ?.map(tool => tool.function?.name)
+    ?.map(tool => tool.name)
     .filter((name): name is string => typeof name === 'string') ?? []
 }
 
@@ -336,8 +378,14 @@ describe.skipIf(!profileE2eAvailable)('dsh-ark-toolkit profile install (keyless 
         }, workspace)
         expect(run.code, run.stderr).toBe(0)
         expect(run.stdout).toBe('generation done')
-        expect(existsSync(join(home, 'profiles', 'headless', 'node_modules', 'schemastery'))).toBe(false)
-        expect(existsSync(join(home, 'profiles', 'node_modules', '@deepseek-ai', 'schemastery'))).toBe(true)
+        // Portability contract for the bundle install: the plugin must resolve
+        // schemastery from the host instead of dragging in a profile-local copy.
+        // DSH 0.1.6 stopped hoisting host-scoped packages into `profiles/`, so
+        // neither name may appear in the profile's own node_modules — a bare
+        // `schemastery` here would break Windows bundle installs.
+        const profileModules = join(home, 'profiles', 'headless', 'node_modules')
+        expect(existsSync(join(profileModules, 'schemastery'))).toBe(false)
+        expect(existsSync(join(profileModules, '@deepseek-ai'))).toBe(false)
         expectProgressiveExposure(server.requests)
         const bodies = JSON.stringify(server.requests.map(request => request.body))
         expect(bodies).toContain('ark_generate_image')

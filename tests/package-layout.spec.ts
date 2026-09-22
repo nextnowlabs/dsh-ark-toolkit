@@ -49,9 +49,14 @@ describe('package layout contract', () => {
     expect(PACKAGE.dsh?.client?.inject).toEqual(expect.arrayContaining([
       '@deepseek-ai/dsh-api-remotes',
       '@deepseek-ai/dsh-client-ui-tool',
-      '@deepseek-ai/dsh-client-ui-settings',
+      // DSH 0.1.6 moved plugin configuration from the retired
+      // `settings.plugin.item` seat to the Plugins page's
+      // `plugins.bundle.config`, whose owner is the plugin-manager package.
+      '@deepseek-ai/dsh-client-ui-plugin-manager',
       '@deepseek-ai/dsh-client-locale',
     ]))
+    // The old settings-tab seat is gone; the client no longer binds it.
+    expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-settings')
     // Image-understanding leftovers must not creep back into the bundle.
     expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-ui-input-trigger')
     expect(PACKAGE.dsh?.client?.inject).not.toContain('@deepseek-ai/dsh-client-runtime')
@@ -84,7 +89,7 @@ describe('package layout contract', () => {
 
   it('pins the dependency install scripts allowed in standalone CI', async () => {
     const workspace = await readFile(join(ROOT, 'pnpm-workspace.yaml'), 'utf8')
-    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.5-rc.2': true")
+    expect(workspace).toContain("'@deepseek-ai/dsh-subprocess-local@0.1.6-alpha.2': true")
     expect(workspace).toContain("'node-pty@1.2.0-beta.15': true")
     expect(workspace).not.toMatch(/^\s{2}(?:'@deepseek-ai\/dsh-subprocess-local'|node-pty):/mu)
   })
@@ -105,7 +110,7 @@ describe('package layout contract', () => {
   it('targets the published DSH prerelease line without retired package names', () => {
     const peers = PACKAGE.peerDependencies ?? {}
     for (const [name, spec] of Object.entries(peers)) {
-      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.5-rc.2')
+      if (name.startsWith('@deepseek-ai/dsh-')) expect(spec, name).toBe('^0.1.6-alpha.2')
     }
     // Image understanding is gone: no attachment/input-trigger/vision packages.
     expect(peers).not.toHaveProperty('@deepseek-ai/dsh-attachment')

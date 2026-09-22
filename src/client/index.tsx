@@ -1,7 +1,7 @@
 /**
- * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the
- * plugin-configuration card (设置 → 插件 → 插件配置) with health checks,
- * connection tests, and safe Artifact previews.
+ * DSH Ark Toolkit browser plugin: dedicated Tool cards plus the bundle
+ * configuration card on the bundle's page in the Plugins panel, with health
+ * checks, connection tests, and safe Artifact previews.
  */
 
 import {
@@ -18,11 +18,12 @@ import type {} from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-credentials/types'
 import type {} from '@deepseek-ai/dsh-settings/types'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 
 const NS = 'ark-toolkit'
+/** This bundle's package name; the key the Plugins page dispatches for its config slot. */
+const ARK_TOOLKIT_PACKAGE = '@nextnowlabs/dsh-ark-toolkit'
 const SETTINGS_ROUTE = '/_dsh/ark-toolkit/settings'
 const PRESENTATION_META_KEY = '$dshArkToolkit'
 const DEFAULT_USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36'
@@ -322,16 +323,20 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
     /** Keyed atomic Tool call view, dispatched by wire Tool name. */
     'tool.call.toolview': { kind: 'keyed'; scope: 'session'; owner: ToolCallOwnerProps }
     /**
-     * One plugin-configuration card inside 设置 → 插件 → 插件配置, keyed by the
-     * settings namespace the card edits. The Host serves the namespace and the
-     * tab dispatches cards only for served namespaces.
+     * This bundle's own configuration, keyed by its package name and rendered
+     * on the bundle's page in the Plugins panel. DSH `0.1.6` replaced the
+     * former `settings.plugin.item` seat (a card in the retired
+     * 设置 → 插件 → 插件配置 tab) with the plugin-manager page's bundle slot,
+     * so the card moved here; the page draws the title, icon, and crumb itself
+     * and asks for `page` (the form) or `summary` (its one-liner).
      */
-    'settings.plugin.item': { kind: 'keyed'; scope: 'root'; owner: SettingsPluginItemOwnerProps }
+    'plugins.bundle.config': { kind: 'keyed'; scope: 'root'; owner: PluginConfigViewProps }
   }
 
-  /** Owner share of a plugin card; the section supplies nothing. */
-  interface SettingsPluginItemOwnerProps {
-    children?: never
+  /** Owner share of one configuration view; the page supplies the requested view. */
+  interface PluginConfigViewProps {
+    /** `summary` renders the one-liner alone; `page` renders the form. */
+    readonly view: 'summary' | 'page'
   }
 
   interface LocaleNamespaceMap {
@@ -910,19 +915,23 @@ interface SettingsInjected {
   t: Translate
 }
 
-type SettingsCardProps = SettingsInjected
+type SettingsCardProps = SettingsInjected & {
+  /** Which view the Plugins page asks for; the bundle slot always asks for `page`. */
+  view?: 'summary' | 'page' | undefined
+}
 
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string | undefined }) {
   return <label className="dvt-field"><span>{label}</span>{children}{hint === undefined ? null : <small>{hint}</small>}</label>
 }
 
 /**
- * One plugin-configuration card in 设置 → 插件 → 插件配置, registered under the
- * 'ark-toolkit' settings namespace. The card is collapsed by default; the
- * header reports the credential state, and the body keeps the staged form,
- * health checks, and update controls.
+ * This bundle's configuration on its page in the Plugins panel, registered
+ * under the bundle's package name. The card keeps its own collapsible head
+ * because that head carries the credential-state pill and the collapse
+ * control; the page draws the plugin title, icon, and crumb above it. The body
+ * keeps the staged form, health checks, and update controls.
  */
-function SettingsCard({ controller, t }: SettingsCardProps) {
+function SettingsCard({ controller, t, view = 'page' }: SettingsCardProps) {
   const [open, setOpen] = useState(false)
   const state = useSyncExternalStore(controller.subscribe, controller.snapshot, controller.snapshot)
   const snapshot = state.snapshot
@@ -933,8 +942,11 @@ function SettingsCard({ controller, t }: SettingsCardProps) {
       : snapshot.credential.configured
         ? { label: t('configured'), tone: 'ok' }
         : { label: t('missing'), tone: 'error' }
+  // The bundle slot only ever dispatches `page`; the one-liner stays available
+  // so the same registration satisfies both halves of the slot contract.
+  if (view === 'summary') return status === undefined ? null : <>{status.label}</>
   return (
-    <li className="dvt-plugin-card" data-open={open || undefined}>
+    <div className="dvt-plugin-card" data-open={open || undefined}>
       <button
         type="button"
         className="dvt-card-head"
@@ -954,7 +966,7 @@ function SettingsCard({ controller, t }: SettingsCardProps) {
       <div className="dvt-card-body" hidden={!open}>
         <LoadedSettings controller={controller} t={t} />
       </div>
-    </li>
+    </div>
   )
 }
 
@@ -1229,11 +1241,11 @@ const CSS = `
 `
 
 function installStyles(): () => void {
-  const id = '@nextnowlabs/dsh-ark-toolkit/client'
+  const id = `${ARK_TOOLKIT_PACKAGE}/client`
   const existing = document.querySelector<HTMLStyleElement>(`style[data-plugin-css="${id}"]`)
   if (existing !== null) return () => {}
   const style = document.createElement('style')
-  style.dataset.plugin = '@nextnowlabs/dsh-ark-toolkit'
+  style.dataset.plugin = ARK_TOOLKIT_PACKAGE
   style.dataset.pluginCss = id
   style.textContent = CSS
   document.head.appendChild(style)
@@ -1277,12 +1289,12 @@ export function apply(ctx: ClientContext): void {
     ]
     return () => { for (const dispose of disposers) dispose() }
   }, 'dsh-ark-toolkit: Settings invalidations')
-  // 设置 → 插件 → 插件配置: one keyed card per settings namespace. The Host
-  // serves 'ark-toolkit' through settingsScope, so the tab dispatches this card
-  // only when the namespace is actually served.
-  ctx.slots.inject('settings.plugin.item', () => ctx.slots.register({
-    name: 'settings.plugin.item',
-    key: NS,
+  // The Plugins panel renders one bundle page per installed bundle and
+  // dispatches `plugins.bundle.config` with `entryKey = <package name>`, so the
+  // card is keyed by this bundle's package name (not the settings namespace).
+  ctx.slots.inject('plugins.bundle.config', () => ctx.slots.register({
+    name: 'plugins.bundle.config',
+    key: ARK_TOOLKIT_PACKAGE,
     inject: () => ({ controller, t }),
   }, SettingsCard))
 }
